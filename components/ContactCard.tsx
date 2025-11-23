@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Contact } from '../types';
 import { Phone, Pencil, MapPin, Wand2, CalendarClock, UserCircle } from 'lucide-react';
 
@@ -9,13 +9,12 @@ interface ContactCardProps {
 }
 
 export const ContactCard: React.FC<ContactCardProps> = ({ contact, onEditClick, onGenerateClick }) => {
-  const getSegmentStyle = (segment: string) => {
-    switch (segment) {
-      case 'Platinum': return 'bg-purple-500/20 text-purple-200 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]';
-      case 'Gold': return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]';
-      case 'Silver': return 'bg-slate-400/20 text-slate-200 border-slate-400/30';
-      default: return 'bg-cyan-500/20 text-cyan-200 border-cyan-500/30';
-    }
+  const getFlagStyle = (flag: string) => {
+    const f = flag.toLowerCase();
+    if (f.includes('platinum')) return 'bg-purple-500/20 text-purple-200 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]';
+    if (f.includes('gold')) return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]';
+    if (f.includes('silver')) return 'bg-slate-400/20 text-slate-200 border-slate-400/30';
+    return 'bg-cyan-500/20 text-cyan-200 border-cyan-500/30';
   };
 
   return (
@@ -35,12 +34,12 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onEditClick, 
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-bold text-white text-lg tracking-tight group-hover:text-cyan-300 transition-colors">{contact.name}</h3>
-              <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur-sm ${getSegmentStyle(contact.segment)}`}>
-                {contact.segment}
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur-sm ${getFlagStyle(contact.flag)}`}>
+                {contact.flag}
               </span>
-              {contact.statusAsli && (
+              {contact.status && (
                    <span className="px-2 py-0.5 rounded text-[10px] border border-white/10 bg-white/5 text-white/60">
-                       {contact.statusAsli}
+                       {contact.status}
                    </span>
               )}
             </div>

@@ -2,7 +2,7 @@ export interface Contact {
   id: string;
   name: string;       // Map from 'NASABAH'
   phone: string;      // Map from 'NOMER TELP'
-  segment: 'Gold' | 'Silver' | 'Platinum' | 'Prospect'; // Internal app logic or mapped from FLAG/STATUS
+  flag: string;       // Renamed from 'segment'. Map from 'FLAG'
   sentra?: string;    // Map from 'SENTRA'
   lastInteraction?: string;
   notes?: string;
@@ -11,9 +11,8 @@ export interface Contact {
   co?: string;             // Map from 'CO'
   plafon?: string;         // Map from 'PLAFON'
   produk?: string;         // Map from 'PRODUK'
-  flag?: string;           // Map from 'FLAG'
   tglJatuhTempo?: string;  // Map from 'TGL JATUH TEMPO'
-  statusAsli?: string;     // Map from 'STATUS' (to keep original status text like 'Lancar', 'Macet')
+  status?: string;         // Renamed from 'statusAsli'. Map from 'STATUS'
 }
 
 export interface MessageTemplate {

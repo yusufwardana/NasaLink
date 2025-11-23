@@ -76,7 +76,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     const idxName = findColIndex(headers, ['nasabah', 'nama', 'name', 'client']);
     const idxPhone = findColIndex(headers, ['no telp', 'no. telp', 'telp', 'hp', 'phone', 'wa', 'mobile']);
     
-    // Separate Flag (Segment) and Status (Lancar/Macet)
+    // Updated: FLAG maps to contact.flag, STATUS maps to contact.status
     const idxFlag = findColIndex(headers, ['flag', 'segmen', 'kategori', 'class']); 
     const idxStatus = findColIndex(headers, ['status', 'kondisi', 'kol', 'kolek']);
     
@@ -103,31 +103,30 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         // Skip if phone is too short
         if (phone.length < 6) return null;
 
-        // Determine segment from FLAG or fallback to searching the row
-        let segment: Contact['segment'] = 'Prospect';
-        const flagVal = getVal(idxFlag);
-        const rawSegInfo = (flagVal + ' ' + (idxFlag === -1 ? row.join(' ') : '')).toLowerCase();
+        // Determine flag from FLAG column or fallback to searching the row for keywords
+        let flag = getVal(idxFlag);
         
-        if (rawSegInfo.includes('gold')) segment = 'Gold';
-        else if (rawSegInfo.includes('platinum')) segment = 'Platinum';
-        else if (rawSegInfo.includes('silver')) segment = 'Silver';
-        
-        // Store the original flag text if available
-        const originalFlag = flagVal || segment;
+        // Fallback intelligence if flag column is empty or missing
+        if (!flag) {
+             const rowString = row.join(' ').toLowerCase();
+             if (rowString.includes('gold')) flag = 'Gold';
+             else if (rowString.includes('platinum')) flag = 'Platinum';
+             else if (rowString.includes('silver')) flag = 'Silver';
+             else flag = 'Prospect';
+        }
 
         return {
             id: `sheet-${index}-${Date.now()}`,
             name: name || 'Tanpa Nama',
             phone: phone,
-            segment: segment,
+            flag: flag,
             sentra: getVal(idxSentra) || 'Pusat',
             
             co: getVal(idxCo),
             plafon: getVal(idxPlafon),
             produk: getVal(idxProduk),
-            flag: originalFlag,
             tglJatuhTempo: getVal(idxJatuhTempo),
-            statusAsli: getVal(idxStatus), 
+            status: getVal(idxStatus), 
             
             notes: getVal(idxNotes),
             lastInteraction: ''

@@ -14,7 +14,7 @@ export const generateWhatsAppMessage = async (
     // Build rich context from contact details
     let details = `
       Nama Nasabah: ${contact.name}
-      Status/Segmen: ${contact.segment}
+      Flag/Segmen: ${contact.flag}
       Sentra: ${contact.sentra || '-'}
       CO (Petugas): ${contact.co || 'Admin'}
     `;
@@ -22,8 +22,7 @@ export const generateWhatsAppMessage = async (
     if (contact.produk) details += `\n      Produk: ${contact.produk}`;
     if (contact.plafon) details += `\n      Plafon: ${contact.plafon}`;
     if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
-    if (contact.statusAsli) details += `\n      Status Rekening: ${contact.statusAsli}`;
-    if (contact.flag) details += `\n      Flag: ${contact.flag}`;
+    if (contact.status) details += `\n      Status Rekening: ${contact.status}`;
 
     const prompt = `
       Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional namun kekeluargaan.
@@ -62,7 +61,7 @@ export const extractContactsFromText = async (rawText: string): Promise<string> 
   try {
     const prompt = `
       Ekstrak data kontak dari teks mentah berikut ini dan ubah menjadi format JSON Array.
-      Setiap objek harus memiliki properti: "name", "phone" (format +62), "segment", "sentra", "plafon".
+      Setiap objek harus memiliki properti: "name", "phone" (format +62), "flag" (Gold/Silver/Platinum/Prospect), "sentra", "plafon".
       
       Teks Mentah:
       ${rawText}

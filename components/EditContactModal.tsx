@@ -159,10 +159,10 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
           
           <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Segmen</label>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Flag (Segmen)</label>
                 <select
-                  name="segment"
-                  value={formData.segment || 'Prospect'}
+                  name="flag"
+                  value={formData.flag || 'Prospect'}
                   onChange={handleChange}
                   className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none appearance-none"
                 >
@@ -226,8 +226,8 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                 <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Status</label>
                 <input
                   type="text"
-                  name="statusAsli"
-                  value={formData.statusAsli || ''}
+                  name="status"
+                  value={formData.status || ''}
                   onChange={handleChange}
                   placeholder="Lancar/Macet"
                   className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"

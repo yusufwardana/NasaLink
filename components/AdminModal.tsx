@@ -173,7 +173,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       let text = editForm.content;
       text = text.replace(/{name}/g, "Ibu Ratna");
       text = text.replace(/{sentra}/g, "Mawar Indah");
-      text = text.replace(/{segment}/g, "Gold");
+      text = text.replace(/{flag}/g, "Gold");
       return (
           <div className="mt-4 p-3 bg-green-900/10 border border-green-500/20 rounded-xl">
               <div className="flex items-center gap-2 mb-2 text-green-400 text-xs font-bold uppercase tracking-wider">
@@ -376,7 +376,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                 {[
                                                     { label: '+ Nama Ibu', code: '{name}' },
                                                     { label: '+ Nama Sentra', code: '{sentra}' },
-                                                    { label: '+ Segmen', code: '{segment}' },
+                                                    { label: '+ Flag', code: '{flag}' },
                                                     { label: '+ No HP', code: '{phone}' },
                                                     { label: '+ Petugas', code: '{co}' },
                                                     { label: '+ Jatuh Tempo', code: '{tgl_jatuh_tempo}' },
@@ -488,7 +488,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <p className="font-bold mb-2 flex items-center gap-2"><Info className="w-3 h-3"/> Panduan Integrasi:</p>
                                 <ol className="list-decimal pl-4 space-y-1 opacity-80">
                                     <li>Buka Google Sheet data nasabah Anda.</li>
-                                    <li>Pastikan kolom baris pertama: <code>Nama, Phone, Segment, Sentra, Notes</code>.</li>
+                                    <li>Pastikan kolom baris pertama: <code>Nama, Phone, Flag, Sentra, Notes</code>.</li>
                                     <li>Klik File &gt; Share &gt; Publish to web.</li>
                                     <li>Pilih "Entire Document" &gt; "Comma-separated values (.csv)".</li>
                                     <li>Salin ID dari URL browser (bukan link publish).</li>

@@ -58,7 +58,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         name: item.name || 'Tanpa Nama',
         phone: item.phone || '-',
-        segment: item.segment || 'Prospect',
+        flag: item.flag || item.segment || 'Prospect', // Migration handle
         notes: item.notes || '',
         lastInteraction: new Date().toLocaleDateString('id-ID')
       }));
@@ -75,9 +75,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
 
   const loadDemoData = () => {
       const demo = [
-          { name: "Budi Santoso", phone: "081234567890", segment: "Gold", notes: "Minat asuransi jiwa" },
-          { name: "Siti Aminah", phone: "081987654321", segment: "Platinum", notes: "Policy renewal next month" },
-          { name: "Andi Pratama", phone: "085678901234", segment: "Prospect", notes: "Baru tanya-tanya kesehatan" }
+          { name: "Budi Santoso", phone: "081234567890", flag: "Gold", notes: "Minat asuransi jiwa" },
+          { name: "Siti Aminah", phone: "081987654321", flag: "Platinum", notes: "Policy renewal next month" },
+          { name: "Andi Pratama", phone: "085678901234", flag: "Prospect", notes: "Baru tanya-tanya kesehatan" }
       ];
       setJsonText(JSON.stringify(demo, null, 2));
   }

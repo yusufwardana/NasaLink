@@ -17,7 +17,7 @@ interface NasaLinkDB extends DBSchema {
 }
 
 const DB_NAME = 'nasalink-db';
-const DB_VERSION = 4; // Bumped to 4 to fix Settings store schema issue
+const DB_VERSION = 5; // Bumped to 5 for field renames (segment->flag, statusAsli->status)
 
 let dbPromise: Promise<IDBPDatabase<NasaLinkDB>> | null = null;
 

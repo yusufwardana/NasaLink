@@ -16,9 +16,9 @@ import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Dat
 
 // Initial dummy data (Fallback if DB is empty)
 const INITIAL_DATA_FALLBACK: Contact[] = [
-  { id: '1', name: 'Ibu Siti Aminah', phone: '081299998888', segment: 'Platinum', sentra: 'Mawar Indah', lastInteraction: '12 Okt 2023', notes: 'Ketua Sentra', tglJatuhTempo: '25' },
-  { id: '2', name: 'Ibu Ratna', phone: '081377776666', segment: 'Gold', sentra: 'Melati Putih', lastInteraction: '20 Okt 2023', notes: 'Rajin hadir PRS', tglJatuhTempo: '5' },
-  { id: '3', name: 'Ibu Yanti', phone: '085655554444', segment: 'Prospect', sentra: 'Anggrek', lastInteraction: 'Kemarin', notes: 'Baru tanya pembiayaan' },
+  { id: '1', name: 'Ibu Siti Aminah', phone: '081299998888', flag: 'Platinum', sentra: 'Mawar Indah', lastInteraction: '12 Okt 2023', notes: 'Ketua Sentra', tglJatuhTempo: '25' },
+  { id: '2', name: 'Ibu Ratna', phone: '081377776666', flag: 'Gold', sentra: 'Melati Putih', lastInteraction: '20 Okt 2023', notes: 'Rajin hadir PRS', tglJatuhTempo: '5' },
+  { id: '3', name: 'Ibu Yanti', phone: '085655554444', flag: 'Prospect', sentra: 'Anggrek', lastInteraction: 'Kemarin', notes: 'Baru tanya pembiayaan' },
 ];
 
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -58,12 +58,19 @@ const App: React.FC = () => {
                 getAllTemplates()
             ]);
 
+            // Simple Migration Logic for old 'segment' field
+            const migratedContacts = dbContacts.map((c: any) => ({
+                ...c,
+                flag: c.flag || c.segment || 'Prospect',
+                status: c.status || c.statusAsli || ''
+            }));
+
             // If empty, initialize with fallbacks and save to DB
-            if (dbContacts.length === 0) {
+            if (migratedContacts.length === 0) {
                 await saveBulkContacts(INITIAL_DATA_FALLBACK);
                 setContacts(INITIAL_DATA_FALLBACK);
             } else {
-                setContacts(dbContacts);
+                setContacts(migratedContacts);
             }
 
             if (dbTemplates.length === 0) {
@@ -206,7 +213,7 @@ const App: React.FC = () => {
             id: 'test',
             name: 'Ibu Siti (Contoh)',
             phone: '08123456789',
-            segment: 'Gold',
+            flag: 'Gold',
             sentra: 'Pusat'
           };
       }
@@ -286,7 +293,7 @@ const App: React.FC = () => {
     const matchesSearch = 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.phone.includes(searchTerm) ||
-        c.segment.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.flag && c.flag.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (c.sentra && c.sentra.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesSentra = selectedSentra ? c.sentra === selectedSentra : true;
@@ -365,7 +372,7 @@ const App: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5 group-focus-within:text-cyan-400 transition-colors" />
                     <input 
                         type="text" 
-                        placeholder="Cari nama Ibu, sentra, atau segmen..." 
+                        placeholder="Cari nama Ibu, sentra, atau flag..." 
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/10 bg-black/20 text-white placeholder-white/30 focus:ring-2 focus:ring-cyan-400/50 focus:border-transparent focus:bg-black/40 transition-all backdrop-blur-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}

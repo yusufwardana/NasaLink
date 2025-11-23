@@ -37,7 +37,8 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
         let text = selectedTemplate.content || '';
         // Replace placeholders
         text = text.replace(/{name}/g, contact.name);
-        text = text.replace(/{segment}/g, contact.segment);
+        text = text.replace(/{flag}/g, contact.flag); // Changed from segment
+        text = text.replace(/{segment}/g, contact.flag); // Backward compatibility
         text = text.replace(/{sentra}/g, contact.sentra || 'Sentra');
         text = text.replace(/{phone}/g, contact.phone);
         text = text.replace(/{co}/g, contact.co || 'Petugas');
