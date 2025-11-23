@@ -88,21 +88,19 @@ const App: React.FC = () => {
     const currentMonth = today.getMonth(); // 0-11
     const currentYear = today.getFullYear();
 
-    // Helper to calculate days difference accurately handling month overflow
-    const getDaysDiff = (targetDay: number) => {
+    // Calculate days until specific day of month (1-31)
+    const getDaysUntilDayOfMonth = (targetDay: number) => {
+        // If target day is today
+        if (targetDay === currentDay) return 0;
+        
         let targetDate = new Date(currentYear, currentMonth, targetDay);
         
-        // If target day is less than today, assume it refers to next month? 
-        // Or if strictly tracking strictly within 'this month'?
-        // Context: 'Jatuh Tempo' usually implies a recurring monthly date.
-        // If today is 28th and due date is 2nd, that means it's coming up in ~4 days.
-        
-        if (targetDate.getTime() < today.setHours(0,0,0,0)) {
-             // If date has passed this month, check if it's coming soon next month
+        // If day has passed this month, assume it refers to next month
+        if (targetDay < currentDay) {
              targetDate = new Date(currentYear, currentMonth + 1, targetDay);
         }
-
-        const diffTime = targetDate.getTime() - today.getTime();
+        
+        const diffTime = targetDate.getTime() - today.setHours(0,0,0,0);
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
     };
 
@@ -111,19 +109,43 @@ const App: React.FC = () => {
     contacts.forEach(c => {
         if (!c.tglJatuhTempo) return;
         
-        // Extract number from string (e.g., "25" or "tgl 25")
-        const match = c.tglJatuhTempo.match(/\d+/);
-        if (!match) return;
+        let targetDay: number | null = null;
         
-        const dueDay = parseInt(match[0], 10);
-        if (isNaN(dueDay) || dueDay < 1 || dueDay > 31) return;
+        // Check if it's a number (Day of Month, e.g., "25") or Full Date (e.g., "2023-10-25")
+        // Clean non-numeric except separators
+        const cleanDate = c.tglJatuhTempo.trim();
+        
+        // Try to see if it's just 1-2 digits
+        if (/^\d{1,2}$/.test(cleanDate)) {
+            const day = parseInt(cleanDate, 10);
+            if (day >= 1 && day <= 31) targetDay = day;
+        } else {
+            // Try to parse as Date
+            const parsed = Date.parse(cleanDate);
+            if (!isNaN(parsed)) {
+                // If full date, we usually treat it as recurring monthly in this context
+                // OR we check if the exact date is coming up.
+                // For simplicity in a CRM like this: use the Day of Month component.
+                const d = new Date(parsed);
+                targetDay = d.getDate();
+            } else {
+                // Try fallback regex extraction for "Tgl 25"
+                const match = cleanDate.match(/(\d+)/);
+                if (match) {
+                     const day = parseInt(match[0], 10);
+                     if (day >= 1 && day <= 31) targetDay = day;
+                }
+            }
+        }
 
-        const diff = getDaysDiff(dueDay);
-
-        if (diff === 0) {
-            upcoming.push({ contact: c, status: 'today', daysLeft: 0 });
-        } else if (diff > 0 && diff <= 3) {
-            upcoming.push({ contact: c, status: 'soon', daysLeft: diff });
+        if (targetDay !== null) {
+            const diff = getDaysUntilDayOfMonth(targetDay);
+            // Alert if Today (0) or within next 3 days (1,2,3)
+            if (diff === 0) {
+                upcoming.push({ contact: c, status: 'today', daysLeft: 0 });
+            } else if (diff > 0 && diff <= 3) {
+                upcoming.push({ contact: c, status: 'soon', daysLeft: diff });
+            }
         }
     });
 
@@ -250,8 +272,9 @@ const App: React.FC = () => {
             await saveBulkContacts(mergedList);
             setContacts(mergedList);
             
-            alert(`Sync Selesai!\nTotal: ${mergedList.length}\nBaru: ${newCount}\nUpdate: ${updatedCount}`);
+            alert(`Sync Selesai!\nTotal Database: ${mergedList.length}\nData Baru: ${newCount}\nData Diupdate: ${updatedCount}`);
         } catch (e: any) {
+            console.error(e);
             alert(`Gagal sync: ${e.message}`);
         } finally {
             setIsSyncing(false);
@@ -298,7 +321,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">NasaLink</h1>
-                        <p className="text-xs text-cyan-200 font-medium tracking-wide uppercase">Database: IndexedDB</p>
+                        <p className="text-xs text-cyan-200 font-medium tracking-wide uppercase">Database: IndexedDB v4</p>
                     </div>
                 </div>
                 <div className="flex gap-2 items-center">

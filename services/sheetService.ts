@@ -69,17 +69,22 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
     if (rows.length < 2) return [];
 
-    // Header Mapping (Fuzzy Match)
+    // Header Mapping with User Specific Columns
+    // Header format: CO, SENTRA, NASABAH, PLAFON, PRODUK, FLAG, TGL JATUH TEMPO, TGL PRS, STATUS, NO TELP
     const headers = rows[0].map(h => h.toLowerCase());
     
-    const idxName = findColIndex(headers, ['nama', 'nasabah', 'name']);
-    const idxPhone = findColIndex(headers, ['telp', 'hp', 'phone', 'wa', 'nomer']);
-    const idxSegment = findColIndex(headers, ['status', 'segmen', 'flag', 'kategori']); // Often mixed
-    const idxSentra = findColIndex(headers, ['sentra', 'kelompok', 'area']);
-    const idxCo = findColIndex(headers, ['co', 'petugas', 'ao']);
-    const idxPlafon = findColIndex(headers, ['plafon', 'limit', 'pinjaman']);
-    const idxProduk = findColIndex(headers, ['produk']);
-    const idxJatuhTempo = findColIndex(headers, ['jatuh tempo', 'tgl', 'tanggal']);
+    const idxName = findColIndex(headers, ['nasabah', 'nama', 'name', 'client']);
+    const idxPhone = findColIndex(headers, ['no telp', 'no. telp', 'telp', 'hp', 'phone', 'wa', 'mobile']);
+    
+    // Separate Flag (Segment) and Status (Lancar/Macet)
+    const idxFlag = findColIndex(headers, ['flag', 'segmen', 'kategori', 'class']); 
+    const idxStatus = findColIndex(headers, ['status', 'kondisi', 'kol', 'kolek']);
+    
+    const idxSentra = findColIndex(headers, ['sentra', 'kelompok', 'area', 'group']);
+    const idxCo = findColIndex(headers, ['co', 'petugas', 'ao', 'marketing']);
+    const idxPlafon = findColIndex(headers, ['plafon', 'limit', 'pinjaman', 'amount']);
+    const idxProduk = findColIndex(headers, ['produk', 'product']);
+    const idxJatuhTempo = findColIndex(headers, ['tgl jatuh tempo', 'jatuh tempo', 'due date', 'tempo']);
     const idxNotes = findColIndex(headers, ['notes', 'catatan', 'keterangan']);
 
     // Map rows to Contact objects
@@ -87,25 +92,32 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         // Safe access helper
         const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '';
 
-        const name = getVal(idxName) || 'Tanpa Nama';
+        const name = getVal(idxName);
         const rawPhone = getVal(idxPhone);
         
-        // Skip empty rows
-        if (name === 'Tanpa Nama' && !rawPhone) return null;
+        // Skip invalid rows
+        if ((!name || name === 'Tanpa Nama') && !rawPhone) return null;
 
         const phone = rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, ''); // Clean phone
         
-        // Determine segment smarter
+        // Skip if phone is too short
+        if (phone.length < 6) return null;
+
+        // Determine segment from FLAG or fallback to searching the row
         let segment: Contact['segment'] = 'Prospect';
-        const rawSegInfo = (getVal(idxSegment) + ' ' + (row.length > idxSegment + 1 ? row.join(' ') : '')).toLowerCase();
+        const flagVal = getVal(idxFlag);
+        const rawSegInfo = (flagVal + ' ' + (idxFlag === -1 ? row.join(' ') : '')).toLowerCase();
         
         if (rawSegInfo.includes('gold')) segment = 'Gold';
         else if (rawSegInfo.includes('platinum')) segment = 'Platinum';
         else if (rawSegInfo.includes('silver')) segment = 'Silver';
+        
+        // Store the original flag text if available
+        const originalFlag = flagVal || segment;
 
         return {
             id: `sheet-${index}-${Date.now()}`,
-            name: name,
+            name: name || 'Tanpa Nama',
             phone: phone,
             segment: segment,
             sentra: getVal(idxSentra) || 'Pusat',
@@ -113,14 +125,14 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             co: getVal(idxCo),
             plafon: getVal(idxPlafon),
             produk: getVal(idxProduk),
-            flag: '', // usually part of segment logic now
+            flag: originalFlag,
             tglJatuhTempo: getVal(idxJatuhTempo),
-            statusAsli: getVal(idxSegment), // Keep original status text
+            statusAsli: getVal(idxStatus), 
             
             notes: getVal(idxNotes),
             lastInteraction: ''
         };
-    }).filter((c): c is Contact => c !== null && c.phone.length > 5); // Filter invalid
+    }).filter((c): c is Contact => c !== null);
     
   } catch (error) {
     console.error("Sheet fetch error:", error);
