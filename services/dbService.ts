@@ -17,14 +17,14 @@ interface NasaLinkDB extends DBSchema {
 }
 
 const DB_NAME = 'nasalink-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped to fix settings store schema
 
 let dbPromise: Promise<IDBPDatabase<NasaLinkDB>> | null = null;
 
 export const getDB = () => {
   if (!dbPromise) {
     dbPromise = openDB<NasaLinkDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion, newVersion, transaction) {
         // Create stores if they don't exist
         if (!db.objectStoreNames.contains('contacts')) {
           db.createObjectStore('contacts', { keyPath: 'id' });
@@ -32,9 +32,14 @@ export const getDB = () => {
         if (!db.objectStoreNames.contains('templates')) {
           db.createObjectStore('templates', { keyPath: 'id' });
         }
-        if (!db.objectStoreNames.contains('settings')) {
-          db.createObjectStore('settings', { keyPath: 'key' });
+        
+        // Settings Store Fix:
+        // Previously created with { keyPath: 'key' }, which conflicts with db.put('settings', val, key).
+        // We delete and recreate it without keyPath to support out-of-line keys.
+        if (db.objectStoreNames.contains('settings')) {
+          db.deleteObjectStore('settings');
         }
+        db.createObjectStore('settings');
       },
     });
   }
@@ -87,9 +92,6 @@ export const saveTemplate = async (template: MessageTemplate): Promise<string> =
 export const saveBulkTemplates = async (templates: MessageTemplate[]): Promise<void> => {
     const db = await getDB();
     const tx = db.transaction('templates', 'readwrite');
-    // Clear old templates first to ensure sync, or just put (upsert)
-    // For templates, usually we want to replace the list or update. 
-    // Here we upsert.
     await Promise.all(templates.map(t => tx.store.put(t)));
     await tx.done;
 };
@@ -113,6 +115,7 @@ export const getSheetConfig = async (): Promise<SheetConfig | null> => {
 
 export const saveSheetConfig = async (config: SheetConfig): Promise<void> => {
   const db = await getDB();
+  // Uses out-of-line key 'sheet_config'. Store must NOT have keyPath.
   await db.put('settings', config, 'sheet_config');
 };
 

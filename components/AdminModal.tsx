@@ -146,8 +146,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   const handleSaveSheetConfig = async () => {
-      await saveSheetConfig(sheetConfig);
-      alert('Konfigurasi Google Sheet disimpan ke Database!');
+      setIsLoadingConfig(true);
+      try {
+          await saveSheetConfig(sheetConfig);
+          alert('Konfigurasi Google Sheet berhasil disimpan ke Database!');
+      } catch (e) {
+          console.error(e);
+          alert('Gagal menyimpan konfigurasi. Coba lagi.');
+      } finally {
+          setIsLoadingConfig(false);
+      }
   };
 
   const handleReset = () => {
@@ -370,6 +378,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                     { label: '+ Nama Sentra', code: '{sentra}' },
                                                     { label: '+ Segmen', code: '{segment}' },
                                                     { label: '+ No HP', code: '{phone}' },
+                                                    { label: '+ Petugas', code: '{co}' },
+                                                    { label: '+ Jatuh Tempo', code: '{tgl_jatuh_tempo}' },
+                                                    { label: '+ Plafon', code: '{plafon}' },
                                                 ].map((chip) => (
                                                     <button
                                                         key={chip.code}
