@@ -1,22 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Contact, MessageTemplate, SheetConfig } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { ImportModal } from './components/ImportModal';
 import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
+import { NotificationPanel } from './components/NotificationPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { 
     getAllContacts, saveContact, deleteContact, saveBulkContacts, 
     getAllTemplates, saveBulkTemplates, clearAllData, getSheetConfig, clearContacts 
 } from './services/dbService';
-import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Database } from 'lucide-react';
+import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Database, Bell } from 'lucide-react';
 
 // Initial dummy data (Fallback if DB is empty)
 const INITIAL_DATA_FALLBACK: Contact[] = [
-  { id: '1', name: 'Ibu Siti Aminah', phone: '081299998888', segment: 'Platinum', sentra: 'Mawar Indah', lastInteraction: '12 Okt 2023', notes: 'Ketua Sentra' },
-  { id: '2', name: 'Ibu Ratna', phone: '081377776666', segment: 'Gold', sentra: 'Melati Putih', lastInteraction: '20 Okt 2023', notes: 'Rajin hadir PRS' },
+  { id: '1', name: 'Ibu Siti Aminah', phone: '081299998888', segment: 'Platinum', sentra: 'Mawar Indah', lastInteraction: '12 Okt 2023', notes: 'Ketua Sentra', tglJatuhTempo: '25' },
+  { id: '2', name: 'Ibu Ratna', phone: '081377776666', segment: 'Gold', sentra: 'Melati Putih', lastInteraction: '20 Okt 2023', notes: 'Rajin hadir PRS', tglJatuhTempo: '5' },
   { id: '3', name: 'Ibu Yanti', phone: '085655554444', segment: 'Prospect', sentra: 'Anggrek', lastInteraction: 'Kemarin', notes: 'Baru tanya pembiayaan' },
 ];
 
@@ -42,9 +43,10 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   
-  // State: Modals
+  // State: Modals & Panels
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   // Load Data on Mount
   useEffect(() => {
@@ -78,6 +80,56 @@ const App: React.FC = () => {
     };
     loadData();
   }, []);
+
+  // --- Notification Logic ---
+  const dueContacts = useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth(); // 0-11
+    const currentYear = today.getFullYear();
+
+    // Helper to calculate days difference accurately handling month overflow
+    const getDaysDiff = (targetDay: number) => {
+        let targetDate = new Date(currentYear, currentMonth, targetDay);
+        
+        // If target day is less than today, assume it refers to next month? 
+        // Or if strictly tracking strictly within 'this month'?
+        // Context: 'Jatuh Tempo' usually implies a recurring monthly date.
+        // If today is 28th and due date is 2nd, that means it's coming up in ~4 days.
+        
+        if (targetDate.getTime() < today.setHours(0,0,0,0)) {
+             // If date has passed this month, check if it's coming soon next month
+             targetDate = new Date(currentYear, currentMonth + 1, targetDay);
+        }
+
+        const diffTime = targetDate.getTime() - today.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    };
+
+    const upcoming: Array<{ contact: Contact; status: 'today' | 'soon'; daysLeft: number }> = [];
+
+    contacts.forEach(c => {
+        if (!c.tglJatuhTempo) return;
+        
+        // Extract number from string (e.g., "25" or "tgl 25")
+        const match = c.tglJatuhTempo.match(/\d+/);
+        if (!match) return;
+        
+        const dueDay = parseInt(match[0], 10);
+        if (isNaN(dueDay) || dueDay < 1 || dueDay > 31) return;
+
+        const diff = getDaysDiff(dueDay);
+
+        if (diff === 0) {
+            upcoming.push({ contact: c, status: 'today', daysLeft: 0 });
+        } else if (diff > 0 && diff <= 3) {
+            upcoming.push({ contact: c, status: 'soon', daysLeft: diff });
+        }
+    });
+
+    return upcoming.sort((a, b) => a.daysLeft - b.daysLeft);
+  }, [contacts]);
+
 
   // Get Unique Sentras
   const sentraOptions = Array.from(new Set(contacts.map(c => c.sentra).filter(Boolean))).sort();
@@ -113,28 +165,12 @@ const App: React.FC = () => {
   };
 
   const handleUpdateTemplates = async (newTemplates: MessageTemplate[]) => {
-      // We assume the AdminModal passes the Full list. 
-      // Efficient way: clear and save all, or just saveAll (upsert). 
-      // Since deletes happen in modal, we need to handle removals.
-      // Easiest sync logic for now:
       await saveBulkTemplates(newTemplates); 
-      // Note: This doesn't delete removed ones if we only upsert. 
-      // Ideally AdminModal should handle CRUD individually or we clear and re-save.
-      // For simplicity in this architecture, we update state and let DB catch up via bulk save
-      // but to handle deletes correctly, we might need a clearTemplates() first if the list changed size drastically.
-      
-      // Let's do a smart sync in the future, but for now, since AdminModal usually passes the FULL modified list:
-      // We should probably just setTemplates. 
-      // But we need to ensure persistence. 
       setTemplates(newTemplates);
   };
   
-  // Effect to persist templates whenever they change (e.g. from Admin Modal)
-  // This is a safety catch-all for template changes
   useEffect(() => {
       if (!isLoadingData && templates.length > 0) {
-          // This is slightly inefficient (writing all on every small change), 
-          // but guarantees sync with the AdminModal's internal state changes.
           saveBulkTemplates(templates);
       }
   }, [templates, isLoadingData]);
@@ -182,31 +218,39 @@ const App: React.FC = () => {
         try {
             const sheetContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
             
-            // Merge Logic:
-            // 1. Get all current DB contacts
+            // Normalize phone number for comparison
+            const normalizePhone = (p: string) => p.replace(/[^0-9]/g, '');
+
             const currentContacts = await getAllContacts();
             const phoneMap = new Map<string, Contact>();
             
             // Map existing
-            currentContacts.forEach(c => phoneMap.set(c.phone, c));
+            currentContacts.forEach(c => phoneMap.set(normalizePhone(c.phone), c));
             
-            // Merge new (Overwrite if phone matches)
+            let newCount = 0;
+            let updatedCount = 0;
+
+            // Merge logic
             sheetContacts.forEach(sc => {
-                const existing = phoneMap.get(sc.phone);
+                const cleanPhone = normalizePhone(sc.phone);
+                if (!cleanPhone) return;
+
+                const existing = phoneMap.get(cleanPhone);
                 if (existing) {
-                    phoneMap.set(sc.phone, { ...existing, ...sc, id: existing.id });
+                    phoneMap.set(cleanPhone, { ...existing, ...sc, id: existing.id });
+                    updatedCount++;
                 } else {
-                    phoneMap.set(sc.phone, sc);
+                    phoneMap.set(cleanPhone, sc);
+                    newCount++;
                 }
             });
             
             const mergedList = Array.from(phoneMap.values());
             
-            // Save back to DB
             await saveBulkContacts(mergedList);
             setContacts(mergedList);
             
-            alert(`Berhasil sync! Total ${mergedList.length} data nasabah.`);
+            alert(`Sync Selesai!\nTotal: ${mergedList.length}\nBaru: ${newCount}\nUpdate: ${updatedCount}`);
         } catch (e: any) {
             alert(`Gagal sync: ${e.message}`);
         } finally {
@@ -232,7 +276,21 @@ const App: React.FC = () => {
       
       {/* Floating Glass Header */}
       <div className="sticky top-4 z-30 px-4 mb-8">
-        <div className="max-w-3xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-4 sm:p-5">
+        <div className="max-w-3xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-4 sm:p-5 relative">
+            
+            {/* Notification Panel Component */}
+            <NotificationPanel 
+                isOpen={isNotificationOpen} 
+                onClose={() => setIsNotificationOpen(false)}
+                dueContacts={dueContacts}
+                onRemind={(c) => {
+                    // Find 'Info Angsuran' template or use first available
+                    const template = templates.find(t => t.label.toLowerCase().includes('angsuran')) || templates[0];
+                    setSelectedContact(c);
+                    if(template) setInitialTemplateId(template.id);
+                }}
+            />
+
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
                     <div className="relative bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-cyan-500/30">
@@ -243,7 +301,20 @@ const App: React.FC = () => {
                         <p className="text-xs text-cyan-200 font-medium tracking-wide uppercase">Database: IndexedDB</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    {/* Notification Bell */}
+                    <button 
+                        onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                        className={`relative p-2.5 rounded-xl transition-all ${
+                            isNotificationOpen ? 'bg-white/20 text-white' : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+                        }`}
+                    >
+                        <Bell className="w-5 h-5" />
+                        {dueContacts.length > 0 && (
+                            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
+                        )}
+                    </button>
+
                     <Button 
                         size="sm" 
                         variant="glass" 
