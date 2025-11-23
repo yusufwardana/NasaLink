@@ -49,30 +49,33 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.6)] w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] relative">
         
         {/* Header */}
-        <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">AI Assistant Writer</h2>
-            <p className="text-sm text-gray-500">Buat pesan untuk <span className="font-semibold text-blue-600">{contact.name}</span></p>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                AI Assistant Writer
+                <Wand2 className="w-5 h-5 text-cyan-400" />
+            </h2>
+            <p className="text-sm text-white/50">Buat pesan untuk <span className="font-semibold text-cyan-300">{contact.name}</span></p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full p-1 transition-colors">
+          <button onClick={onClose} className="text-white/50 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 space-y-8 custom-scrollbar">
           
           {/* Selection Area */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Kategori Pesan</label>
+              <label className="block text-xs font-bold text-white/70 mb-3 uppercase tracking-wider">Pilih Kategori Pesan</label>
               {templates.length === 0 ? (
-                <div className="text-center p-4 bg-gray-50 rounded-lg border border-dashed">
-                    <p className="text-sm text-gray-500">Belum ada template tersedia.</p>
+                <div className="text-center p-8 bg-white/5 rounded-xl border border-dashed border-white/20">
+                    <p className="text-sm text-white/50">Belum ada template tersedia.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -81,16 +84,19 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                         key={t.id}
                         onClick={() => {
                             setSelectedTemplate(t);
-                            setGeneratedText(''); // Clear previous generation when template changes
+                            setGeneratedText(''); 
                         }}
-                        className={`p-3 rounded-xl border text-left transition-all ${
+                        className={`p-4 rounded-2xl border text-left transition-all duration-300 group relative overflow-hidden ${
                         selectedTemplate?.id === t.id
-                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                            ? 'border-cyan-500/50 bg-cyan-500/10 shadow-[0_0_20px_rgba(6,182,212,0.2)]'
+                            : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
                         }`}
                     >
-                        <div className="text-2xl mb-1">{t.icon}</div>
-                        <div className="text-sm font-medium text-gray-900">{t.label}</div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="text-2xl mb-2 relative z-10">{t.icon}</div>
+                        <div className={`text-sm font-medium relative z-10 ${selectedTemplate?.id === t.id ? 'text-cyan-300' : 'text-white'}`}>
+                            {t.label}
+                        </div>
                     </button>
                     ))}
                 </div>
@@ -98,14 +104,16 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tone Bicara</label>
-                <div className="flex gap-2">
+                <label className="block text-xs font-bold text-white/70 mb-3 uppercase tracking-wider">Tone Bicara</label>
+                <div className="flex gap-2 p-1 bg-black/30 rounded-xl w-fit border border-white/10">
                     {(['formal', 'friendly', 'casual'] as const).map((t) => (
                         <button
                             key={t}
                             onClick={() => setTone(t)}
-                            className={`px-4 py-2 rounded-full text-sm capitalize border ${
-                                tone === t ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                            className={`px-5 py-2 rounded-lg text-sm capitalize transition-all duration-300 ${
+                                tone === t 
+                                ? 'bg-white/10 text-white shadow-lg border border-white/10 font-semibold' 
+                                : 'text-white/50 hover:text-white hover:bg-white/5'
                             }`}
                         >
                             {t}
@@ -122,6 +130,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                 disabled={!selectedTemplate} 
                 isLoading={isGenerating}
                 icon={<Wand2 className="w-4 h-4" />}
+                className="w-full sm:w-auto shadow-[0_0_20px_rgba(6,182,212,0.2)]"
              >
                 Generate Wording
              </Button>
@@ -129,26 +138,27 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
 
           {/* Result Area */}
           {generatedText && (
-            <div className="animate-fade-in-up">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Preview Pesan</label>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 relative">
+            <div className="animate-fade-in-up space-y-3">
+              <label className="block text-xs font-bold text-white/70 uppercase tracking-wider">Preview Pesan</label>
+              <div className="bg-black/30 border border-white/10 rounded-2xl p-5 relative shadow-inner group">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-green-500/20 to-cyan-500/20 rounded-2xl opacity-50 blur-sm -z-10"></div>
                 <textarea 
-                    className="w-full bg-transparent border-none resize-none focus:ring-0 text-gray-800 text-sm leading-relaxed"
+                    className="w-full bg-transparent border-none resize-none focus:ring-0 text-white/90 text-sm leading-relaxed placeholder-white/20"
                     rows={6}
                     value={generatedText}
                     onChange={(e) => setGeneratedText(e.target.value)}
                 />
-                <div className="absolute bottom-4 right-4 flex gap-2">
+                <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <button 
                         onClick={handleGenerate}
-                        className="p-2 bg-white rounded-full shadow text-gray-500 hover:text-blue-600 transition-colors"
+                        className="p-2 bg-slate-800 rounded-lg shadow-lg text-white/60 hover:text-cyan-400 border border-white/10 transition-colors"
                         title="Regenerate"
                     >
                         <RefreshCw className="w-4 h-4" />
                     </button>
                     <button 
                         onClick={handleCopy}
-                        className="p-2 bg-white rounded-full shadow text-gray-500 hover:text-blue-600 transition-colors"
+                        className="p-2 bg-slate-800 rounded-lg shadow-lg text-white/60 hover:text-cyan-400 border border-white/10 transition-colors"
                         title="Copy Text"
                     >
                         <Copy className="w-4 h-4" />
@@ -158,7 +168,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
               <div className="mt-4 flex justify-end">
                  <Button 
                     variant="primary"
-                    className="bg-[#25D366] hover:bg-[#20bd5a] text-white w-full sm:w-auto"
+                    className="bg-gradient-to-r from-[#25D366] to-[#128C7E] border-none hover:shadow-[0_0_25px_rgba(37,211,102,0.4)] w-full sm:w-auto"
                     onClick={handleSendWA}
                     icon={<Send className="w-4 h-4" />}
                  >

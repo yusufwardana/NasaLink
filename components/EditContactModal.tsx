@@ -101,30 +101,33 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b flex justify-between items-center bg-gray-50">
-          <h2 className="text-xl font-bold text-gray-800">Edit Nasabah</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] relative">
+        {/* Top glow */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+          <h2 className="text-xl font-bold text-white">Edit Nasabah</h2>
+          <button onClick={onClose} className="text-white/50 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Nama Lengkap</label>
             <input
               type="text"
               name="name"
               required
               value={formData.name || ''}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp</label>
+            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Nomor WhatsApp</label>
             <div className="relative">
                 <input
                   type="text"
@@ -132,68 +135,68 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                   required
                   value={formData.phone || ''}
                   onChange={handleChange}
-                  className="w-full p-2 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 pr-12 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none transition-all"
                   placeholder="08..."
                 />
                 <button
                     type="button"
                     onClick={handlePickContact}
-                    className="absolute right-1 top-1 bottom-1 w-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:text-blue-800 rounded-md transition-colors z-10 cursor-pointer"
+                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-colors z-10 cursor-pointer"
                     title="Ambil dari Kontak HP"
                 >
                     <ContactIcon className="w-5 h-5" />
                 </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">*Klik ikon orang untuk ambil dari kontak HP (Khusus Android Chrome)</p>
+            <p className="text-[10px] text-white/30 mt-1">*Klik ikon orang untuk ambil dari kontak HP (Khusus Android Chrome)</p>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Segmen</label>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Segmen</label>
                 <select
                   name="segment"
                   value={formData.segment || 'Prospect'}
                   onChange={handleChange}
-                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none appearance-none"
                 >
-                  <option value="Prospect">Prospect</option>
-                  <option value="Silver">Silver</option>
-                  <option value="Gold">Gold</option>
-                  <option value="Platinum">Platinum</option>
+                  <option value="Prospect" className="bg-slate-800">Prospect</option>
+                  <option value="Silver" className="bg-slate-800">Silver</option>
+                  <option value="Gold" className="bg-slate-800">Gold</option>
+                  <option value="Platinum" className="bg-slate-800">Platinum</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sentra</label>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Sentra</label>
                 <input
                   type="text"
                   name="sentra"
                   value={formData.sentra || ''}
                   onChange={handleChange}
                   placeholder="Misal: Jakarta Pusat"
-                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
                 />
               </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan</label>
+            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Catatan Tambahan</label>
             <textarea
               name="notes"
               rows={3}
               value={formData.notes || ''}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none resize-none"
               placeholder="Misal: Hobi golf, punya anak 2..."
             />
           </div>
           
-           <div className="pt-4 flex justify-between items-center border-t mt-4">
+           <div className="pt-5 flex justify-between items-center border-t border-white/10 mt-2">
                 <button 
                     type="button" 
                     onClick={handleDelete}
-                    className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
+                    className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors"
                 >
-                    <Trash2 className="w-4 h-4" /> Hapus Kontak
+                    <Trash2 className="w-4 h-4" /> Hapus
                 </button>
                 <div className="flex gap-3">
                     <Button type="button" variant="outline" onClick={onClose}>Batal</Button>

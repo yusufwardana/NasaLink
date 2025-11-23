@@ -83,30 +83,32 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col">
-        <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-xl overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
           <div className="flex items-center gap-2">
-            <Smartphone className="w-6 h-6 text-blue-600" />
-            <h2 className="text-xl font-bold text-gray-800">Import Kontak</h2>
+            <div className="bg-blue-500/20 p-2 rounded-lg">
+                <Smartphone className="w-5 h-5 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white">Import Kontak</h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-white/50 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800">
-            <p className="font-semibold mb-1">Cara Upload dari HP:</p>
-            <p>Export kontak Anda ke file JSON atau Paste teks data nasabah di bawah ini. AI akan mencoba merapikan data Anda.</p>
+        <div className="p-6 space-y-5">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 text-sm text-blue-200">
+            <p className="font-bold mb-1 text-blue-300">Cara Upload dari HP:</p>
+            <p className="opacity-80">Export kontak Anda ke file JSON atau Paste teks data nasabah di bawah ini. AI akan mencoba merapikan data Anda.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Data Kontak (JSON / Text)</label>
+            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Data Kontak (JSON / Text)</label>
             <textarea
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
-                className="w-full h-40 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs"
+                className="w-full h-40 p-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent font-mono text-xs text-white placeholder-white/20 outline-none"
                 placeholder='[{"name": "Nama", "phone": "0812..."}] atau paste text dari Excel...'
             />
           </div>
@@ -138,14 +140,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+            <div className="flex items-center gap-2 text-red-300 text-sm bg-red-900/20 border border-red-500/30 p-3 rounded-xl animate-shake">
               <AlertCircle className="w-4 h-4" />
               {error}
             </div>
           )}
         </div>
 
-        <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+        <div className="p-6 border-t border-white/10 bg-white/5 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>Batal</Button>
           <Button onClick={handleProcessImport} isLoading={isLoading} disabled={!jsonText}>
             Proses & Simpan

@@ -9,7 +9,25 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f3f4f6;
+        /* Deep liquid background */
+        background: radial-gradient(circle at 0% 0%, #2e1065 0%, #0f172a 50%, #000000 100%);
+        background-attachment: fixed;
+        color: #ffffff;
+      }
+      
+      /* Custom scrollbar for glass theme */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
       }
     </style>
   <script type="importmap">
@@ -24,7 +42,7 @@
 }
 </script>
 </head>
-  <body>
+  <body class="tracking-tighter antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>
