@@ -62,23 +62,40 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
         
         if (contacts && contacts.length > 0) {
             const selected = contacts[0];
-            const updates: Partial<Contact> = {};
+            
+            // Prepare new values, defaulting to existing if not found
+            let newName = formData.name;
+            let newPhone = formData.phone;
+            let phoneFound = false;
             
             // Update Name
             if (selected.name && selected.name.length > 0) {
-                updates.name = selected.name[0];
+                newName = selected.name[0];
             }
             
-            // Update Phone
+            // Update Phone - iterate to find first valid number
             if (selected.tel && selected.tel.length > 0) {
-                let rawPhone = selected.tel[0];
-                // Remove characters that are not digits or +
-                let cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
-                
-                updates.phone = cleanPhone;
+                 // Try to find a non-empty number string
+                 const validPhone = selected.tel.find((t: any) => t && String(t).trim().length > 0);
+                 
+                 if (validPhone) {
+                     let rawPhone = String(validPhone);
+                     // Keep digits and +
+                     let cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
+                     newPhone = cleanPhone;
+                     phoneFound = true;
+                 }
+            }
+
+            if (!phoneFound) {
+                alert("Kontak yang dipilih tidak memiliki nomor telepon yang terbaca.");
             }
             
-            setFormData(prev => ({ ...prev, ...updates }));
+            setFormData(prev => ({
+                ...prev,
+                name: newName,
+                phone: newPhone
+            }));
         }
     } catch (err) {
         // Ignore AbortError (User Cancelled)
