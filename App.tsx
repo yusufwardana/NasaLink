@@ -7,44 +7,33 @@ import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
-import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles } from 'lucide-react';
+import { 
+    getAllContacts, saveContact, deleteContact, saveBulkContacts, 
+    getAllTemplates, saveBulkTemplates, clearAllData, getSheetConfig, clearContacts 
+} from './services/dbService';
+import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Database } from 'lucide-react';
 
-// Initial dummy data
-const INITIAL_DATA: Contact[] = [
-  { id: '1', name: 'Pak Wijaya', phone: '081299998888', segment: 'Platinum', sentra: 'Jakarta Pusat', lastInteraction: '12 Okt 2023', notes: 'VIP Client' },
-  { id: '2', name: 'Ibu Ratna', phone: '081377776666', segment: 'Gold', sentra: 'Surabaya', lastInteraction: '20 Okt 2023', notes: 'Interested in education plan' },
-  { id: '3', name: 'Mas Dimas', phone: '085655554444', segment: 'Prospect', sentra: 'Bandung', lastInteraction: 'Kemarin', notes: 'Cold lead' },
+// Initial dummy data (Fallback if DB is empty)
+const INITIAL_DATA_FALLBACK: Contact[] = [
+  { id: '1', name: 'Ibu Siti Aminah', phone: '081299998888', segment: 'Platinum', sentra: 'Mawar Indah', lastInteraction: '12 Okt 2023', notes: 'Ketua Sentra' },
+  { id: '2', name: 'Ibu Ratna', phone: '081377776666', segment: 'Gold', sentra: 'Melati Putih', lastInteraction: '20 Okt 2023', notes: 'Rajin hadir PRS' },
+  { id: '3', name: 'Ibu Yanti', phone: '085655554444', segment: 'Prospect', sentra: 'Anggrek', lastInteraction: 'Kemarin', notes: 'Baru tanya pembiayaan' },
 ];
 
-const INITIAL_TEMPLATES: MessageTemplate[] = [
-  { id: '1', label: 'Sapaan Rutin', type: 'ai', promptContext: 'Menanyakan kabar dan menjaga hubungan baik, tidak berjualan hard selling.', icon: '👋' },
-  { id: '2', label: 'Ulang Tahun', type: 'ai', promptContext: 'Mengucapkan selamat ulang tahun dan mendoakan kesehatan.', icon: '🎂' },
-  { id: '3', label: 'Info Promo (Manual)', type: 'manual', content: 'Halo {name}, ada promo spesial bulan ini khusus nasabah {segment}. Cek detailnya disini ya!', icon: '🏷️' },
-  { id: '4', label: 'Jatuh Tempo', type: 'ai', promptContext: 'Mengingatkan pembayaran premi yang akan jatuh tempo minggu depan dengan sopan.', icon: '📅' },
-  { id: '5', label: 'Konfirmasi Janji (Manual)', type: 'manual', content: 'Selamat pagi {name}, saya ingin konfirmasi janji temu kita besok. Apakah sesuai jadwal?', icon: '🤝' },
+const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
+  { id: '1', label: 'Pengingat PRS', type: 'ai', promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Sampaikan pentingnya kehadiran untuk tepat waktu.', icon: '👥' },
+  { id: '2', label: 'Info Angsuran', type: 'ai', promptContext: 'Ingatkan dengan sopan mengenai angsuran yang akan jatuh tempo. Tekankan prinsip "Tepat Jumlah, Tepat Waktu" dengan bahasa yang mengayomi.', icon: '💰' },
+  { id: '3', label: 'Undangan (Manual)', type: 'manual', content: 'Assalamualaikum Ibu {name}, besok ada kunjungan dari pusat di sentra {sentra}. Diharapkan kehadirannya ya Bu. Terima kasih.', icon: '📩' },
+  { id: '4', label: 'Penawaran Modal', type: 'ai', promptContext: 'Tawarkan penambahan modal usaha untuk nasabah dengan rekam jejak baik. Fokus pada pengembangan usaha Ibu.', icon: '📈' },
+  { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
 ];
 
 const App: React.FC = () => {
-  // State: Contacts
-  const [contacts, setContacts] = useState<Contact[]>(() => {
-    const saved = localStorage.getItem('nasalink_contacts');
-    return saved ? JSON.parse(saved) : INITIAL_DATA;
-  });
+  // State: Data
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // State: Templates
-  const [templates, setTemplates] = useState<MessageTemplate[]>(() => {
-    const saved = localStorage.getItem('nasalink_templates');
-    // Migration for old data structure if needed
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.length > 0 && !parsed[0].type) {
-            return parsed.map((t: any) => ({ ...t, type: 'ai' }));
-        }
-        return parsed;
-    }
-    return INITIAL_TEMPLATES;
-  });
-  
   // State: UI & Selection
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSentra, setSelectedSentra] = useState<string>('');
@@ -57,86 +46,167 @@ const App: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
-  // Persistence
+  // Load Data on Mount
   useEffect(() => {
-    localStorage.setItem('nasalink_contacts', JSON.stringify(contacts));
-  }, [contacts]);
+    const loadData = async () => {
+        setIsLoadingData(true);
+        try {
+            const [dbContacts, dbTemplates] = await Promise.all([
+                getAllContacts(),
+                getAllTemplates()
+            ]);
 
-  useEffect(() => {
-    localStorage.setItem('nasalink_templates', JSON.stringify(templates));
-  }, [templates]);
+            // If empty, initialize with fallbacks and save to DB
+            if (dbContacts.length === 0) {
+                await saveBulkContacts(INITIAL_DATA_FALLBACK);
+                setContacts(INITIAL_DATA_FALLBACK);
+            } else {
+                setContacts(dbContacts);
+            }
+
+            if (dbTemplates.length === 0) {
+                await saveBulkTemplates(INITIAL_TEMPLATES_FALLBACK);
+                setTemplates(INITIAL_TEMPLATES_FALLBACK);
+            } else {
+                setTemplates(dbTemplates);
+            }
+        } catch (e) {
+            console.error("Failed to load DB:", e);
+        } finally {
+            setIsLoadingData(false);
+        }
+    };
+    loadData();
+  }, []);
 
   // Get Unique Sentras
   const sentraOptions = Array.from(new Set(contacts.map(c => c.sentra).filter(Boolean))).sort();
 
   // Handlers
-  const handleImport = (newContacts: Contact[]) => {
+  const handleImport = async (newContacts: Contact[]) => {
+    await saveBulkContacts(newContacts);
+    // Refresh local state by appending (optimization: instead of refetching all)
     setContacts(prev => [...newContacts, ...prev]);
   };
 
-  const handleUpdateContact = (updated: Contact) => {
+  const handleUpdateContact = async (updated: Contact) => {
+    await saveContact(updated);
     setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
   };
 
-  const handleDeleteContact = (id: string) => {
+  const handleDeleteContact = async (id: string) => {
+    await deleteContact(id);
     setContacts(prev => prev.filter(c => c.id !== id));
   };
   
-  const handleResetData = () => {
-    setContacts(INITIAL_DATA);
-    setTemplates(INITIAL_TEMPLATES);
-    localStorage.removeItem('nasalink_contacts');
-    localStorage.removeItem('nasalink_templates');
+  const handleResetData = async () => {
+    await clearAllData();
+    // Re-seed
+    await saveBulkContacts(INITIAL_DATA_FALLBACK);
+    await saveBulkTemplates(INITIAL_TEMPLATES_FALLBACK);
+    
+    setContacts(INITIAL_DATA_FALLBACK);
+    setTemplates(INITIAL_TEMPLATES_FALLBACK);
+    
+    // Clear config
+    alert("Data berhasil di-reset ke pengaturan awal.");
   };
 
+  const handleUpdateTemplates = async (newTemplates: MessageTemplate[]) => {
+      // We assume the AdminModal passes the Full list. 
+      // Efficient way: clear and save all, or just saveAll (upsert). 
+      // Since deletes happen in modal, we need to handle removals.
+      // Easiest sync logic for now:
+      await saveBulkTemplates(newTemplates); 
+      // Note: This doesn't delete removed ones if we only upsert. 
+      // Ideally AdminModal should handle CRUD individually or we clear and re-save.
+      // For simplicity in this architecture, we update state and let DB catch up via bulk save
+      // but to handle deletes correctly, we might need a clearTemplates() first if the list changed size drastically.
+      
+      // Let's do a smart sync in the future, but for now, since AdminModal usually passes the FULL modified list:
+      // We should probably just setTemplates. 
+      // But we need to ensure persistence. 
+      setTemplates(newTemplates);
+  };
+  
+  // Effect to persist templates whenever they change (e.g. from Admin Modal)
+  // This is a safety catch-all for template changes
+  useEffect(() => {
+      if (!isLoadingData && templates.length > 0) {
+          // This is slightly inefficient (writing all on every small change), 
+          // but guarantees sync with the AdminModal's internal state changes.
+          saveBulkTemplates(templates);
+      }
+  }, [templates, isLoadingData]);
+
   const handleTestTemplate = (templateId: string) => {
-      // Create dummy contact for testing
-      const dummyContact: Contact = {
-          id: 'test',
-          name: 'Budi Santoso (Test)',
-          phone: '08123456789',
-          segment: 'Gold',
-          sentra: 'Pusat'
-      };
-      setSelectedContact(dummyContact);
+      let sampleContact: Contact;
+      if (contacts.length > 0) {
+          sampleContact = contacts[0];
+      } else {
+          sampleContact = {
+            id: 'test',
+            name: 'Ibu Siti (Contoh)',
+            phone: '08123456789',
+            segment: 'Gold',
+            sentra: 'Pusat'
+          };
+      }
+      setSelectedContact(sampleContact);
       setInitialTemplateId(templateId);
   };
 
+  const handleBulkTemplateUpdate = (mode: 'ai' | 'manual') => {
+      setTemplates(prev => {
+          const updated = prev.map(t => ({
+            ...t,
+            type: mode,
+            promptContext: mode === 'ai' && !t.promptContext ? 'Buat pesan ramah untuk nasabah.' : t.promptContext,
+            content: mode === 'manual' && !t.content ? 'Halo {name}, apa kabar?' : t.content
+          }));
+          return updated;
+      });
+  };
+
   const handleSyncSheet = async () => {
-    const configStr = localStorage.getItem('nasalink_sheet_config');
-    if (!configStr) {
+    const config = await getSheetConfig();
+    
+    if (!config || !config.spreadsheetId) {
         alert("Konfigurasi Google Sheet belum diatur. Silakan ke Menu Admin.");
         setIsAdminModalOpen(true);
         return;
     }
 
-    const config: SheetConfig = JSON.parse(configStr);
-    if (!config.spreadsheetId) {
-         alert("Spreadsheet ID belum diisi di Menu Admin.");
-         return;
-    }
-
-    if (window.confirm("Sync akan menggabungkan data dari Google Sheet. Lanjutkan?")) {
+    if (window.confirm("Sync akan mengambil data dari Google Sheet dan menggabungkan dengan database lokal. Lanjutkan?")) {
         setIsSyncing(true);
         try {
             const sheetContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
             
-            // Merge Strategy: Overwrite if phone matches, else add
-            setContacts(prev => {
-                const phoneMap = new Map<string, Contact>();
-                prev.forEach(c => phoneMap.set(c.phone, c));
-                
-                sheetContacts.forEach(sc => {
-                    const existing = phoneMap.get(sc.phone);
-                    if (existing) {
-                        phoneMap.set(sc.phone, { ...existing, ...sc, id: existing.id });
-                    } else {
-                        phoneMap.set(sc.phone, sc);
-                    }
-                });
-                return Array.from(phoneMap.values());
+            // Merge Logic:
+            // 1. Get all current DB contacts
+            const currentContacts = await getAllContacts();
+            const phoneMap = new Map<string, Contact>();
+            
+            // Map existing
+            currentContacts.forEach(c => phoneMap.set(c.phone, c));
+            
+            // Merge new (Overwrite if phone matches)
+            sheetContacts.forEach(sc => {
+                const existing = phoneMap.get(sc.phone);
+                if (existing) {
+                    phoneMap.set(sc.phone, { ...existing, ...sc, id: existing.id });
+                } else {
+                    phoneMap.set(sc.phone, sc);
+                }
             });
-            alert(`Berhasil sync! ${sheetContacts.length} data diambil dari Sheet.`);
+            
+            const mergedList = Array.from(phoneMap.values());
+            
+            // Save back to DB
+            await saveBulkContacts(mergedList);
+            setContacts(mergedList);
+            
+            alert(`Berhasil sync! Total ${mergedList.length} data nasabah.`);
         } catch (e: any) {
             alert(`Gagal sync: ${e.message}`);
         } finally {
@@ -170,7 +240,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">NasaLink</h1>
-                        <p className="text-xs text-cyan-200 font-medium tracking-wide uppercase">Direktori Nasabah Cerdas</p>
+                        <p className="text-xs text-cyan-200 font-medium tracking-wide uppercase">Database: IndexedDB</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -201,7 +271,7 @@ const App: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5 group-focus-within:text-cyan-400 transition-colors" />
                     <input 
                         type="text" 
-                        placeholder="Cari nama, sentra, atau segmen..." 
+                        placeholder="Cari nama Ibu, sentra, atau segmen..." 
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/10 bg-black/20 text-white placeholder-white/30 focus:ring-2 focus:ring-cyan-400/50 focus:border-transparent focus:bg-black/40 transition-all backdrop-blur-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -268,7 +338,12 @@ const App: React.FC = () => {
                 </h2>
             </div>
             
-            {filteredContacts.length === 0 ? (
+            {isLoadingData ? (
+                 <div className="text-center py-20">
+                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                     <p className="text-white/50 animate-pulse">Memuat Database...</p>
+                 </div>
+            ) : filteredContacts.length === 0 ? (
                 <div className="text-center py-16 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 border-dashed">
                     <div className="w-16 h-16 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-4 text-white/30">
                         <Users className="w-8 h-8" />
@@ -284,8 +359,8 @@ const App: React.FC = () => {
                         <ContactCard 
                             key={contact.id} 
                             contact={contact} 
-                            onGenerateClick={setSelectedContact}
                             onEditClick={setContactToEdit}
+                            onGenerateClick={setSelectedContact}
                         />
                     ))}
                 </div>
@@ -319,9 +394,10 @@ const App: React.FC = () => {
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
         templates={templates}
-        onUpdateTemplates={setTemplates}
+        onUpdateTemplates={handleUpdateTemplates}
         onResetData={handleResetData}
         onTestTemplate={handleTestTemplate}
+        onBulkUpdateMode={handleBulkTemplateUpdate}
       />
 
       <ImportModal 

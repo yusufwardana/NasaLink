@@ -1,32 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Contact, MessageTemplate } from '../types';
 import { generateWhatsAppMessage } from '../services/geminiService';
 import { Button } from './Button';
-import { X, Wand2, Copy, Send, RefreshCw } from 'lucide-react';
+import { X, Wand2, Copy, Send, RefreshCw, Calendar, CreditCard } from 'lucide-react';
 
 interface MessageGeneratorModalProps {
   contact: Contact;
   isOpen: boolean;
   onClose: () => void;
   templates: MessageTemplate[];
+  initialTemplateId?: string;
 }
 
-export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ contact, isOpen, onClose, templates }) => {
+export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ contact, isOpen, onClose, templates, initialTemplateId }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [tone, setTone] = useState<'formal' | 'casual' | 'friendly'>('friendly');
+
+  useEffect(() => {
+      if (initialTemplateId) {
+          const found = templates.find(t => t.id === initialTemplateId);
+          if (found) {
+              setSelectedTemplate(found);
+          }
+      }
+  }, [initialTemplateId, templates]);
 
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
     if (!selectedTemplate) return;
     
+    // MANUAL MODE:
+    if (selectedTemplate.type === 'manual') {
+        let text = selectedTemplate.content || '';
+        // Replace placeholders
+        text = text.replace(/{name}/g, contact.name);
+        text = text.replace(/{segment}/g, contact.segment);
+        text = text.replace(/{sentra}/g, contact.sentra || 'Sentra');
+        text = text.replace(/{phone}/g, contact.phone);
+        text = text.replace(/{co}/g, contact.co || 'Petugas');
+        text = text.replace(/{plafon}/g, contact.plafon || '');
+        text = text.replace(/{tgl_jatuh_tempo}/g, contact.tglJatuhTempo || '');
+        setGeneratedText(text);
+        return;
+    }
+
+    // AI MODE:
     setIsGenerating(true);
+    // Pass the full contact object now
     const text = await generateWhatsAppMessage(
-      contact.name,
-      contact.segment,
-      selectedTemplate.promptContext,
+      contact,
+      selectedTemplate.promptContext || 'Sapaan ramah',
       tone
     );
     setGeneratedText(text);
@@ -49,14 +75,14 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.6)] w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] relative">
         
         {/* Header */}
         <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                AI Assistant Writer
+                BTPN Syariah Assistant
                 <Wand2 className="w-5 h-5 text-cyan-400" />
             </h2>
             <p className="text-sm text-white/50">Buat pesan untuk <span className="font-semibold text-cyan-300">{contact.name}</span></p>
@@ -68,6 +94,25 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
 
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-8 custom-scrollbar">
+            
+            {/* Context Info Widget */}
+            {(contact.tglJatuhTempo || contact.plafon) && (
+                <div className="flex gap-4 p-3 bg-blue-900/20 border border-blue-500/20 rounded-xl">
+                    {contact.tglJatuhTempo && (
+                        <div className="flex items-center gap-2 text-xs text-blue-200">
+                            <Calendar className="w-4 h-4 text-blue-400" />
+                            <span>Jatuh Tempo: <b>{contact.tglJatuhTempo}</b></span>
+                        </div>
+                    )}
+                    {contact.plafon && (
+                        <div className="flex items-center gap-2 text-xs text-blue-200">
+                            <CreditCard className="w-4 h-4 text-blue-400" />
+                            <span>Plafon: <b>{contact.plafon}</b></span>
+                        </div>
+                    )}
+                </div>
+            )}
+
           
           {/* Selection Area */}
           <div className="space-y-6">
@@ -86,14 +131,23 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                             setSelectedTemplate(t);
                             setGeneratedText(''); 
                         }}
-                        className={`p-4 rounded-2xl border text-left transition-all duration-300 group relative overflow-hidden ${
+                        className={`p-4 rounded-2xl border text-left transition-all duration-300 group relative overflow-hidden flex flex-col gap-2 ${
                         selectedTemplate?.id === t.id
                             ? 'border-cyan-500/50 bg-cyan-500/10 shadow-[0_0_20px_rgba(6,182,212,0.2)]'
                             : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
                         }`}
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="text-2xl mb-2 relative z-10">{t.icon}</div>
+                        <div className="flex justify-between items-start w-full relative z-10">
+                            <span className="text-2xl">{t.icon}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded border ${
+                                t.type === 'manual' 
+                                ? 'border-purple-500/30 text-purple-300 bg-purple-500/10' 
+                                : 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10'
+                            }`}>
+                                {t.type === 'manual' ? 'BAKU' : 'AI'}
+                            </span>
+                        </div>
                         <div className={`text-sm font-medium relative z-10 ${selectedTemplate?.id === t.id ? 'text-cyan-300' : 'text-white'}`}>
                             {t.label}
                         </div>
@@ -103,24 +157,26 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
               )}
             </div>
 
-            <div>
-                <label className="block text-xs font-bold text-white/70 mb-3 uppercase tracking-wider">Tone Bicara</label>
-                <div className="flex gap-2 p-1 bg-black/30 rounded-xl w-fit border border-white/10">
-                    {(['formal', 'friendly', 'casual'] as const).map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTone(t)}
-                            className={`px-5 py-2 rounded-lg text-sm capitalize transition-all duration-300 ${
-                                tone === t 
-                                ? 'bg-white/10 text-white shadow-lg border border-white/10 font-semibold' 
-                                : 'text-white/50 hover:text-white hover:bg-white/5'
-                            }`}
-                        >
-                            {t}
-                        </button>
-                    ))}
+            {selectedTemplate?.type === 'ai' && (
+                <div className="animate-fade-in-up">
+                    <label className="block text-xs font-bold text-white/70 mb-3 uppercase tracking-wider">Tone Bicara</label>
+                    <div className="flex gap-2 p-1 bg-black/30 rounded-xl w-fit border border-white/10">
+                        {(['formal', 'friendly', 'casual'] as const).map((t) => (
+                            <button
+                                key={t}
+                                onClick={() => setTone(t)}
+                                className={`px-5 py-2 rounded-lg text-sm capitalize transition-all duration-300 ${
+                                    tone === t 
+                                    ? 'bg-white/10 text-white shadow-lg border border-white/10 font-semibold' 
+                                    : 'text-white/50 hover:text-white hover:bg-white/5'
+                                }`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
           </div>
 
           {/* Action Button */}
@@ -132,7 +188,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                 icon={<Wand2 className="w-4 h-4" />}
                 className="w-full sm:w-auto shadow-[0_0_20px_rgba(6,182,212,0.2)]"
              >
-                Generate Wording
+                {selectedTemplate?.type === 'manual' ? 'Gunakan Template' : 'Generate Wording AI'}
              </Button>
           </div>
 
@@ -149,13 +205,15 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                     onChange={(e) => setGeneratedText(e.target.value)}
                 />
                 <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button 
-                        onClick={handleGenerate}
-                        className="p-2 bg-slate-800 rounded-lg shadow-lg text-white/60 hover:text-cyan-400 border border-white/10 transition-colors"
-                        title="Regenerate"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
+                    {selectedTemplate?.type === 'ai' && (
+                        <button 
+                            onClick={handleGenerate}
+                            className="p-2 bg-slate-800 rounded-lg shadow-lg text-white/60 hover:text-cyan-400 border border-white/10 transition-colors"
+                            title="Regenerate"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                        </button>
+                    )}
                     <button 
                         onClick={handleCopy}
                         className="p-2 bg-slate-800 rounded-lg shadow-lg text-white/60 hover:text-cyan-400 border border-white/10 transition-colors"

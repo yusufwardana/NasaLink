@@ -47,14 +47,12 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
   const handlePickContact = async () => {
     const nav = navigator as any;
 
-    // 1. Feature Detection
     if (!('contacts' in nav && 'select' in nav.contacts)) {
         alert('Fitur "Ambil Kontak" tidak didukung oleh browser ini.\n\nTips: Gunakan Google Chrome pada HP Android untuk menggunakan fitur ini.');
         return;
     }
 
     try {
-        // 2. Request Contact
         const props = ['name', 'tel'];
         const opts = { multiple: false };
         
@@ -63,24 +61,19 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
         if (contacts && contacts.length > 0) {
             const selected = contacts[0];
             
-            // Prepare new values, defaulting to existing if not found
             let newName = formData.name;
             let newPhone = formData.phone;
             let phoneFound = false;
             
-            // Update Name
             if (selected.name && selected.name.length > 0) {
                 newName = selected.name[0];
             }
             
-            // Update Phone - iterate to find first valid number
             if (selected.tel && selected.tel.length > 0) {
-                 // Try to find a non-empty number string
                  const validPhone = selected.tel.find((t: any) => t && String(t).trim().length > 0);
                  
                  if (validPhone) {
                      let rawPhone = String(validPhone);
-                     // Keep digits and +
                      let cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
                      newPhone = cleanPhone;
                      phoneFound = true;
@@ -98,11 +91,8 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
             }));
         }
     } catch (err) {
-        // Ignore AbortError (User Cancelled)
         if (err instanceof Error && err.name === 'AbortError') return;
-        
         console.error("Contact picker error:", err);
-        
         let msg = 'Gagal membuka kontak.';
         if (err instanceof Error) {
              if (err.name === 'NotAllowedError') {
@@ -189,7 +179,57 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                   name="sentra"
                   value={formData.sentra || ''}
                   onChange={handleChange}
-                  placeholder="Misal: Jakarta Pusat"
+                  placeholder="Sentra Mawar"
+                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                />
+              </div>
+          </div>
+          
+          {/* BTPN Specific Fields */}
+          <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">CO (Petugas)</label>
+                <input
+                  type="text"
+                  name="co"
+                  value={formData.co || ''}
+                  onChange={handleChange}
+                  placeholder="Nama CO"
+                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                />
+              </div>
+               <div>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Tgl Jatuh Tempo</label>
+                <input
+                  type="text"
+                  name="tglJatuhTempo"
+                  value={formData.tglJatuhTempo || ''}
+                  onChange={handleChange}
+                  placeholder="Contoh: 25"
+                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                />
+              </div>
+          </div>
+           <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Plafon</label>
+                <input
+                  type="text"
+                  name="plafon"
+                  value={formData.plafon || ''}
+                  onChange={handleChange}
+                  placeholder="Rp ..."
+                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                />
+              </div>
+               <div>
+                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Status</label>
+                <input
+                  type="text"
+                  name="statusAsli"
+                  value={formData.statusAsli || ''}
+                  onChange={handleChange}
+                  placeholder="Lancar/Macet"
                   className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
                 />
               </div>
@@ -199,11 +239,11 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
             <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Catatan Tambahan</label>
             <textarea
               name="notes"
-              rows={3}
+              rows={2}
               value={formData.notes || ''}
               onChange={handleChange}
               className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none resize-none"
-              placeholder="Misal: Hobi golf, punya anak 2..."
+              placeholder="Catatan personal..."
             />
           </div>
           
