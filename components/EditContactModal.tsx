@@ -75,8 +75,6 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                 // Remove characters that are not digits or +
                 let cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
                 
-                // Auto format 08 -> 628 if needed, but standardizing to just keeping numbers is safer
-                // If user wants +62, we can enforce it, but usually raw number is fine for now
                 updates.phone = cleanPhone;
             }
             
@@ -87,7 +85,18 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
         if (err instanceof Error && err.name === 'AbortError') return;
         
         console.error("Contact picker error:", err);
-        alert('Gagal membuka kontak. Pastikan Anda memberikan izin akses kontak kepada browser.');
+        
+        let msg = 'Gagal membuka kontak.';
+        if (err instanceof Error) {
+             if (err.name === 'NotAllowedError') {
+                 msg = 'Izin akses kontak ditolak. Mohon izinkan akses di pengaturan browser atau popup izin.';
+             } else if (err.name === 'SecurityError') {
+                 msg = 'Fitur ini memerlukan koneksi HTTPS yang aman.';
+             } else {
+                 msg = `Error: ${err.message}`;
+             }
+        }
+        alert(msg);
     }
   };
 
