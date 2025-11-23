@@ -1,0 +1,5 @@
+{
+  "name": "NasaLink CRM",
+  "description": "A customer relationship management tool for agents to manage contacts and generate AI-powered WhatsApp messages for clients (nasabah) in Indonesian.",
+  "requestFramePermissions": []
+}
