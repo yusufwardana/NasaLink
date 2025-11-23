@@ -11,7 +11,9 @@ export interface Contact {
 export interface MessageTemplate {
   id: string;
   label: string;
-  promptContext: string;
+  type: 'ai' | 'manual';
+  promptContext?: string; // For AI
+  content?: string;       // For Manual
   icon: string;
 }
 

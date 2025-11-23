@@ -17,11 +17,11 @@ const INITIAL_DATA: Contact[] = [
 ];
 
 const INITIAL_TEMPLATES: MessageTemplate[] = [
-  { id: '1', label: 'Sapaan Rutin', promptContext: 'Menanyakan kabar dan menjaga hubungan baik, tidak berjualan hard selling.', icon: '👋' },
-  { id: '2', label: 'Ulang Tahun', promptContext: 'Mengucapkan selamat ulang tahun dan mendoakan kesehatan.', icon: '🎂' },
-  { id: '3', label: 'Penawaran Promo', promptContext: 'Menginformasikan promo terbatas bulan ini untuk asuransi kesehatan.', icon: '🏷️' },
-  { id: '4', label: 'Jatuh Tempo', promptContext: 'Mengingatkan pembayaran premi yang akan jatuh tempo minggu depan dengan sopan.', icon: '📅' },
-  { id: '5', label: 'Follow Up', promptContext: 'Follow up setelah pertemuan pertama kemarin, menanyakan apakah ada pertanyaan lanjutan.', icon: '🤝' },
+  { id: '1', label: 'Sapaan Rutin', type: 'ai', promptContext: 'Menanyakan kabar dan menjaga hubungan baik, tidak berjualan hard selling.', icon: '👋' },
+  { id: '2', label: 'Ulang Tahun', type: 'ai', promptContext: 'Mengucapkan selamat ulang tahun dan mendoakan kesehatan.', icon: '🎂' },
+  { id: '3', label: 'Info Promo (Manual)', type: 'manual', content: 'Halo {name}, ada promo spesial bulan ini khusus nasabah {segment}. Cek detailnya disini ya!', icon: '🏷️' },
+  { id: '4', label: 'Jatuh Tempo', type: 'ai', promptContext: 'Mengingatkan pembayaran premi yang akan jatuh tempo minggu depan dengan sopan.', icon: '📅' },
+  { id: '5', label: 'Konfirmasi Janji (Manual)', type: 'manual', content: 'Selamat pagi {name}, saya ingin konfirmasi janji temu kita besok. Apakah sesuai jadwal?', icon: '🤝' },
 ];
 
 const App: React.FC = () => {
@@ -34,7 +34,15 @@ const App: React.FC = () => {
   // State: Templates
   const [templates, setTemplates] = useState<MessageTemplate[]>(() => {
     const saved = localStorage.getItem('nasalink_templates');
-    return saved ? JSON.parse(saved) : INITIAL_TEMPLATES;
+    // Migration for old data structure if needed
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.length > 0 && !parsed[0].type) {
+            return parsed.map((t: any) => ({ ...t, type: 'ai' }));
+        }
+        return parsed;
+    }
+    return INITIAL_TEMPLATES;
   });
   
   // State: UI & Selection
@@ -43,6 +51,7 @@ const App: React.FC = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   
   // State: Modals
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -78,6 +87,19 @@ const App: React.FC = () => {
     setTemplates(INITIAL_TEMPLATES);
     localStorage.removeItem('nasalink_contacts');
     localStorage.removeItem('nasalink_templates');
+  };
+
+  const handleTestTemplate = (templateId: string) => {
+      // Create dummy contact for testing
+      const dummyContact: Contact = {
+          id: 'test',
+          name: 'Budi Santoso (Test)',
+          phone: '08123456789',
+          segment: 'Gold',
+          sentra: 'Pusat'
+      };
+      setSelectedContact(dummyContact);
+      setInitialTemplateId(templateId);
   };
 
   const handleSyncSheet = async () => {
@@ -169,7 +191,7 @@ const App: React.FC = () => {
                         className="hidden sm:flex"
                         icon={<Shield className="w-4 h-4" />}
                     >
-                        Admin
+                        Menu Admin
                     </Button>
                 </div>
             </div>
@@ -276,8 +298,12 @@ const App: React.FC = () => {
         <MessageGeneratorModal 
             contact={selectedContact} 
             isOpen={!!selectedContact} 
-            onClose={() => setSelectedContact(null)} 
+            onClose={() => {
+                setSelectedContact(null);
+                setInitialTemplateId(undefined);
+            }}
             templates={templates}
+            initialTemplateId={initialTemplateId}
         />
       )}
 
@@ -295,6 +321,7 @@ const App: React.FC = () => {
         templates={templates}
         onUpdateTemplates={setTemplates}
         onResetData={handleResetData}
+        onTestTemplate={handleTestTemplate}
       />
 
       <ImportModal 
