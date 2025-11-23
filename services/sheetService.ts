@@ -1,23 +1,57 @@
 import { Contact } from '../types';
 
-// Helper to parse CSV text
-const parseCSV = (text: string): any[] => {
-  const lines = text.split('\n').filter(line => line.trim() !== '');
-  if (lines.length < 2) return [];
-
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+// Robust CSV Parser that handles quotes and commas inside quotes
+const parseCSV = (text: string): string[][] => {
+  const result: string[][] = [];
+  let row: string[] = [];
+  let currentVal = '';
+  let insideQuote = false;
   
-  return lines.slice(1).map(line => {
-    // Regex to handle commas inside quotes
-    const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-    const cleanValues = values.map(val => val.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
-    
-    const entry: any = {};
-    headers.forEach((header, index) => {
-      entry[header] = cleanValues[index] || '';
-    });
-    return entry;
-  });
+  // Normalize line endings
+  const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    const nextChar = cleanText[i + 1];
+
+    if (char === '"') {
+      if (insideQuote && nextChar === '"') {
+        // Escaped quote ("") -> treat as single quote
+        currentVal += '"';
+        i++; // Skip next char
+      } else {
+        // Toggle quote state
+        insideQuote = !insideQuote;
+      }
+    } else if (char === ',' && !insideQuote) {
+      // End of cell
+      row.push(currentVal.trim());
+      currentVal = '';
+    } else if (char === '\n' && !insideQuote) {
+      // End of row
+      row.push(currentVal.trim());
+      if (row.length > 0 && row.some(c => c !== '')) {
+         result.push(row);
+      }
+      row = [];
+      currentVal = '';
+    } else {
+      currentVal += char;
+    }
+  }
+  
+  // Push last value/row if exists
+  if (currentVal || row.length > 0) {
+      row.push(currentVal.trim());
+      if (row.length > 0) result.push(row);
+  }
+
+  return result;
+};
+
+// Helper to find column index loosely
+const findColIndex = (headers: string[], keywords: string[]): number => {
+    return headers.findIndex(h => keywords.some(k => h.includes(k)));
 };
 
 export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: string = 'Sheet1'): Promise<Contact[]> => {
@@ -31,42 +65,63 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     }
 
     const text = await response.text();
-    const rawData = parseCSV(text);
+    const rows = parseCSV(text);
 
-    // Map CSV columns to Contact interface based on user provided columns:
-    // CO, SENTRA, NASABAH, PLAFON, PRODUK, FLAG, TGL JATUH TEMPO, STATUS, NOMER TELP
-    return rawData.map((row, index) => {
-        const name = row.nasabah || row.nama || 'Tanpa Nama';
-        const phone = (row['nomer telp'] || row.telepon || row.hp || row.phone || '').replace(/'/g, '');
+    if (rows.length < 2) return [];
+
+    // Header Mapping (Fuzzy Match)
+    const headers = rows[0].map(h => h.toLowerCase());
+    
+    const idxName = findColIndex(headers, ['nama', 'nasabah', 'name']);
+    const idxPhone = findColIndex(headers, ['telp', 'hp', 'phone', 'wa', 'nomer']);
+    const idxSegment = findColIndex(headers, ['status', 'segmen', 'flag', 'kategori']); // Often mixed
+    const idxSentra = findColIndex(headers, ['sentra', 'kelompok', 'area']);
+    const idxCo = findColIndex(headers, ['co', 'petugas', 'ao']);
+    const idxPlafon = findColIndex(headers, ['plafon', 'limit', 'pinjaman']);
+    const idxProduk = findColIndex(headers, ['produk']);
+    const idxJatuhTempo = findColIndex(headers, ['jatuh tempo', 'tgl', 'tanggal']);
+    const idxNotes = findColIndex(headers, ['notes', 'catatan', 'keterangan']);
+
+    // Map rows to Contact objects
+    return rows.slice(1).map((row, index): Contact | null => {
+        // Safe access helper
+        const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '';
+
+        const name = getVal(idxName) || 'Tanpa Nama';
+        const rawPhone = getVal(idxPhone);
         
-        // Determine segment based on FLAG or STATUS if available, otherwise default
-        let segment: any = 'Prospect';
-        const rawStatus = (row.status || '').toLowerCase();
-        const rawFlag = (row.flag || '').toLowerCase();
+        // Skip empty rows
+        if (name === 'Tanpa Nama' && !rawPhone) return null;
+
+        const phone = rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, ''); // Clean phone
         
-        if (rawFlag.includes('gold') || rawStatus.includes('gold')) segment = 'Gold';
-        else if (rawFlag.includes('platinum') || rawStatus.includes('platinum')) segment = 'Platinum';
-        else if (rawFlag.includes('silver') || rawStatus.includes('silver')) segment = 'Silver';
+        // Determine segment smarter
+        let segment: Contact['segment'] = 'Prospect';
+        const rawSegInfo = (getVal(idxSegment) + ' ' + (row.length > idxSegment + 1 ? row.join(' ') : '')).toLowerCase();
+        
+        if (rawSegInfo.includes('gold')) segment = 'Gold';
+        else if (rawSegInfo.includes('platinum')) segment = 'Platinum';
+        else if (rawSegInfo.includes('silver')) segment = 'Silver';
 
         return {
             id: `sheet-${index}-${Date.now()}`,
             name: name,
             phone: phone,
             segment: segment,
-            sentra: row.sentra || 'Pusat',
+            sentra: getVal(idxSentra) || 'Pusat',
             
-            // New mapped fields
-            co: row.co || '',
-            plafon: row.plafon || '',
-            produk: row.produk || '',
-            flag: row.flag || '',
-            tglJatuhTempo: row['tgl jatuh tempo'] || '',
-            statusAsli: row.status || '',
+            co: getVal(idxCo),
+            plafon: getVal(idxPlafon),
+            produk: getVal(idxProduk),
+            flag: '', // usually part of segment logic now
+            tglJatuhTempo: getVal(idxJatuhTempo),
+            statusAsli: getVal(idxSegment), // Keep original status text
             
-            notes: row.notes || '', // Fallback if 'notes' column exists
+            notes: getVal(idxNotes),
             lastInteraction: ''
         };
-    }).filter(c => c.name !== 'Tanpa Nama' && c.phone !== ''); 
+    }).filter((c): c is Contact => c !== null && c.phone.length > 5); // Filter invalid
+    
   } catch (error) {
     console.error("Sheet fetch error:", error);
     throw error;

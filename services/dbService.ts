@@ -17,7 +17,7 @@ interface NasaLinkDB extends DBSchema {
 }
 
 const DB_NAME = 'nasalink-db';
-const DB_VERSION = 2; // Bumped to fix settings store schema
+const DB_VERSION = 3; // Bumped to ensure settings store is recreated correctly
 
 let dbPromise: Promise<IDBPDatabase<NasaLinkDB>> | null = null;
 
@@ -34,8 +34,7 @@ export const getDB = () => {
         }
         
         // Settings Store Fix:
-        // Previously created with { keyPath: 'key' }, which conflicts with db.put('settings', val, key).
-        // We delete and recreate it without keyPath to support out-of-line keys.
+        // Ensure settings store does NOT have a keyPath so we can use out-of-line keys like 'sheet_config'
         if (db.objectStoreNames.contains('settings')) {
           db.deleteObjectStore('settings');
         }
