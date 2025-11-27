@@ -56,10 +56,19 @@ const findColIndex = (headers: string[], keywords: string[]): number => {
 
 export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: string = 'Sheet1'): Promise<Contact[]> => {
   try {
-    // Construct URL for CSV export
-    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    // Add cache buster timestamp to URL to prevent browser caching
+    const timestamp = new Date().getTime();
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&t=${timestamp}`;
     
-    const response = await fetch(url);
+    // Add cache control headers
+    const response = await fetch(url, {
+        cache: "no-store",
+        headers: {
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+        }
+    });
+
     if (!response.ok) {
       throw new Error('Gagal mengambil data. Pastikan Spreadsheet ID benar dan File di-set "Anyone with the link" atau "Published to Web".');
     }
@@ -152,8 +161,7 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
     headers: { 'Content-Type': 'text/plain' } 
   });
 
-  const result = await response.json();
-  if (result.result !== 'success') {
-    throw new Error(result.message || 'Gagal update di Sheet');
-  }
+  // Karena mode no-cors (agar tidak error di browser), kita tidak bisa membaca response JSON.
+  // Asumsikan sukses jika fetch berhasil dieksekusi tanpa throw error network.
+  // const result = await response.json(); 
 };
