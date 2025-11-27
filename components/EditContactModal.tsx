@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Contact } from '../types';
 import { Button } from './Button';
-import { X, Save, Trash2, Contact as ContactIcon } from 'lucide-react';
+import { X, Save, Trash2, Contact as ContactIcon, Info } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -121,6 +121,15 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+          
+          {/* WARNING BANNER */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-3">
+             <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+             <div className="text-xs text-blue-800 leading-relaxed">
+                 <span className="font-bold">Mode Live Sheet:</span> Perubahan di sini hanya bersifat <span className="underline">sementara</span> di tampilan ini saja. Untuk mengubah data permanen, silakan edit langsung di file Google Sheet Anda.
+             </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Nama Lengkap</label>
             <input
@@ -253,11 +262,11 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                     onClick={handleDelete}
                     className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
                 >
-                    <Trash2 className="w-4 h-4" /> Hapus
+                    <Trash2 className="w-4 h-4" /> Hapus Sementara
                 </button>
                 <div className="flex gap-3">
                     <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-                    <Button type="submit" icon={<Save className="w-4 h-4" />}>Simpan</Button>
+                    <Button type="submit" icon={<Save className="w-4 h-4" />}>Update Tampilan</Button>
                 </div>
           </div>
         </form>
