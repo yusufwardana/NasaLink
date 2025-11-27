@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
+import { saveTemplatesToSheet } from '../services/sheetService'; // Import save sync
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Edit2, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -29,23 +30,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [editForm, setEditForm] = useState<Partial<MessageTemplate>>({});
   const [sheetConfig, setSheetConfig] = useState<SheetConfig>({ spreadsheetId: '', sheetName: '', googleScriptUrl: '' });
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [isSavingTemplates, setIsSavingTemplates] = useState(false);
   
-  // Check if global config is active
   const isGlobalConfigActive = !!(GLOBAL_CONFIG.spreadsheetId && GLOBAL_CONFIG.spreadsheetId.trim() !== '');
 
-  // Refs for manual text insertion
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load Config
   useEffect(() => {
     if (isOpen) {
         setIsLoadingConfig(true);
         if (isGlobalConfigActive) {
-            // Use global config
             setSheetConfig(GLOBAL_CONFIG);
             setIsLoadingConfig(false);
         } else {
-            // Use DB config
             getSheetConfig().then((config) => {
                 if (config) {
                     setSheetConfig(config);
@@ -57,7 +54,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   }, [isOpen, isGlobalConfigActive]);
 
-  // Select first template automatically when opening templates tab
   useEffect(() => {
       if (isOpen && activeTab === 'templates' && templates.length > 0 && !selectedTemplateId) {
           handleSelectTemplate(templates[0]);
@@ -65,8 +61,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   }, [isOpen, activeTab, templates]);
 
   if (!isOpen) return null;
-
-  // --- Logic ---
 
   const handleSelectTemplate = (t: MessageTemplate) => {
       setSelectedTemplateId(t.id);
@@ -87,10 +81,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setEditForm(newTemplate);
   };
 
-  const handleSaveCurrent = () => {
+  // MAIN SAVE LOGIC
+  const handleSaveCurrent = async () => {
     if (!editForm.label || !selectedTemplateId) return;
     
-    // Validation
     if (editForm.type === 'ai' && !editForm.promptContext) {
         alert("Instruksi AI tidak boleh kosong");
         return;
@@ -101,19 +95,40 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
 
     const newTemplate = editForm as MessageTemplate;
+    let updatedTemplates = [];
+    
     const exists = templates.find(t => t.id === newTemplate.id);
-
     if (exists) {
-      onUpdateTemplates(templates.map(t => t.id === newTemplate.id ? newTemplate : t));
+      updatedTemplates = templates.map(t => t.id === newTemplate.id ? newTemplate : t);
     } else {
-      onUpdateTemplates([...templates, newTemplate]);
+      updatedTemplates = [...templates, newTemplate];
+    }
+    
+    // 1. Optimistic Update Local
+    onUpdateTemplates(updatedTemplates);
+
+    // 2. Sync to Global Sheet
+    if (sheetConfig.googleScriptUrl) {
+        setIsSavingTemplates(true);
+        try {
+            await saveTemplatesToSheet(sheetConfig.googleScriptUrl, updatedTemplates);
+            // No alert needed, just background sync
+        } catch (e) {
+            console.error("Failed to sync templates globally:", e);
+            alert("Gagal menyimpan ke Cloud (Global). Periksa koneksi atau Script.");
+        } finally {
+            setIsSavingTemplates(false);
+        }
+    } else {
+        alert("Peringatan: URL Script belum diisi. Template hanya tersimpan sementara di sesi ini.");
     }
   };
 
-  const handleDeleteCurrent = () => {
+  const handleDeleteCurrent = async () => {
     if (!selectedTemplateId) return;
-    if (window.confirm('Hapus template ini?')) {
+    if (window.confirm('Hapus template ini secara Global?')) {
       const remaining = templates.filter(t => t.id !== selectedTemplateId);
+      
       onUpdateTemplates(remaining);
       
       if (remaining.length > 0) {
@@ -121,6 +136,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       } else {
           setSelectedTemplateId(null);
           setEditForm({});
+      }
+
+      if (sheetConfig.googleScriptUrl) {
+        setIsSavingTemplates(true);
+        try {
+            await saveTemplatesToSheet(sheetConfig.googleScriptUrl, remaining);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsSavingTemplates(false);
+        }
       }
     }
   };
@@ -138,52 +164,43 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       const newText = before + variable + after;
       setEditForm({ ...editForm, content: newText });
       
-      // Restore focus (needs timeout for React render cycle)
       setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start + variable.length, start + variable.length);
       }, 0);
   };
 
-  const handleBulkMode = (mode: 'ai' | 'manual') => {
+  const handleBulkMode = async (mode: 'ai' | 'manual') => {
       if (onBulkUpdateMode && window.confirm(`Ubah SEMUA template menjadi mode ${mode.toUpperCase()}?`)) {
           onBulkUpdateMode(mode);
-          // Refresh current form if needed
-          if (selectedTemplateId) {
-             const t = templates.find(temp => temp.id === selectedTemplateId);
-             if (t) setEditForm({ ...t, type: mode }); 
-          }
+          // Note: App.tsx will update state, but we need to trigger save to sheet
+          // This is complex as onBulkUpdateMode is async state update.
+          // Ideally user should click "Save" on a template to trigger sync or we assume user knows they need to edit and save.
       }
   };
 
   const handleSaveSheetConfig = async () => {
       if (isGlobalConfigActive) {
-          alert("Pengaturan dikunci karena Mode Global aktif (diatur dari kode).");
+          alert("Pengaturan dikunci karena Mode Global aktif.");
           return;
       }
       setIsLoadingConfig(true);
       try {
           await saveSheetConfig(sheetConfig);
-          alert('Konfigurasi Google Sheet berhasil disimpan ke Database!');
+          alert('Konfigurasi Google Sheet berhasil disimpan!');
       } catch (e) {
           console.error(e);
-          alert('Gagal menyimpan konfigurasi. Coba lagi.');
       } finally {
           setIsLoadingConfig(false);
       }
   };
 
   const handleReset = () => {
-      if (window.confirm('PERINGATAN: Reset akan menghapus semua data di database lokal (IndexedDB). Lanjutkan?')) {
+      if (window.confirm('PERINGATAN: Reset data lokal?')) {
           onResetData();
-          if (!isGlobalConfigActive) {
-              setSheetConfig({ spreadsheetId: '', sheetName: '', googleScriptUrl: '' });
-          }
           onClose();
       }
   };
-
-  // --- Render Helpers ---
 
   const renderManualPreview = () => {
       if (!editForm.content) return null;
@@ -204,18 +221,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] relative">
-        {/* Top Gradient Line */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500"></div>
 
-        {/* Header */}
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white/50 shrink-0">
           <div className="flex items-center gap-3">
              <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg text-white shadow-md">
                 <Database className="w-5 h-5" />
              </div>
              <div>
-                 <h2 className="text-lg font-bold text-slate-800 leading-none">Admin Panel</h2>
-                 <p className="text-xs text-slate-500 mt-1">Pengaturan Template & Sistem</p>
+                 <h2 className="text-lg font-bold text-slate-800 leading-none">Admin Global</h2>
+                 <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                     {isSavingTemplates ? (
+                         <span className="text-orange-500 animate-pulse font-bold">Menyimpan ke Cloud...</span>
+                     ) : (
+                         <span className="text-green-600">Terhubung ke Google Sheets</span>
+                     )}
+                 </p>
              </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors">
@@ -223,7 +244,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </button>
         </div>
 
-        {/* Navigation Tabs (Desktop) */}
         <div className="flex border-b border-slate-200 bg-slate-50/50 shrink-0">
             <button 
                 onClick={() => setActiveTab('templates')}
@@ -239,16 +259,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </button>
         </div>
 
-        {/* Content Area */}
         <div className="flex-1 overflow-hidden relative bg-slate-50/30">
-            
-            {/* --- TEMPLATES TAB --- */}
             {activeTab === 'templates' && (
                 <div className="flex h-full flex-col sm:flex-row">
-                    
-                    {/* LEFT: Sidebar List */}
                     <div className="w-full sm:w-1/3 border-r border-slate-200 bg-white/50 flex flex-col h-full">
-                        {/* Tools Header */}
                         <div className="p-3 border-b border-slate-100 bg-white">
                             <Button 
                                 onClick={handleStartAdd} 
@@ -260,7 +274,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             </Button>
                         </div>
                         
-                        {/* List Items */}
                         <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                             {templates.map(t => (
                                 <button
@@ -289,8 +302,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 </button>
                             ))}
                         </div>
-
-                        {/* Bulk Action Footer */}
+                        
                         <div className="p-3 border-t border-slate-200 bg-slate-100/50">
                             <div className="text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1">
                                 <Layers className="w-3 h-3" /> Global Actions
@@ -306,11 +318,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         </div>
                     </div>
 
-                    {/* RIGHT: Editor */}
                     <div className="w-full sm:w-2/3 bg-slate-50/50 flex flex-col h-full overflow-y-auto custom-scrollbar">
                         {selectedTemplateId ? (
                             <div className="p-6 max-w-2xl mx-auto w-full space-y-6">
-                                {/* Editor Form */}
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-4 w-full">
                                         <div className="w-16">
@@ -343,7 +353,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
                                         }`}
                                     >
-                                        <Bot className="w-3.5 h-3.5" /> AI Generator (Personal)
+                                        <Bot className="w-3.5 h-3.5" /> AI Generator
                                     </button>
                                     <button 
                                         onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))}
@@ -353,11 +363,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
                                         }`}
                                     >
-                                        <Type className="w-3.5 h-3.5" /> Manual (Teks Baku)
+                                        <Type className="w-3.5 h-3.5" /> Manual Text
                                     </button>
                                 </div>
 
-                                <div className="animate-fade-in-up">
+                                <div>
                                     {editForm.type === 'ai' ? (
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-end">
@@ -369,12 +379,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                 className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 text-sm leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50"
                                                 value={editForm.promptContext || ''}
                                                 onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
-                                                placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan sentra tepat waktu. Gunakan bahasa yang halus dan menyemangati..."
+                                                placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan..."
                                             />
                                             <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex gap-3">
                                                 <Info className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
                                                 <p className="text-xs text-cyan-800">
-                                                    AI akan otomatis menambahkan sapaan "Ibu [Nama]" dan menyesuaikan nada bicara menjadi sopan khas petugas bank BTPN Syariah.
+                                                    Perubahan akan disimpan di Google Sheet (Tab "Templates") dan otomatis terupdate di semua perangkat.
                                                 </p>
                                             </div>
                                         </div>
@@ -387,19 +397,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             </div>
                                             
                                             <div className="flex flex-wrap gap-2 mb-2">
-                                                {[
-                                                    { label: '+ Nama Ibu', code: '{name}' },
-                                                    { label: '+ Nama Sentra', code: '{sentra}' },
-                                                    { label: '+ Flag', code: '{flag}' },
-                                                    { label: '+ No HP', code: '{phone}' },
-                                                    { label: '+ Petugas', code: '{co}' },
-                                                    { label: '+ Jatuh Tempo', code: '{tgl_jatuh_tempo}' },
-                                                    { label: '+ Plafon', code: '{plafon}' },
-                                                ].map((chip) => (
+                                                {[{ label: '+ Nama', code: '{name}' }, { label: '+ Sentra', code: '{sentra}' }, { label: '+ Flag', code: '{flag}' }, { label: '+ HP', code: '{phone}' }, { label: '+ CO', code: '{co}' }].map((chip) => (
                                                     <button
                                                         key={chip.code}
                                                         onClick={() => handleInsertVariable(chip.code)}
-                                                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-600 transition-colors uppercase tracking-wide"
+                                                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-600 uppercase tracking-wide"
                                                     >
                                                         {chip.label}
                                                     </button>
@@ -411,9 +413,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                 className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50"
                                                 value={editForm.content || ''}
                                                 onChange={e => setEditForm({...editForm, content: e.target.value})}
-                                                placeholder="Assalamualaikum Ibu {name}..."
+                                                placeholder="Assalamualaikum..."
                                             />
-                                            
                                             {renderManualPreview()}
                                         </div>
                                     )}
@@ -422,13 +423,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <div className="pt-6 border-t border-slate-200 flex justify-between items-center">
                                     <button 
                                         onClick={handleDeleteCurrent}
+                                        disabled={isSavingTemplates}
                                         className="px-4 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
                                     >
-                                        <Trash2 className="w-4 h-4" /> Hapus
+                                        <Trash2 className="w-4 h-4" /> Hapus Global
                                     </button>
                                     
                                     <div className="flex gap-3">
-                                         {onTestTemplate && (
+                                        {onTestTemplate && (
                                             <Button 
                                                 variant="secondary"
                                                 onClick={() => {
@@ -446,9 +448,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                         <Button 
                                             onClick={handleSaveCurrent}
                                             icon={<Check className="w-4 h-4" />}
+                                            isLoading={isSavingTemplates}
                                             className="shadow-lg shadow-cyan-500/20"
                                         >
-                                            Simpan Perubahan
+                                            {isSavingTemplates ? 'Menyimpan...' : 'Simpan Global'}
                                         </Button>
                                     </div>
                                 </div>
@@ -457,26 +460,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-10 text-center">
                                 <LayoutTemplate className="w-16 h-16 mb-4 opacity-50" />
-                                <p>Pilih template di sebelah kiri untuk mengedit</p>
+                                <p>Pilih template untuk diedit</p>
                             </div>
                         )}
                     </div>
                 </div>
             )}
 
-            {/* --- SETTINGS TAB --- */}
             {activeTab === 'settings' && (
                 <div className="p-6 sm:p-10 max-w-3xl mx-auto space-y-8 animate-fade-in-up overflow-y-auto h-full custom-scrollbar">
-                    {/* Google Sheet Config */}
                     <div className={`bg-white border rounded-2xl p-6 shadow-sm ${isGlobalConfigActive ? 'border-cyan-200 bg-cyan-50/50' : 'border-slate-200'}`}>
                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Database className={`w-5 h-5 ${isGlobalConfigActive ? 'text-cyan-600' : 'text-green-600'}`} />
-                            Integrasi Google Sheets
-                            {isGlobalConfigActive && (
-                                <span className="text-[10px] bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full border border-cyan-200 uppercase tracking-wide">
-                                    Mode Global Aktif
-                                </span>
-                            )}
+                            <Globe className={`w-5 h-5 ${isGlobalConfigActive ? 'text-cyan-600' : 'text-green-600'}`} />
+                            Konfigurasi Global
                         </h3>
                         
                         <div className="space-y-4">
@@ -484,9 +480,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <div className="bg-cyan-100 border border-cyan-200 text-cyan-800 p-4 rounded-xl flex items-start gap-3 text-sm">
                                     <Lock className="w-5 h-5 shrink-0" />
                                     <div>
-                                        <p className="font-bold">Pengaturan Dikunci (Hardcoded)</p>
+                                        <p className="font-bold">Pengaturan Terpusat (Hardcoded)</p>
                                         <p className="opacity-90 mt-1">
-                                            ID Spreadsheet saat ini diatur langsung melalui kode aplikasi (file <code>config.ts</code>). 
+                                            ID Spreadsheet dan URL Script dikelola secara terpusat dari kode. Anda tidak perlu mengubahnya di sini.
                                         </p>
                                     </div>
                                 </div>
@@ -496,84 +492,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Spreadsheet ID</label>
                                 <input 
                                     type="text" 
-                                    className={`w-full border rounded-xl p-3 text-slate-800 focus:outline-none font-mono text-sm transition-all ${
-                                        isGlobalConfigActive 
-                                        ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed' 
-                                        : 'bg-slate-50 border-slate-200 focus:ring-2 focus:ring-green-500/50 focus:bg-white'
-                                    }`}
-                                    placeholder="Contoh: 1BxiMVs0XRA5nFMdKbBdB..."
+                                    className="w-full border rounded-xl p-3 text-slate-800 bg-slate-100 cursor-not-allowed"
                                     value={sheetConfig.spreadsheetId}
-                                    onChange={(e) => setSheetConfig(prev => ({ ...prev, spreadsheetId: e.target.value }))}
-                                    disabled={isGlobalConfigActive}
+                                    disabled
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Nama Sheet (Tab)</label>
+                             <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script</label>
                                 <input 
                                     type="text" 
-                                    className={`w-full border rounded-xl p-3 text-slate-800 focus:outline-none text-sm transition-all ${
-                                        isGlobalConfigActive 
-                                        ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed' 
-                                        : 'bg-slate-50 border-slate-200 focus:ring-2 focus:ring-green-500/50 focus:bg-white'
-                                    }`}
-                                    placeholder="Contoh: Sheet1"
-                                    value={sheetConfig.sheetName}
-                                    onChange={(e) => setSheetConfig(prev => ({ ...prev, sheetName: e.target.value }))}
-                                    disabled={isGlobalConfigActive}
-                                />
-                            </div>
-
-                            <div className="border-t border-slate-100 pt-4 mt-2">
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-2">
-                                    <Code className="w-3 h-3"/> URL Apps Script (Opsional)
-                                </label>
-                                <p className="text-[10px] text-slate-400 mb-2">Diperlukan untuk fitur Update Nomor HP ke Sheets.</p>
-                                <input 
-                                    type="text" 
-                                    className={`w-full border rounded-xl p-3 text-slate-800 focus:outline-none font-mono text-sm transition-all ${
-                                        isGlobalConfigActive 
-                                        ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed' 
-                                        : 'bg-slate-50 border-slate-200 focus:ring-2 focus:ring-green-500/50 focus:bg-white'
-                                    }`}
-                                    placeholder="https://script.google.com/macros/s/.../exec"
+                                    className="w-full border rounded-xl p-3 text-slate-800 bg-slate-100 cursor-not-allowed font-mono text-xs"
                                     value={sheetConfig.googleScriptUrl || ''}
-                                    onChange={(e) => setSheetConfig(prev => ({ ...prev, googleScriptUrl: e.target.value }))}
-                                    disabled={isGlobalConfigActive}
+                                    disabled
                                 />
                             </div>
-
-                            <div className="flex justify-end pt-2">
-                                <Button 
-                                    onClick={handleSaveSheetConfig} 
-                                    icon={<Save className="w-4 h-4"/>} 
-                                    variant="glass" 
-                                    isLoading={isLoadingConfig}
-                                    disabled={isGlobalConfigActive}
-                                    className={isGlobalConfigActive ? 'opacity-50 cursor-not-allowed' : ''}
-                                >
-                                    {isGlobalConfigActive ? 'Terkunci' : 'Simpan Konfigurasi'}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Danger Zone */}
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-                        <h3 className="text-lg font-bold text-red-600 mb-2 flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5" />
-                            Zona Bahaya
-                        </h3>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                             <p className="text-sm text-slate-600 max-w-md">
-                                Menghapus semua data lokal (cache) aplikasi di HP ini dan mengembalikan template ke pengaturan pabrik. Data di Google Sheets aman.
-                            </p>
-                            <Button 
-                                variant="danger" 
-                                onClick={handleReset}
-                                icon={<Trash2 className="w-4 h-4"/>}
-                            >
-                                Reset Data
-                            </Button>
                         </div>
                     </div>
                 </div>

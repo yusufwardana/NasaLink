@@ -33,5 +33,6 @@ export interface GeneratedMessage {
 export interface SheetConfig {
   spreadsheetId: string;
   sheetName: string;
+  templateSheetName?: string; // New field for Templates Tab
   googleScriptUrl?: string; // New field for Apps Script URL
 }

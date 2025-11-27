@@ -6,10 +6,8 @@ import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { Button } from './components/Button';
-import { fetchContactsFromSheet } from './services/sheetService';
-import { 
-    getAllTemplates, saveBulkTemplates, clearAllData, getSheetConfig 
-} from './services/dbService';
+import { fetchContactsFromSheet, fetchTemplatesFromSheet } from './services/sheetService';
+import { clearAllData, getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown } from 'lucide-react';
 
@@ -67,16 +65,7 @@ const App: React.FC = () => {
     setIsLoadingData(true);
     setConfigError(false);
     try {
-        // A. Load Templates from Local DB (User preferences)
-        const dbTemplates = await getAllTemplates();
-        if (dbTemplates.length === 0) {
-            await saveBulkTemplates(INITIAL_TEMPLATES_FALLBACK);
-            setTemplates(INITIAL_TEMPLATES_FALLBACK);
-        } else {
-            setTemplates(dbTemplates);
-        }
-
-        // B. Determine Configuration (Global Hardcoded vs Local DB)
+        // Determine Configuration (Global Hardcoded vs Local DB)
         let config: SheetConfig | null = null;
 
         // 1. Check Global Config first
@@ -92,16 +81,29 @@ const App: React.FC = () => {
         setActiveConfig(config);
 
         if (config && config.spreadsheetId) {
-            // Fetch LIVE data
+            // Fetch LIVE Contacts
             try {
                 const liveContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
                 setContacts(liveContacts);
             } catch (err) {
-                console.error("Error fetching live data:", err);
-                alert("Gagal mengambil data Live dari Google Sheets. Periksa koneksi internet atau ID Spreadsheet.");
+                console.error("Error fetching live contacts:", err);
+            }
+
+            // Fetch LIVE Templates (Global Sync)
+            try {
+                const liveTemplates = await fetchTemplatesFromSheet(config.spreadsheetId, config.templateSheetName || 'Templates');
+                if (liveTemplates.length > 0) {
+                    setTemplates(liveTemplates);
+                } else {
+                    setTemplates(INITIAL_TEMPLATES_FALLBACK);
+                }
+            } catch (err) {
+                console.warn("Failed to load templates from sheet, using fallback.", err);
+                setTemplates(INITIAL_TEMPLATES_FALLBACK);
             }
         } else {
             setConfigError(true);
+            setTemplates(INITIAL_TEMPLATES_FALLBACK);
         }
     } catch (e) {
         console.error("Failed to initialize:", e);
@@ -126,39 +128,33 @@ const App: React.FC = () => {
         const clean = dateStr.trim();
         
         // Try format DD/MM/YYYY or DD-MM-YYYY (Indonesian format common in Excel)
-        // matches: 20/05/2025, 20-05-2025, 5/2/2026
         const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
         if (partsIndo) {
             const day = parseInt(partsIndo[1], 10);
             const month = parseInt(partsIndo[2], 10) - 1; // JS months 0-11
             const year = parseInt(partsIndo[3], 10);
             const d = new Date(year, month, day);
-            // Validasi tanggal valid
             if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) {
                 return d;
             }
         }
 
-        // Fallback: Try standard Date.parse (YYYY-MM-DD)
         const parsed = Date.parse(clean);
         if (!isNaN(parsed)) {
             return new Date(parsed);
         }
-
         return null;
     };
 
-    // Helper for PRS only: Check day of month (Recurring) if date format is incomplete
+    // Helper for PRS only
     const extractDayForRecurring = (dateStr: string): number | null => {
          if (!dateStr) return null;
-         // If string is just "20"
          if (/^\d{1,2}$/.test(dateStr.trim())) {
              return parseInt(dateStr, 10);
          }
          return null;
     };
     
-    // Helper: Calculate Diff Days
     const getDiffDays = (target: Date, base: Date): number => {
         const diffTime = target.getTime() - base.getTime();
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -167,7 +163,7 @@ const App: React.FC = () => {
     const events: NotificationItem[] = [];
 
     contacts.forEach(c => {
-        // 1. Check Jatuh Tempo (Payment/Finish) - STRICT FULL DATE CHECK
+        // 1. Check Jatuh Tempo
         if (c.tglJatuhTempo) {
             const targetDate = parseFullDate(c.tglJatuhTempo);
             
@@ -175,41 +171,32 @@ const App: React.FC = () => {
                 targetDate.setHours(0,0,0,0);
                 const diff = getDiffDays(targetDate, today);
 
-                // Logic: H-0 (Today) until H-7 (Next 7 days)
-                // We use 7 days window for "Prospek Cair" so agent can prepare
                 if (diff === 0) {
                     events.push({ contact: c, type: 'payment', status: 'today', daysLeft: 0 });
                 } else if (diff > 0 && diff <= 7) {
                     events.push({ contact: c, type: 'payment', status: 'soon', daysLeft: diff });
                 }
-                // If diff is negative (past), we ignore it (already passed)
-                // If diff > 7, it's too far in future
             }
         }
 
-        // 2. Check PRS (Meeting) - Hybrid Check (Full Date OR Recurring Day)
+        // 2. Check PRS
         if (c.tglPrs) {
             let diff = -999;
             const fullDatePrs = parseFullDate(c.tglPrs);
             
             if (fullDatePrs) {
-                 // Exact date match (e.g. 20/05/2025)
                  fullDatePrs.setHours(0,0,0,0);
                  diff = getDiffDays(fullDatePrs, today);
             } else {
-                 // Recurring match (e.g. "20")
                  const day = extractDayForRecurring(c.tglPrs);
                  if (day !== null) {
                     const currentDay = today.getDate();
-                    // If target day < today, assume next month. Else this month.
-                    // This logic is simple for "Reminder".
                     let targetMonth = today.getMonth();
                     let targetYear = today.getFullYear();
                     
                     if (day < currentDay) {
                         targetMonth++; 
                     }
-                    
                     const nextPrsDate = new Date(targetYear, targetMonth, day);
                     diff = getDiffDays(nextPrsDate, today);
                  }
@@ -218,14 +205,13 @@ const App: React.FC = () => {
             if (diff !== -999) {
                 if (diff === 0) {
                     events.push({ contact: c, type: 'prs', status: 'today', daysLeft: 0 });
-                } else if (diff > 0 && diff <= 3) { // PRS usually H-3 is enough
+                } else if (diff > 0 && diff <= 3) {
                     events.push({ contact: c, type: 'prs', status: 'soon', daysLeft: diff });
                 }
             }
         }
     });
 
-    // Sort: Today first, then by days left.
     return events.sort((a, b) => {
         if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
         return 0;
@@ -233,32 +219,25 @@ const App: React.FC = () => {
   }, [contacts]);
 
 
-  // 1. Get Unique COs (Primary Filter)
   const coOptions = useMemo(() => {
       return Array.from(new Set(contacts.map(c => c.co).filter(Boolean))).sort();
   }, [contacts]);
 
-  // 2. Get Sentra Options (Dependent on CO)
   const sentraOptions = useMemo(() => {
-      // Filter contacts based on selected CO first
       const sourceContacts = selectedCo 
         ? contacts.filter(c => c.co === selectedCo)
         : contacts;
-      
       return Array.from(new Set(sourceContacts.map(c => c.sentra).filter(Boolean))).sort();
   }, [contacts, selectedCo]);
 
-  // Handlers
   const handleCoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const newCo = e.target.value;
       setSelectedCo(newCo);
-      setSelectedSentra(''); // Reset Sentra when CO changes to avoid mismatch
+      setSelectedSentra('');
   };
 
-  // Admin Access Handler
   const handleOpenAdmin = () => {
       const pin = prompt("Masukkan PIN Admin untuk mengakses pengaturan:");
-      // PIN Default Sederhana
       if (pin === "123456") {
           setIsAdminModalOpen(true);
       } else {
@@ -266,7 +245,6 @@ const App: React.FC = () => {
       }
   };
 
-  // useCallback to prevent re-creation on every render
   const handleUpdateContact = useCallback(async (updated: Contact) => {
     setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
   }, []);
@@ -277,22 +255,13 @@ const App: React.FC = () => {
   
   const handleResetData = async () => {
     await clearAllData();
-    await saveBulkTemplates(INITIAL_TEMPLATES_FALLBACK);
-    
-    if (isGlobalMode) {
-        alert("Data lokal direset. Mengambil ulang data dari Konfigurasi Global...");
-        loadData();
-    } else {
-        setContacts([]);
-        setTemplates(INITIAL_TEMPLATES_FALLBACK);
-        setConfigError(true);
-        setActiveConfig(null);
-        alert("Aplikasi di-reset. Silakan masukkan ID Spreadsheet kembali.");
-    }
+    // Only resets local data, Global data persists in sheet
+    loadData();
+    alert("Data lokal di-refresh.");
   };
 
   const handleUpdateTemplates = async (newTemplates: MessageTemplate[]) => {
-      await saveBulkTemplates(newTemplates); 
+      // Optimistic update
       setTemplates(newTemplates);
   };
   
@@ -336,10 +305,15 @@ const App: React.FC = () => {
     }
 
     setIsSyncing(true);
-    setContacts([]); // Clear data briefly to show fresh load
+    setContacts([]); 
     try {
         const liveContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
         setContacts(liveContacts);
+        
+        // Also refresh templates
+        const liveTemplates = await fetchTemplatesFromSheet(config.spreadsheetId, config.templateSheetName || 'Templates');
+        if (liveTemplates.length > 0) setTemplates(liveTemplates);
+
         setConfigError(false);
     } catch (e: any) {
         console.error(e);
@@ -349,11 +323,10 @@ const App: React.FC = () => {
     }
   };
 
-  // Check if filtering is active
   const isFilterActive = debouncedSearchTerm.trim() !== '' || selectedSentra !== '' || selectedCo !== '';
 
   const filteredContacts = useMemo(() => {
-      if (!isFilterActive) return []; // Don't filter/show if no filter active
+      if (!isFilterActive) return [];
       
       const term = debouncedSearchTerm.toLowerCase();
 
@@ -371,7 +344,6 @@ const App: React.FC = () => {
       });
   }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo, isFilterActive]);
 
-  // PAGINATION SLICE
   const displayedContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
   }, [filteredContacts, visibleCount]);
@@ -393,15 +365,11 @@ const App: React.FC = () => {
                 items={upcomingEvents}
                 onRemind={(c, type) => {
                     setSelectedContact(c);
-                    
-                    // Smart Template Selection Logic
                     if (type === 'prs') {
-                        // PRS Event: Select "PRS" template
                         const prsTemplate = templates.find(t => t.label.toLowerCase().includes('prs') || t.label.toLowerCase().includes('kumpulan'));
                         if (prsTemplate) setInitialTemplateId(prsTemplate.id);
                         else if (templates.length > 0) setInitialTemplateId(templates[0].id);
                     } else {
-                        // Payment/Jatuh Tempo Event: Select "Modal/Cair" template (REFINANCING)
                         const modalTemplate = templates.find(t => 
                             t.label.toLowerCase().includes('cair') || 
                             t.label.toLowerCase().includes('modal') || 
@@ -469,7 +437,6 @@ const App: React.FC = () => {
                     >
                         Menu Admin
                     </Button>
-                    {/* Mobile Menu Buttons */}
                      <Button 
                         onClick={handleRefreshSheet}
                         variant="glass"
@@ -490,9 +457,8 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filter Controls Row */}
+            {/* Filter Controls */}
             <div className="flex flex-col md:flex-row gap-3">
-                {/* Search Input */}
                 <div className="relative flex-1 group">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-cyan-600 transition-colors" />
                     <input 
@@ -505,7 +471,6 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="flex gap-2 flex-col sm:flex-row">
-                    {/* CO Filter (First Priority) */}
                     <div className="relative min-w-[160px] group flex-1 sm:flex-none">
                         <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-cyan-600 transition-colors" />
                         <select
@@ -523,7 +488,6 @@ const App: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Sentra Filter (Dependent on CO) */}
                     <div className="relative min-w-[160px] group flex-1 sm:flex-none">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-cyan-600 transition-colors" />
                         <select
@@ -545,14 +509,11 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="max-w-4xl mx-auto px-4">
         
-        {/* HERO SECTION / DESCRIPTION (Visible if no filter active or if searching) */}
         {!isFilterActive && contacts.length > 0 && (
             <div className="mb-8 animate-fade-in-up">
                 <div className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
-                    {/* Decorative Circles */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
                     
@@ -576,7 +537,6 @@ const App: React.FC = () => {
                                     <MapPin className="w-5 h-5 text-cyan-200" />
                                     <div>
                                         <p className="text-xs text-cyan-100 font-medium uppercase">Total Sentra</p>
-                                        {/* Show ALL sentras here, unrelated to filter */}
                                         <p className="font-bold text-lg">{new Set(contacts.map(c=>c.sentra).filter(Boolean)).size}</p>
                                     </div>
                                 </div>
@@ -602,11 +562,10 @@ const App: React.FC = () => {
 
         <div className="space-y-4">
             
-            {/* Loading State */}
             {isLoadingData ? (
                  <div className="text-center py-20">
                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-                     <p className="text-slate-500 animate-pulse">Mengambil data dari Google Sheets...</p>
+                     <p className="text-slate-500 animate-pulse">Mengambil data Global dari Google Sheets...</p>
                  </div>
             ) : configError ? (
                  <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">
@@ -620,9 +579,7 @@ const App: React.FC = () => {
                     </Button>
                  </div>
             ) : (
-                /* CONDITIONAL RENDERING BASED ON FILTER */
                 !isFilterActive ? (
-                    /* EMPTY STATE (Waiting for input) */
                     <div className="text-center py-12 px-6 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200/60 border-dashed animate-fade-in-up">
                          <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-cyan-100 to-blue-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
                              <Search className="w-10 h-10 text-cyan-500 opacity-80" />
@@ -636,7 +593,6 @@ const App: React.FC = () => {
                          </p>
                     </div>
                 ) : filteredContacts.length === 0 ? (
-                    /* NOT FOUND STATE */
                     <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">
                         <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                             <Users className="w-8 h-8" />
@@ -647,7 +603,6 @@ const App: React.FC = () => {
                         </Button>
                     </div>
                 ) : (
-                    /* LIST STATE (Results) */
                     <>
                         <div className="flex justify-between items-end px-2 animate-fade-in-up">
                             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -671,7 +626,6 @@ const App: React.FC = () => {
                             ))}
                         </div>
                         
-                        {/* LOAD MORE BUTTON */}
                         {visibleCount < filteredContacts.length && (
                             <div className="flex justify-center mt-6 pb-10">
                                 <Button 

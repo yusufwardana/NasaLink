@@ -1,4 +1,4 @@
-import { Contact } from '../types';
+import { Contact, MessageTemplate } from '../types';
 
 // Robust CSV Parser that handles quotes and commas inside quotekjmms
 const parseCSV = (text: string): string[][] => {
@@ -54,14 +54,11 @@ const findColIndex = (headers: string[], keywords: string[]): number => {
     return headers.findIndex(h => keywords.some(k => h.includes(k)));
 };
 
-export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: string = 'Sheet1'): Promise<Contact[]> => {
-  try {
-    // Add cache buster timestamp
-    // Add 'single=true' to force exporting ONLY this sheet (faster than workbook export)
+// Helper to fetch CSV
+const fetchSheetCsv = async (spreadsheetId: string, sheetName: string) => {
     const timestamp = new Date().getTime();
     const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}&single=true&t=${timestamp}`;
     
-    // Add cache control headers
     const response = await fetch(url, {
         cache: "no-store",
         headers: {
@@ -71,16 +68,19 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     });
 
     if (!response.ok) {
-      throw new Error('Gagal mengambil data. Pastikan Spreadsheet ID benar dan File di-set "Anyone with the link" atau "Published to Web".');
+        throw new Error(`Failed to fetch sheet ${sheetName}`);
     }
+    return await response.text();
+};
 
-    const text = await response.text();
+export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: string = 'Sheet1'): Promise<Contact[]> => {
+  try {
+    const text = await fetchSheetCsv(spreadsheetId, sheetName);
     const rows = parseCSV(text);
 
     if (rows.length < 2) return [];
 
     // Header Mapping based on User Screenshot
-    // Columns: CO, SENTRA, NASABAH, PLAFON, PRODUK, FLAG, TGL JATUH TEMPO, TGL PRS, STATUS, NOMER TELP
     const headers = rows[0].map(h => h.toLowerCase());
     
     // Exact mapping prioritized
@@ -98,7 +98,6 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
     // Map rows to Contact objects
     return rows.slice(1).map((row, index): Contact | null => {
-        // Safe access helper
         const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '';
 
         const name = getVal(idxName);
@@ -109,7 +108,6 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
         const phone = rawPhone ? rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, '') : ''; 
         
-        // Determine flag
         let flag = getVal(idxFlag);
         if (!flag) flag = 'Active'; 
 
@@ -138,16 +136,60 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
   }
 };
 
+export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: string = 'Templates'): Promise<MessageTemplate[]> => {
+    try {
+        const text = await fetchSheetCsv(spreadsheetId, sheetName);
+        const rows = parseCSV(text);
+        if (rows.length < 2) return [];
+
+        const headers = rows[0].map(h => h.toLowerCase());
+        const idxId = findColIndex(headers, ['id']);
+        const idxLabel = findColIndex(headers, ['label', 'judul']);
+        const idxType = findColIndex(headers, ['type', 'tipe']);
+        const idxPrompt = findColIndex(headers, ['prompt', 'instruksi']);
+        const idxContent = findColIndex(headers, ['content', 'isi']);
+        const idxIcon = findColIndex(headers, ['icon', 'ikon']);
+
+        return rows.slice(1).map((row): MessageTemplate | null => {
+            const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '';
+            if (!getVal(idxLabel)) return null;
+
+            return {
+                id: getVal(idxId) || Date.now().toString(),
+                label: getVal(idxLabel),
+                type: (getVal(idxType) === 'manual' ? 'manual' : 'ai'),
+                promptContext: getVal(idxPrompt),
+                content: getVal(idxContent),
+                icon: getVal(idxIcon) || '📝'
+            };
+        }).filter((t): t is MessageTemplate => t !== null);
+
+    } catch (error) {
+        console.warn("Templates sheet not found or empty, using defaults.", error);
+        return []; // Return empty to fallback to defaults
+    }
+};
+
+export const saveTemplatesToSheet = async (scriptUrl: string, templates: MessageTemplate[]): Promise<void> => {
+    if (!scriptUrl) throw new Error("URL Script tidak ditemukan");
+
+    const payload = {
+        action: 'save_templates',
+        templates: templates
+    };
+
+    await fetch(scriptUrl, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'text/plain' },
+        mode: 'no-cors'
+    });
+};
+
 export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPhone: string): Promise<void> => {
   if (!scriptUrl) {
     throw new Error("URL Google Apps Script belum dikonfigurasi.");
   }
-
-  // Use no-cors mode cautiously, or handle CORS via script
-  // Google Apps Script Web App needs:
-  // 1. doPost(e)
-  // 2. return ContentService.createTextOutput(...)
-  // 3. Deployed as Web App, execute as 'Me', access 'Anyone'
 
   const payload = {
     action: 'update_phone',
@@ -155,15 +197,10 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
     phone: newPhone
   };
 
-  const response = await fetch(scriptUrl, {
+  await fetch(scriptUrl, {
     method: 'POST',
     body: JSON.stringify(payload),
-    // We use 'text/plain' to avoid CORS preflight options request which GAS doesn't handle well by default
     headers: { 'Content-Type': 'text/plain' },
     mode: 'no-cors'
   });
-
-  // Karena mode no-cors (agar tidak error di browser), kita tidak bisa membaca response JSON.
-  // Asumsikan sukses jika fetch berhasil dieksekusi tanpa throw error network.
-  // const result = await response.json(); 
 };

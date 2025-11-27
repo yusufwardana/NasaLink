@@ -10,10 +10,12 @@ export const GLOBAL_CONFIG: SheetConfig = {
   // GANTI DENGAN ID SHEET ANDA
   spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
   
-  // Nama Tab (default: Sheet1)
+  // Nama Tab Data Nasabah
   sheetName: "Data",
+  
+  // Nama Tab Template (Akan dibuat otomatis oleh script jika belum ada)
+  templateSheetName: "Templates",
 
-  // URL Web App Google Apps Script (Untuk fitur Edit No HP)
-  // Kosongkan jika belum deploy script
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycbyO1OIdkFaj-179wrMDFhRGy6jfxAzP5Grg5WHvK8oUiLpaM9-tsSsRn1zaGvOONHq0ug/exec" 
+  // URL Web App Google Apps Script (Wajib untuk fitur Global Admin & Edit No HP)
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycbwhNRiSPB-jte6QTCX9wz57J_qH4US_ttjGYKaEiYxCkBl7AaYXBgVf9rr0jf0VHo-3rg/exec" 
 };
