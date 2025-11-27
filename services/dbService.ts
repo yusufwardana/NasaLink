@@ -17,7 +17,7 @@ interface NasaLinkDB extends DBSchema {
 }
 
 const DB_NAME = 'nasalink-db';
-const DB_VERSION = 6; // Bumped to 6 for Smart Merge Strategy
+const DB_VERSION = 7; // Bumped to 7 to ensure stability
 
 let dbPromise: Promise<IDBPDatabase<NasaLinkDB>> | null = null;
 
@@ -33,11 +33,10 @@ export const getDB = () => {
           db.createObjectStore('templates', { keyPath: 'id' });
         }
         
-        // Settings Store Fix:
-        if (db.objectStoreNames.contains('settings')) {
-          db.deleteObjectStore('settings');
+        // Settings Store
+        if (!db.objectStoreNames.contains('settings')) {
+           db.createObjectStore('settings');
         }
-        db.createObjectStore('settings');
       },
     });
   }
@@ -104,22 +103,43 @@ export const clearTemplates = async (): Promise<void> => {
     await db.clear('templates');
 };
 
-// --- Settings Operations ---
+// --- Settings Operations (Now Persistent/Baku) ---
+
+const STORAGE_KEY_CONFIG = 'nasalink_sheet_config_v1';
 
 export const getSheetConfig = async (): Promise<SheetConfig | null> => {
+  // 1. Try LocalStorage first (Fastest & Most Persistent)
+  try {
+    const localConfig = localStorage.getItem(STORAGE_KEY_CONFIG);
+    if (localConfig) {
+        return JSON.parse(localConfig);
+    }
+  } catch (e) {
+    console.warn("LocalStorage read failed", e);
+  }
+
+  // 2. Fallback to IDB
   const db = await getDB();
   return db.get('settings', 'sheet_config') as Promise<SheetConfig | null>;
 };
 
 export const saveSheetConfig = async (config: SheetConfig): Promise<void> => {
+  // 1. Save to LocalStorage (Make it baku)
+  try {
+    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
+  } catch (e) {
+    console.error("LocalStorage write failed", e);
+  }
+
+  // 2. Save to IDB (Backup)
   const db = await getDB();
-  // Uses out-of-line key 'sheet_config'. Store must NOT have keyPath.
   await db.put('settings', config, 'sheet_config');
 };
 
 export const clearAllData = async (): Promise<void> => {
     const db = await getDB();
     await db.clear('contacts');
-    await db.clear('templates');
-    await db.clear('settings');
+    // We do NOT clear templates or settings here to prevent accidental configuration loss
+    // await db.clear('templates'); 
+    // await db.clear('settings');
 };

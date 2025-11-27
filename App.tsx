@@ -11,7 +11,8 @@ import { fetchContactsFromSheet } from './services/sheetService';
 import { 
     getAllTemplates, saveBulkTemplates, clearAllData, getSheetConfig 
 } from './services/dbService';
-import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Bell, CloudLightning } from 'lucide-react';
+import { GLOBAL_CONFIG } from './config';
+import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Bell, CloudLightning, Globe } from 'lucide-react';
 
 // Fallback templates only
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -28,6 +29,7 @@ const App: React.FC = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [configError, setConfigError] = useState<boolean>(false);
+  const [isGlobalMode, setIsGlobalMode] = useState(false);
 
   // State: UI & Selection
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,8 +58,18 @@ const App: React.FC = () => {
             setTemplates(dbTemplates);
         }
 
-        // B. Load Config & Fetch Contacts Directly from Sheet
-        const config = await getSheetConfig();
+        // B. Determine Configuration (Global Hardcoded vs Local DB)
+        let config: SheetConfig | null = null;
+
+        // 1. Check Global Config first
+        if (GLOBAL_CONFIG.spreadsheetId && GLOBAL_CONFIG.spreadsheetId.trim() !== '') {
+            config = GLOBAL_CONFIG;
+            setIsGlobalMode(true);
+        } else {
+            // 2. Fallback to Local DB
+            config = await getSheetConfig();
+            setIsGlobalMode(false);
+        }
         
         if (config && config.spreadsheetId) {
             // Fetch LIVE data
@@ -162,11 +174,16 @@ const App: React.FC = () => {
     // Re-seed templates
     await saveBulkTemplates(INITIAL_TEMPLATES_FALLBACK);
     
-    setContacts([]);
-    setTemplates(INITIAL_TEMPLATES_FALLBACK);
-    setConfigError(true);
-    
-    alert("Aplikasi di-reset. Silakan masukkan ID Spreadsheet kembali.");
+    // If Global Config is active, we don't clear contacts, just refresh
+    if (isGlobalMode) {
+        alert("Data lokal direset. Mengambil ulang data dari Konfigurasi Global...");
+        loadData();
+    } else {
+        setContacts([]);
+        setTemplates(INITIAL_TEMPLATES_FALLBACK);
+        setConfigError(true);
+        alert("Aplikasi di-reset. Silakan masukkan ID Spreadsheet kembali.");
+    }
   };
 
   const handleUpdateTemplates = async (newTemplates: MessageTemplate[]) => {
@@ -204,7 +221,7 @@ const App: React.FC = () => {
   };
 
   const handleRefreshSheet = async () => {
-    const config = await getSheetConfig();
+    let config: SheetConfig | null = isGlobalMode ? GLOBAL_CONFIG : await getSheetConfig();
     
     if (!config || !config.spreadsheetId) {
         alert("Konfigurasi Google Sheet belum diatur. Silakan ke Menu Admin.");
@@ -264,9 +281,18 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NasaLink</h1>
-                        <div className="flex items-center gap-1">
-                            <CloudLightning className="w-3 h-3 text-green-600" />
-                            <p className="text-xs text-green-700 font-bold tracking-wide uppercase">Live Sheet Mode</p>
+                        <div className="flex items-center gap-2">
+                            {isGlobalMode ? (
+                                <div className="flex items-center gap-1 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-100">
+                                    <Globe className="w-3 h-3 text-cyan-600" />
+                                    <p className="text-[10px] text-cyan-700 font-bold tracking-wide uppercase">Global Mode</p>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1">
+                                    <CloudLightning className="w-3 h-3 text-green-600" />
+                                    <p className="text-[10px] text-green-700 font-bold tracking-wide uppercase">Live Sheet</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
