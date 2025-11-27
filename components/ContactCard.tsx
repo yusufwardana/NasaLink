@@ -1,6 +1,6 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, CalendarClock, UserCircle } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, CalendarClock, UserCircle, Users } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -12,8 +12,9 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onEditClick, 
   const getFlagStyle = (flag: string) => {
     const f = flag.toLowerCase();
     if (f.includes('platinum')) return 'bg-purple-100 text-purple-700 border-purple-200 shadow-purple-500/10';
-    if (f.includes('gold')) return 'bg-yellow-100 text-yellow-800 border-yellow-200 shadow-yellow-500/10';
+    if (f.includes('gold') || f.includes('active')) return 'bg-yellow-100 text-yellow-800 border-yellow-200 shadow-yellow-500/10';
     if (f.includes('silver')) return 'bg-slate-100 text-slate-700 border-slate-200';
+    if (f.includes('do') || f.includes('drop')) return 'bg-red-50 text-red-700 border-red-200';
     return 'bg-cyan-50 text-cyan-700 border-cyan-200';
   };
 
@@ -65,12 +66,20 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onEditClick, 
                     )}
                 </div>
 
-                {contact.tglJatuhTempo && (
-                    <div className="flex items-center gap-2 text-sm text-red-700 mt-1 bg-red-50 px-2 py-1 rounded-md w-fit border border-red-100">
-                        <CalendarClock className="w-3.5 h-3.5 text-red-500" />
-                        <span>Jatuh Tempo: {contact.tglJatuhTempo}</span>
-                    </div>
-                )}
+                <div className="flex flex-wrap gap-2 mt-1">
+                    {contact.tglJatuhTempo && (
+                        <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100">
+                            <CalendarClock className="w-3.5 h-3.5 text-red-500" />
+                            <span>JT: {contact.tglJatuhTempo}</span>
+                        </div>
+                    )}
+                     {contact.tglPrs && (
+                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                            <Users className="w-3.5 h-3.5 text-blue-500" />
+                            <span>PRS: {contact.tglPrs}</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {contact.notes && (

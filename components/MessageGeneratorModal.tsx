@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Contact, MessageTemplate } from '../types';
 import { generateWhatsAppMessage } from '../services/geminiService';
 import { Button } from './Button';
-import { X, Wand2, Copy, Send, RefreshCw, Calendar, CreditCard } from 'lucide-react';
+import { X, Wand2, Copy, Send, RefreshCw, Calendar, CreditCard, Users } from 'lucide-react';
 
 interface MessageGeneratorModalProps {
   contact: Contact;
@@ -37,23 +37,30 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
         let text = selectedTemplate.content || '';
         // Replace placeholders
         text = text.replace(/{name}/g, contact.name);
-        text = text.replace(/{flag}/g, contact.flag); // Changed from segment
+        text = text.replace(/{flag}/g, contact.flag); 
         text = text.replace(/{segment}/g, contact.flag); // Backward compatibility
         text = text.replace(/{sentra}/g, contact.sentra || 'Sentra');
         text = text.replace(/{phone}/g, contact.phone);
         text = text.replace(/{co}/g, contact.co || 'Petugas');
         text = text.replace(/{plafon}/g, contact.plafon || '');
         text = text.replace(/{tgl_jatuh_tempo}/g, contact.tglJatuhTempo || '');
+        text = text.replace(/{tgl_prs}/g, contact.tglPrs || '');
         setGeneratedText(text);
         return;
     }
 
     // AI MODE:
     setIsGenerating(true);
-    // Pass the full contact object now
+    
+    // Enrich Context with new fields
+    let extendedContext = selectedTemplate.promptContext || 'Sapaan ramah';
+    if (contact.tglPrs) {
+        extendedContext += `\n[Info Tambahan]: Tanggal PRS/Kumpulan nasabah adalah ${contact.tglPrs}. Gunakan info ini jika relevan.`;
+    }
+
     const text = await generateWhatsAppMessage(
       contact,
-      selectedTemplate.promptContext || 'Sapaan ramah',
+      extendedContext,
       tone
     );
     setGeneratedText(text);
@@ -97,17 +104,23 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
         <div className="p-6 overflow-y-auto flex-1 space-y-8 custom-scrollbar">
             
             {/* Context Info Widget */}
-            {(contact.tglJatuhTempo || contact.plafon) && (
-                <div className="flex gap-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+            {(contact.tglJatuhTempo || contact.plafon || contact.tglPrs) && (
+                <div className="flex flex-wrap gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                     {contact.tglJatuhTempo && (
-                        <div className="flex items-center gap-2 text-xs text-blue-700">
-                            <Calendar className="w-4 h-4 text-blue-500" />
+                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-white/50 px-2 py-1 rounded border border-blue-100">
+                            <Calendar className="w-3.5 h-3.5 text-blue-500" />
                             <span>Jatuh Tempo: <b>{contact.tglJatuhTempo}</b></span>
                         </div>
                     )}
+                     {contact.tglPrs && (
+                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-white/50 px-2 py-1 rounded border border-blue-100">
+                            <Users className="w-3.5 h-3.5 text-blue-500" />
+                            <span>PRS: <b>{contact.tglPrs}</b></span>
+                        </div>
+                    )}
                     {contact.plafon && (
-                        <div className="flex items-center gap-2 text-xs text-blue-700">
-                            <CreditCard className="w-4 h-4 text-blue-500" />
+                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-white/50 px-2 py-1 rounded border border-blue-100">
+                            <CreditCard className="w-3.5 h-3.5 text-blue-500" />
                             <span>Plafon: <b>{contact.plafon}</b></span>
                         </div>
                     )}

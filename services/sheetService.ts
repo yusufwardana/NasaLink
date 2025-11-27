@@ -69,23 +69,22 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
     if (rows.length < 2) return [];
 
-    // Header Mapping with User Specific Columns
-    // Header format: CO, SENTRA, NASABAH, PLAFON, PRODUK, FLAG, TGL JATUH TEMPO, TGL PRS, STATUS, NO TELP
+    // Header Mapping based on User Screenshot
+    // Columns: CO, SENTRA, NASABAH, PLAFON, PRODUK, FLAG, TGL JATUH TEMPO, TGL PRS, STATUS, NOMER TELP
     const headers = rows[0].map(h => h.toLowerCase());
     
-    const idxName = findColIndex(headers, ['nasabah', 'nama', 'name', 'client']);
-    const idxPhone = findColIndex(headers, ['no telp', 'no. telp', 'telp', 'hp', 'phone', 'wa', 'mobile']);
-    
-    // Updated: FLAG maps to contact.flag, STATUS maps to contact.status
-    const idxFlag = findColIndex(headers, ['flag', 'segmen', 'kategori', 'class']); 
-    const idxStatus = findColIndex(headers, ['status', 'kondisi', 'kol', 'kolek']);
-    
-    const idxSentra = findColIndex(headers, ['sentra', 'kelompok', 'area', 'group']);
-    const idxCo = findColIndex(headers, ['co', 'petugas', 'ao', 'marketing']);
-    const idxPlafon = findColIndex(headers, ['plafon', 'limit', 'pinjaman', 'amount']);
+    // Exact mapping prioritized
+    const idxName = findColIndex(headers, ['nasabah', 'nama', 'name']);
+    const idxPhone = findColIndex(headers, ['nomer telp', 'no telp', 'telp', 'phone', 'hp', 'wa']); // Added 'nomer telp'
+    const idxFlag = findColIndex(headers, ['flag', 'segmen']);
+    const idxStatus = findColIndex(headers, ['status', 'kondisi']);
+    const idxSentra = findColIndex(headers, ['sentra', 'kelompok']);
+    const idxCo = findColIndex(headers, ['co', 'petugas']);
+    const idxPlafon = findColIndex(headers, ['plafon', 'limit']);
     const idxProduk = findColIndex(headers, ['produk', 'product']);
-    const idxJatuhTempo = findColIndex(headers, ['tgl jatuh tempo', 'jatuh tempo', 'due date', 'tempo']);
-    const idxNotes = findColIndex(headers, ['notes', 'catatan', 'keterangan']);
+    const idxJatuhTempo = findColIndex(headers, ['tgl jatuh tempo', 'jatuh tempo']);
+    const idxPrs = findColIndex(headers, ['tgl prs', 'prs']); // New field
+    const idxNotes = findColIndex(headers, ['notes', 'catatan', 'keterangan']); // Optional
 
     // Map rows to Contact objects
     return rows.slice(1).map((row, index): Contact | null => {
@@ -95,25 +94,21 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         const name = getVal(idxName);
         const rawPhone = getVal(idxPhone);
         
-        // Skip invalid rows
+        // Skip invalid rows (must have name or phone)
         if ((!name || name === 'Tanpa Nama') && !rawPhone) return null;
 
         const phone = rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, ''); // Clean phone
         
-        // Skip if phone is too short
-        if (phone.length < 6) return null;
+        // Skip if phone is too short AND name is missing. 
+        // If name exists but phone is empty, we allow it (user might fill later), 
+        // BUT App.tsx relies on phone for ID. 
+        // Ideally we need a phone number. Let's keep the filter lenient but requires phone for sync key.
+        if (phone.length < 5) return null;
 
-        // Determine flag from FLAG column or fallback to searching the row for keywords
+        // Determine flag
         let flag = getVal(idxFlag);
-        
-        // Fallback intelligence if flag column is empty or missing
-        if (!flag) {
-             const rowString = row.join(' ').toLowerCase();
-             if (rowString.includes('gold')) flag = 'Gold';
-             else if (rowString.includes('platinum')) flag = 'Platinum';
-             else if (rowString.includes('silver')) flag = 'Silver';
-             else flag = 'Prospect';
-        }
+        // Fallback if flag empty
+        if (!flag) flag = 'Active'; 
 
         return {
             id: `sheet-${index}-${Date.now()}`,
@@ -126,6 +121,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             plafon: getVal(idxPlafon),
             produk: getVal(idxProduk),
             tglJatuhTempo: getVal(idxJatuhTempo),
+            tglPrs: getVal(idxPrs), // Map TGL PRS
             status: getVal(idxStatus), 
             
             notes: getVal(idxNotes),
