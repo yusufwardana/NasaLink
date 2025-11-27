@@ -17,7 +17,7 @@ interface NasaLinkDB extends DBSchema {
 }
 
 const DB_NAME = 'nasalink-db';
-const DB_VERSION = 5; // Bumped to 5 for field renames (segment->flag, statusAsli->status)
+const DB_VERSION = 6; // Bumped to 6 for Smart Merge Strategy
 
 let dbPromise: Promise<IDBPDatabase<NasaLinkDB>> | null = null;
 
@@ -34,7 +34,6 @@ export const getDB = () => {
         }
         
         // Settings Store Fix:
-        // Delete and recreate to ensure no keyPath exists (allows out-of-line keys like 'sheet_config')
         if (db.objectStoreNames.contains('settings')) {
           db.deleteObjectStore('settings');
         }

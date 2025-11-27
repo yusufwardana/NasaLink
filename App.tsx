@@ -239,7 +239,7 @@ const App: React.FC = () => {
         return;
     }
 
-    if (window.confirm("Sync akan mengambil data dari Google Sheet dan menggabungkan dengan database lokal. Lanjutkan?")) {
+    if (window.confirm("Sync akan memperbarui Data Bank (Plafon, Status, dll) dari Google Sheet, namun tetap mempertahankan Edit Lokal (Nama, Notes) Anda. Lanjutkan?")) {
         setIsSyncing(true);
         try {
             const sheetContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
@@ -263,7 +263,29 @@ const App: React.FC = () => {
 
                 const existing = phoneMap.get(cleanPhone);
                 if (existing) {
-                    phoneMap.set(cleanPhone, { ...existing, ...sc, id: existing.id });
+                    // SMART MERGE:
+                    // 1. Keep Local: ID, Notes, LastInteraction, Name (User might have fixed it), Flag (User might have segmented manually)
+                    // 2. Take Sheet: Plafon, Status, TglJatuhTempo, Produk, CO, Sentra (Bank Data)
+                    const merged: Contact = {
+                        ...existing, // Start with existing to keep ID and custom props
+                        
+                        // Force Update Financial/System Fields from Sheet
+                        plafon: sc.plafon || existing.plafon,
+                        tglJatuhTempo: sc.tglJatuhTempo || existing.tglJatuhTempo,
+                        produk: sc.produk || existing.produk,
+                        status: sc.status || existing.status,
+                        co: sc.co || existing.co,
+                        sentra: sc.sentra || existing.sentra,
+                        
+                        // Optional: If Sheet has a name but Local is "Tanpa Nama", take sheet. 
+                        // Otherwise keep local name (assuming user edited it).
+                        name: (existing.name === 'Tanpa Nama' && sc.name) ? sc.name : existing.name,
+                        
+                        // Same for Flag, if local is 'Prospect' (default) but sheet has value, take sheet.
+                        flag: (existing.flag === 'Prospect' && sc.flag) ? sc.flag : existing.flag
+                    };
+
+                    phoneMap.set(cleanPhone, merged);
                     updatedCount++;
                 } else {
                     phoneMap.set(cleanPhone, sc);
@@ -325,7 +347,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NasaLink</h1>
-                        <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">Database: IndexedDB v5</p>
+                        <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">Database: IndexedDB v6</p>
                     </div>
                 </div>
                 <div className="flex gap-2 items-center">
