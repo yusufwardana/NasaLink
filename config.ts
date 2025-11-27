@@ -14,8 +14,8 @@ import { SheetConfig } from './types';
 
 export const GLOBAL_CONFIG: SheetConfig = {
   // GANTI BAGIAN DALAM KUTIP DI BAWAH INI DENGAN ID SHEET ANDA
-  spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
+  spreadsheetId: "", 
   
   // Nama Tab di bawah (default: Sheet1)
-  sheetName: "Data" 
+  sheetName: "Sheet1" 
 };
