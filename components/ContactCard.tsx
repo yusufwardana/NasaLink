@@ -8,7 +8,8 @@ interface ContactCardProps {
   onGenerateClick: (contact: Contact) => void;
 }
 
-export const ContactCard: React.FC<ContactCardProps> = ({ contact, onEditClick, onGenerateClick }) => {
+// React.memo optimizes performance by only re-rendering if props change
+export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, onEditClick, onGenerateClick }) => {
   const getFlagStyle = (flag: string) => {
     const f = flag.toLowerCase();
     if (f.includes('platinum')) return 'bg-purple-100 text-purple-700 border-purple-200 shadow-purple-500/10';
@@ -111,4 +112,4 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onEditClick, 
       </div>
     </div>
   );
-};
+});

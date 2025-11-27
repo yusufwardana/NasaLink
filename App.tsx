@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Contact, MessageTemplate, SheetConfig } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
@@ -12,7 +12,7 @@ import {
     getAllTemplates, saveBulkTemplates, clearAllData, getSheetConfig 
 } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database } from 'lucide-react';
+import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown } from 'lucide-react';
 
 // Fallback templates only
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -34,17 +34,35 @@ const App: React.FC = () => {
 
   // State: UI & Selection
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Optimasi: Debounce
   const [selectedSentra, setSelectedSentra] = useState<string>('');
-  const [selectedCo, setSelectedCo] = useState<string>(''); // NEW: Filter by CO
+  const [selectedCo, setSelectedCo] = useState<string>('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   
+  // State: Pagination / Lazy Load
+  const [visibleCount, setVisibleCount] = useState(50); // Hanya tampilkan 50 awal
+  
   // State: Modals & Panels
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+  // --- 0. Debounce Logic for Search ---
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // Wait 300ms after user stops typing
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+      setVisibleCount(50);
+  }, [debouncedSearchTerm, selectedSentra, selectedCo]);
+
 
   // --- 1. Load Data on Mount (Direct from Sheet) ---
   const loadData = async () => {
@@ -180,15 +198,14 @@ const App: React.FC = () => {
     setContacts(prev => [...newContacts, ...prev]);
   };
 
-  const handleUpdateContact = async (updated: Contact) => {
-    // In Live Mode, we only update React State. 
-    // The Edit Modal handles the Google Script update if configured.
+  // useCallback to prevent re-creation on every render
+  const handleUpdateContact = useCallback(async (updated: Contact) => {
     setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
-  };
+  }, []);
 
-  const handleDeleteContact = async (id: string) => {
+  const handleDeleteContact = useCallback(async (id: string) => {
     setContacts(prev => prev.filter(c => c.id !== id));
-  };
+  }, []);
   
   const handleResetData = async () => {
     await clearAllData();
@@ -251,6 +268,7 @@ const App: React.FC = () => {
     }
 
     setIsSyncing(true);
+    setContacts([]); // Clear data briefly to show fresh load
     try {
         const liveContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
         setContacts(liveContacts);
@@ -264,25 +282,35 @@ const App: React.FC = () => {
   };
 
   // Check if filtering is active
-  const isFilterActive = searchTerm.trim() !== '' || selectedSentra !== '' || selectedCo !== '';
+  const isFilterActive = debouncedSearchTerm.trim() !== '' || selectedSentra !== '' || selectedCo !== '';
 
   const filteredContacts = useMemo(() => {
       if (!isFilterActive) return []; // Don't filter/show if no filter active
       
+      const term = debouncedSearchTerm.toLowerCase();
+
       return contacts.filter(c => {
         const matchesSearch = 
-            c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.phone.includes(searchTerm) ||
-            (c.flag && c.flag.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (c.sentra && c.sentra.toLowerCase().includes(searchTerm.toLowerCase()));
+            (c.name && c.name.toLowerCase().includes(term)) ||
+            (c.phone && c.phone.includes(term)) ||
+            (c.flag && c.flag.toLowerCase().includes(term)) ||
+            (c.sentra && c.sentra.toLowerCase().includes(term));
         
         const matchesSentra = selectedSentra ? c.sentra === selectedSentra : true;
         const matchesCo = selectedCo ? c.co === selectedCo : true;
 
         return matchesSearch && matchesSentra && matchesCo;
       });
-  }, [contacts, searchTerm, selectedSentra, selectedCo, isFilterActive]);
+  }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo, isFilterActive]);
 
+  // PAGINATION SLICE
+  const displayedContacts = useMemo(() => {
+      return filteredContacts.slice(0, visibleCount);
+  }, [filteredContacts, visibleCount]);
+
+  const handleLoadMore = () => {
+      setVisibleCount(prev => prev + 50);
+  };
 
   return (
     <div className="min-h-screen pb-20 text-slate-800">
@@ -559,7 +587,7 @@ const App: React.FC = () => {
                             </h2>
                         </div>
                         <div className="grid gap-4 animate-fade-in-up">
-                            {filteredContacts.map(contact => (
+                            {displayedContacts.map(contact => (
                                 <ContactCard 
                                     key={contact.id} 
                                     contact={contact} 
@@ -568,6 +596,20 @@ const App: React.FC = () => {
                                 />
                             ))}
                         </div>
+                        
+                        {/* LOAD MORE BUTTON */}
+                        {visibleCount < filteredContacts.length && (
+                            <div className="flex justify-center mt-6 pb-10">
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={handleLoadMore}
+                                    className="w-full sm:w-auto shadow-md"
+                                    icon={<ChevronDown className="w-4 h-4" />}
+                                >
+                                    Tampilkan Lebih Banyak ({filteredContacts.length - visibleCount} tersisa)
+                                </Button>
+                            </div>
+                        )}
                     </>
                 )
             )}
