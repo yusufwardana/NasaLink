@@ -314,10 +314,10 @@ const App: React.FC = () => {
                         variant="glass" 
                         onClick={handleRefreshSheet}
                         isLoading={isSyncing}
-                        className="hidden sm:flex"
+                        className="hidden sm:flex text-cyan-700 font-semibold"
                         icon={<RefreshCw className="w-4 h-4"/>}
                     >
-                        Refresh
+                        Sinkron Data
                     </Button>
                     <Button
                         size="sm"
@@ -366,6 +366,7 @@ const App: React.FC = () => {
                         variant="glass"
                         className="sm:hidden px-3"
                         isLoading={isSyncing}
+                        title="Sinkron Data Terbaru"
                     >
                         <RefreshCw className="w-5 h-5" />
                     </Button>
@@ -422,7 +423,10 @@ const App: React.FC = () => {
                     ) : (
                         <>
                             <p className="text-slate-500 mb-2 font-medium">Tidak ada nasabah ditemukan di Sheet ini.</p>
-                            <p className="text-xs text-slate-400">Pastikan format kolom di Sheet sudah sesuai.</p>
+                            <p className="text-xs text-slate-400 mb-4">Pastikan format kolom di Sheet sudah sesuai.</p>
+                            <Button variant="outline" onClick={handleRefreshSheet} isLoading={isSyncing} icon={<RefreshCw className="w-4 h-4"/>}>
+                                Coba Sinkron Ulang
+                            </Button>
                         </>
                     )}
                 </div>
