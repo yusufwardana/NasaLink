@@ -21,11 +21,11 @@ export const generateWhatsAppMessage = async (
 
     if (contact.produk) details += `\n      Produk: ${contact.produk}`;
     if (contact.plafon) details += `\n      Plafon: ${contact.plafon}`;
-    if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
+    if (contact.tglJatuhTempo) details += `\n      Tanggal Selesai Angsuran (Jatuh Tempo): ${contact.tglJatuhTempo}`;
     if (contact.status) details += `\n      Status Rekening: ${contact.status}`;
 
     const prompt = `
-      Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional namun kekeluargaan.
+      Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional, hangat, dan kekeluargaan.
       Buatkan pesan WhatsApp (Bahasa Indonesia) untuk nasabah (Ibu-ibu di sentra) dengan detail berikut:
       
       DATA NASABAH:
@@ -38,9 +38,9 @@ export const generateWhatsAppMessage = async (
 
       Panduan Khusus BTPN Syariah:
       - Gunakan sapaan "Ibu" diikuti nama nasabah.
-      - Jika ada info 'Jatuh Tempo' atau 'Angsuran' dalam Tujuan Pesan, gunakan data tanggal jatuh tempo/plafon yang tersedia di atas secara cerdas (jangan kaku).
-      - Prinsip: 'Tepat Waktu, Tepat Jumlah'.
-      - Fokus pada silaturahmi, pemberdayaan, dan kekeluargaan.
+      - PENTING: Jika konteksnya mengenai 'Jatuh Tempo', ITU ARTINYA nasabah sebentar lagi LUNAS/SELESAI angsurannya. 
+      - Tujuannya adalah MENAWARKAN PENCAIRAN KEMBALI (Tambah Modal) atau mengucapkan selamat karena sebentar lagi lunas. JANGAN menagih hutang/memberi peringatan bayar, tapi berikan kabar gembira peluang lanjut siklus berikutnya.
+      - Prinsip: Memberdayakan dan Tumbuh Bersama.
       - Pesan singkat, padat, personal, tanpa subject line.
       - Hanya berikan output teks pesan saja.
     `;

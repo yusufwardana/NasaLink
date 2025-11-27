@@ -1,6 +1,6 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, CalendarClock, UserCircle, Users } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, CalendarClock, UserCircle, Users, CheckCircle2 } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -69,9 +69,10 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
 
                 <div className="flex flex-wrap gap-2 mt-1">
                     {contact.tglJatuhTempo && (
-                        <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100">
-                            <CalendarClock className="w-3.5 h-3.5 text-red-500" />
-                            <span>JT: {contact.tglJatuhTempo}</span>
+                        // Jatuh Tempo now implies Finished Payment / Opportunity (Green)
+                        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Lunas: {contact.tglJatuhTempo}</span>
                         </div>
                     )}
                      {contact.tglPrs && (

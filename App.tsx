@@ -4,7 +4,7 @@ import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
-import { NotificationPanel } from './components/NotificationPanel';
+import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { 
@@ -13,10 +13,10 @@ import {
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown } from 'lucide-react';
 
-// Fallback templates only
+// Fallback templates updated to reflect NEW logic (Refinancing focus)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   { id: '1', label: 'Pengingat PRS', type: 'ai', promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Sampaikan pentingnya kehadiran untuk tepat waktu.', icon: '👥' },
-  { id: '2', label: 'Info Angsuran', type: 'ai', promptContext: 'Ingatkan dengan sopan mengenai angsuran yang akan jatuh tempo. Tekankan prinsip "Tepat Jumlah, Tepat Waktu" dengan bahasa yang mengayomi.', icon: '💰' },
+  { id: '2', label: 'Tawaran Lanjut (Cair)', type: 'ai', promptContext: 'Ucapkan selamat karena angsuran nasabah akan segera lunas (Jatuh Tempo). Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' },
   { id: '3', label: 'Undangan (Manual)', type: 'manual', content: 'Assalamualaikum Ibu {name}, besok ada kunjungan dari pusat di sentra {sentra}. Diharapkan kehadirannya ya Bu. Terima kasih.', icon: '📩' },
   { id: '4', label: 'Penawaran Modal', type: 'ai', promptContext: 'Tawarkan penambahan modal usaha untuk nasabah dengan rekam jejak baik. Fokus pada pengembangan usaha Ibu.', icon: '📈' },
   { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
@@ -114,58 +114,122 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // --- Notification Logic ---
-  const dueContacts = useMemo(() => {
+  // --- Notification Logic (Jatuh Tempo & PRS) ---
+  const upcomingEvents = useMemo(() => {
     const today = new Date();
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth(); // 0-11
-    const currentYear = today.getFullYear();
+    // Normalize today to start of day for accurate comparison
+    today.setHours(0, 0, 0, 0);
 
-    const getDaysUntilDayOfMonth = (targetDay: number) => {
-        if (targetDay === currentDay) return 0;
-        let targetDate = new Date(currentYear, currentMonth, targetDay);
-        if (targetDay < currentDay) {
-             targetDate = new Date(currentYear, currentMonth + 1, targetDay);
-        }
-        const diffTime = targetDate.getTime() - today.setHours(0,0,0,0);
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    };
-
-    const upcoming: Array<{ contact: Contact; status: 'today' | 'soon'; daysLeft: number }> = [];
-
-    contacts.forEach(c => {
-        if (!c.tglJatuhTempo) return;
-        let targetDay: number | null = null;
-        const cleanDate = c.tglJatuhTempo.trim();
+    // Helper: Parse DD/MM/YYYY or YYYY-MM-DD
+    const parseFullDate = (dateStr: string): Date | null => {
+        if (!dateStr) return null;
+        const clean = dateStr.trim();
         
-        if (/^\d{1,2}$/.test(cleanDate)) {
-            const day = parseInt(cleanDate, 10);
-            if (day >= 1 && day <= 31) targetDay = day;
-        } else {
-            const parsed = Date.parse(cleanDate);
-            if (!isNaN(parsed)) {
-                const d = new Date(parsed);
-                targetDay = d.getDate();
-            } else {
-                const match = cleanDate.match(/(\d+)/);
-                if (match) {
-                     const day = parseInt(match[0], 10);
-                     if (day >= 1 && day <= 31) targetDay = day;
-                }
+        // Try format DD/MM/YYYY or DD-MM-YYYY (Indonesian format common in Excel)
+        // matches: 20/05/2025, 20-05-2025, 5/2/2026
+        const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (partsIndo) {
+            const day = parseInt(partsIndo[1], 10);
+            const month = parseInt(partsIndo[2], 10) - 1; // JS months 0-11
+            const year = parseInt(partsIndo[3], 10);
+            const d = new Date(year, month, day);
+            // Validasi tanggal valid
+            if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) {
+                return d;
             }
         }
 
-        if (targetDay !== null) {
-            const diff = getDaysUntilDayOfMonth(targetDay);
-            if (diff === 0) {
-                upcoming.push({ contact: c, status: 'today', daysLeft: 0 });
-            } else if (diff > 0 && diff <= 3) {
-                upcoming.push({ contact: c, status: 'soon', daysLeft: diff });
+        // Fallback: Try standard Date.parse (YYYY-MM-DD)
+        const parsed = Date.parse(clean);
+        if (!isNaN(parsed)) {
+            return new Date(parsed);
+        }
+
+        return null;
+    };
+
+    // Helper for PRS only: Check day of month (Recurring) if date format is incomplete
+    const extractDayForRecurring = (dateStr: string): number | null => {
+         if (!dateStr) return null;
+         // If string is just "20"
+         if (/^\d{1,2}$/.test(dateStr.trim())) {
+             return parseInt(dateStr, 10);
+         }
+         return null;
+    };
+    
+    // Helper: Calculate Diff Days
+    const getDiffDays = (target: Date, base: Date): number => {
+        const diffTime = target.getTime() - base.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    };
+
+    const events: NotificationItem[] = [];
+
+    contacts.forEach(c => {
+        // 1. Check Jatuh Tempo (Payment/Finish) - STRICT FULL DATE CHECK
+        if (c.tglJatuhTempo) {
+            const targetDate = parseFullDate(c.tglJatuhTempo);
+            
+            if (targetDate) {
+                targetDate.setHours(0,0,0,0);
+                const diff = getDiffDays(targetDate, today);
+
+                // Logic: H-0 (Today) until H-7 (Next 7 days)
+                // We use 7 days window for "Prospek Cair" so agent can prepare
+                if (diff === 0) {
+                    events.push({ contact: c, type: 'payment', status: 'today', daysLeft: 0 });
+                } else if (diff > 0 && diff <= 7) {
+                    events.push({ contact: c, type: 'payment', status: 'soon', daysLeft: diff });
+                }
+                // If diff is negative (past), we ignore it (already passed)
+                // If diff > 7, it's too far in future
+            }
+        }
+
+        // 2. Check PRS (Meeting) - Hybrid Check (Full Date OR Recurring Day)
+        if (c.tglPrs) {
+            let diff = -999;
+            const fullDatePrs = parseFullDate(c.tglPrs);
+            
+            if (fullDatePrs) {
+                 // Exact date match (e.g. 20/05/2025)
+                 fullDatePrs.setHours(0,0,0,0);
+                 diff = getDiffDays(fullDatePrs, today);
+            } else {
+                 // Recurring match (e.g. "20")
+                 const day = extractDayForRecurring(c.tglPrs);
+                 if (day !== null) {
+                    const currentDay = today.getDate();
+                    // If target day < today, assume next month. Else this month.
+                    // This logic is simple for "Reminder".
+                    let targetMonth = today.getMonth();
+                    let targetYear = today.getFullYear();
+                    
+                    if (day < currentDay) {
+                        targetMonth++; 
+                    }
+                    
+                    const nextPrsDate = new Date(targetYear, targetMonth, day);
+                    diff = getDiffDays(nextPrsDate, today);
+                 }
+            }
+
+            if (diff !== -999) {
+                if (diff === 0) {
+                    events.push({ contact: c, type: 'prs', status: 'today', daysLeft: 0 });
+                } else if (diff > 0 && diff <= 3) { // PRS usually H-3 is enough
+                    events.push({ contact: c, type: 'prs', status: 'soon', daysLeft: diff });
+                }
             }
         }
     });
 
-    return upcoming.sort((a, b) => a.daysLeft - b.daysLeft);
+    // Sort: Today first, then by days left.
+    return events.sort((a, b) => {
+        if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
+        return 0;
+    });
   }, [contacts]);
 
 
@@ -326,11 +390,26 @@ const App: React.FC = () => {
             <NotificationPanel 
                 isOpen={isNotificationOpen} 
                 onClose={() => setIsNotificationOpen(false)}
-                dueContacts={dueContacts}
-                onRemind={(c) => {
-                    const template = templates.find(t => t.label.toLowerCase().includes('angsuran')) || templates[0];
+                items={upcomingEvents}
+                onRemind={(c, type) => {
                     setSelectedContact(c);
-                    if(template) setInitialTemplateId(template.id);
+                    
+                    // Smart Template Selection Logic
+                    if (type === 'prs') {
+                        // PRS Event: Select "PRS" template
+                        const prsTemplate = templates.find(t => t.label.toLowerCase().includes('prs') || t.label.toLowerCase().includes('kumpulan'));
+                        if (prsTemplate) setInitialTemplateId(prsTemplate.id);
+                        else if (templates.length > 0) setInitialTemplateId(templates[0].id);
+                    } else {
+                        // Payment/Jatuh Tempo Event: Select "Modal/Cair" template (REFINANCING)
+                        const modalTemplate = templates.find(t => 
+                            t.label.toLowerCase().includes('cair') || 
+                            t.label.toLowerCase().includes('modal') || 
+                            t.label.toLowerCase().includes('lanjut')
+                        );
+                        if (modalTemplate) setInitialTemplateId(modalTemplate.id);
+                        else if (templates.length > 0) setInitialTemplateId(templates[0].id);
+                    }
                 }}
             />
 
@@ -363,10 +442,10 @@ const App: React.FC = () => {
                         className={`relative p-2.5 rounded-xl transition-all ${
                             isNotificationOpen ? 'bg-cyan-50 text-cyan-600' : 'bg-transparent text-slate-500 hover:text-cyan-600 hover:bg-slate-100'
                         }`}
-                        title="Notifikasi Jatuh Tempo"
+                        title="Notifikasi"
                     >
                         <Bell className="w-5 h-5" />
-                        {dueContacts.length > 0 && (
+                        {upcomingEvents.length > 0 && (
                             <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
                         )}
                     </button>
@@ -482,7 +561,7 @@ const App: React.FC = () => {
                             <h2 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Selamat Datang di NasaLink CRM</h2>
                             <p className="text-cyan-50 text-sm sm:text-base leading-relaxed max-w-xl">
                                 Aplikasi pendamping Community Officer (CO) BTPN Syariah untuk memanajemen data nasabah sentra, 
-                                memantau jadwal jatuh tempo, dan membuat pesan WhatsApp personal otomatis dengan bantuan AI.
+                                memantau jadwal jatuh tempo (peluang cair), dan membuat pesan WhatsApp personal otomatis dengan bantuan AI.
                             </p>
                             
                             <div className="mt-6 flex flex-wrap gap-4 justify-center sm:justify-start">
