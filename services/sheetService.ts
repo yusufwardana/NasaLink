@@ -1,6 +1,6 @@
 import { Contact, MessageTemplate } from '../types';
 
-// Robust CSV Parser that handles quotes and commas inside quotekjmms
+// Robust CSV Parser that handles quotes and commas inside quotekjmmpps
 const parseCSV = (text: string): string[][] => {
   const result: string[][] = [];
   let row: string[] = [];
