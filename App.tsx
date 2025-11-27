@@ -6,10 +6,10 @@ import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { Button } from './components/Button';
-import { fetchContactsFromSheet, fetchTemplatesFromSheet } from './services/sheetService';
-import { clearAllData, getSheetConfig } from './services/dbService';
+import { fetchContactsFromSheet } from './services/sheetService';
+import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle } from 'lucide-react';
 
 // Fallback templates updated to reflect NEW logic (Refinancing focus)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -26,7 +26,6 @@ const App: React.FC = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [configError, setConfigError] = useState<boolean>(false);
-  const [isGlobalMode, setIsGlobalMode] = useState(false);
   const [activeConfig, setActiveConfig] = useState<SheetConfig | null>(null);
 
   // State: UI & Selection
@@ -60,45 +59,51 @@ const App: React.FC = () => {
   }, [debouncedSearchTerm, selectedSentra, selectedCo]);
 
 
-  // --- 1. Load Data on Mount (Direct from Sheet) ---
+  // --- 1. Load Data on Mount ---
   const loadData = async () => {
     setIsLoadingData(true);
     setConfigError(false);
     try {
-        // Determine Configuration (Global Hardcoded vs Local DB)
-        let config: SheetConfig | null = null;
-
-        // 1. Check Global Config first
-        if (GLOBAL_CONFIG.spreadsheetId && GLOBAL_CONFIG.spreadsheetId.trim() !== '') {
-            config = GLOBAL_CONFIG;
-            setIsGlobalMode(true);
-        } else {
-            // 2. Fallback to Local DB
-            config = await getSheetConfig();
-            setIsGlobalMode(false);
+        // 1. Fetch Config from Supabase OR Fallback to config.ts
+        let finalConfig: SheetConfig = { ...GLOBAL_CONFIG };
+        
+        if (isSupabaseConfigured()) {
+            try {
+                const supabaseSettings = await fetchSettingsFromSupabase();
+                if (supabaseSettings && supabaseSettings.spreadsheetId) {
+                    finalConfig = { ...finalConfig, ...supabaseSettings };
+                    console.log("Using Supabase Config");
+                }
+            } catch (err) {
+                console.warn("Failed to load settings from Supabase, using local config.", err);
+            }
         }
         
-        setActiveConfig(config);
+        setActiveConfig(finalConfig);
 
-        if (config && config.spreadsheetId) {
-            // Fetch LIVE Contacts
+        if (finalConfig.spreadsheetId) {
+            // Fetch LIVE Contacts from Google Sheet
             try {
-                const liveContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
+                const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
                 setContacts(liveContacts);
             } catch (err) {
-                console.error("Error fetching live contacts:", err);
+                console.error("Error fetching live contacts from Sheet:", err);
             }
 
-            // Fetch LIVE Templates (Global Sync)
+            // Fetch LIVE Templates from SUPABASE
             try {
-                const liveTemplates = await fetchTemplatesFromSheet(config.spreadsheetId, config.templateSheetName || 'Templates');
-                if (liveTemplates.length > 0) {
-                    setTemplates(liveTemplates);
+                if (isSupabaseConfigured()) {
+                    const sbTemplates = await fetchTemplatesFromSupabase();
+                    if (sbTemplates.length > 0) {
+                        setTemplates(sbTemplates);
+                    } else {
+                         setTemplates(INITIAL_TEMPLATES_FALLBACK);
+                    }
                 } else {
                     setTemplates(INITIAL_TEMPLATES_FALLBACK);
                 }
             } catch (err) {
-                console.warn("Failed to load templates from sheet, using fallback.", err);
+                console.warn("Failed to load templates from Supabase, using fallback.", err);
                 setTemplates(INITIAL_TEMPLATES_FALLBACK);
             }
         } else {
@@ -254,10 +259,9 @@ const App: React.FC = () => {
   }, []);
   
   const handleResetData = async () => {
-    await clearAllData();
-    // Only resets local data, Global data persists in sheet
+    // Only fetch fresh data
     loadData();
-    alert("Data lokal di-refresh.");
+    alert("Data di-refresh.");
   };
 
   const handleUpdateTemplates = async (newTemplates: MessageTemplate[]) => {
@@ -295,24 +299,22 @@ const App: React.FC = () => {
   };
 
   const handleRefreshSheet = async () => {
-    let config: SheetConfig | null = isGlobalMode ? GLOBAL_CONFIG : await getSheetConfig();
-    setActiveConfig(config);
-
-    if (!config || !config.spreadsheetId) {
-        alert("Konfigurasi Google Sheet belum diatur. Silakan ke Menu Admin.");
-        handleOpenAdmin();
+    if (!activeConfig || !activeConfig.spreadsheetId) {
+        alert("Konfigurasi Google Sheet belum diatur.");
         return;
     }
 
     setIsSyncing(true);
     setContacts([]); 
     try {
-        const liveContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
+        const liveContacts = await fetchContactsFromSheet(activeConfig.spreadsheetId, activeConfig.sheetName);
         setContacts(liveContacts);
         
-        // Also refresh templates
-        const liveTemplates = await fetchTemplatesFromSheet(config.spreadsheetId, config.templateSheetName || 'Templates');
-        if (liveTemplates.length > 0) setTemplates(liveTemplates);
+        // Refresh templates from Supabase
+        if (isSupabaseConfigured()) {
+            const sbTemplates = await fetchTemplatesFromSupabase();
+            if (sbTemplates.length > 0) setTemplates(sbTemplates);
+        }
 
         setConfigError(false);
     } catch (e: any) {
@@ -390,15 +392,19 @@ const App: React.FC = () => {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NasaLink CRM</h1>
                         <div className="flex items-center gap-2">
-                            {isGlobalMode ? (
-                                <div className="flex items-center gap-1 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-100">
-                                    <Globe className="w-3 h-3 text-cyan-600" />
-                                    <p className="text-xs text-cyan-700 font-bold tracking-wide uppercase">Global Mode</p>
+                             <div className="flex items-center gap-1 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-100">
+                                <Globe className="w-3 h-3 text-cyan-600" />
+                                <p className="text-xs text-cyan-700 font-bold tracking-wide uppercase">Live Sheet</p>
+                            </div>
+                            {isSupabaseConfigured() ? (
+                                <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">
+                                    <Server className="w-3 h-3 text-green-600" />
+                                    <p className="text-[10px] text-green-700 font-bold tracking-wide uppercase">Supabase On</p>
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-1">
-                                    <CloudLightning className="w-3 h-3 text-green-600" />
-                                    <p className="text-[10px] text-green-700 font-bold tracking-wide uppercase">Live Sheet</p>
+                                <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
+                                    <AlertTriangle className="w-3 h-3 text-orange-600" />
+                                    <p className="text-[10px] text-orange-700 font-bold tracking-wide uppercase">Supabase Off</p>
                                 </div>
                             )}
                         </div>
@@ -565,7 +571,7 @@ const App: React.FC = () => {
             {isLoadingData ? (
                  <div className="text-center py-20">
                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-                     <p className="text-slate-500 animate-pulse">Mengambil data Global dari Google Sheets...</p>
+                     <p className="text-slate-500 animate-pulse">Mengambil data Global dari Google Sheets & Supabase...</p>
                  </div>
             ) : configError ? (
                  <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">

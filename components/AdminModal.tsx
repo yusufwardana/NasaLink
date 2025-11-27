@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
-import { getSheetConfig, saveSheetConfig } from '../services/dbService';
-import { saveTemplatesToSheet } from '../services/sheetService'; // Import save sync
+import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe, Loader2, Server } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -32,27 +31,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
   
-  const isGlobalConfigActive = !!(GLOBAL_CONFIG.spreadsheetId && GLOBAL_CONFIG.spreadsheetId.trim() !== '');
-
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
         setIsLoadingConfig(true);
-        if (isGlobalConfigActive) {
+        // Load Settings from Supabase if configured
+        if (isSupabaseConfigured()) {
+             fetchSettingsFromSupabase().then(sbConfig => {
+                 if (sbConfig) {
+                     setSheetConfig(prev => ({ ...prev, ...sbConfig }));
+                 } else {
+                     setSheetConfig(GLOBAL_CONFIG);
+                 }
+             }).finally(() => setIsLoadingConfig(false));
+        } else {
             setSheetConfig(GLOBAL_CONFIG);
             setIsLoadingConfig(false);
-        } else {
-            getSheetConfig().then((config) => {
-                if (config) {
-                    setSheetConfig(config);
-                }
-            }).finally(() => {
-                setIsLoadingConfig(false);
-            });
         }
     }
-  }, [isOpen, isGlobalConfigActive]);
+  }, [isOpen]);
 
   useEffect(() => {
       if (isOpen && activeTab === 'templates' && templates.length > 0 && !selectedTemplateId) {
@@ -107,20 +105,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     // 1. Optimistic Update Local
     onUpdateTemplates(updatedTemplates);
 
-    // 2. Sync to Global Sheet
-    if (sheetConfig.googleScriptUrl) {
+    // 2. Sync to Supabase
+    if (isSupabaseConfigured()) {
         setIsSavingTemplates(true);
         try {
-            // Note: services/sheetService now includes a 3s delay to allow Google Flush
-            await saveTemplatesToSheet(sheetConfig.googleScriptUrl, updatedTemplates);
+            await saveTemplatesToSupabase(updatedTemplates);
         } catch (e) {
-            console.error("Failed to sync templates globally:", e);
-            alert("Gagal menyimpan ke Cloud (Global). Periksa koneksi atau Script.");
+            console.error("Failed to sync templates to Supabase:", e);
+            alert("Gagal menyimpan ke Supabase.");
         } finally {
             setIsSavingTemplates(false);
         }
     } else {
-        alert("Peringatan: URL Script belum diisi. Template hanya tersimpan sementara di sesi ini.");
+        alert("Peringatan: Supabase belum dikonfigurasi. Template hanya tersimpan sementara.");
     }
   };
 
@@ -138,10 +135,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           setEditForm({});
       }
 
-      if (sheetConfig.googleScriptUrl) {
+      if (isSupabaseConfigured()) {
         setIsSavingTemplates(true);
         try {
-            await saveTemplatesToSheet(sheetConfig.googleScriptUrl, remaining);
+            await saveTemplatesToSupabase(remaining);
         } catch (e) {
             console.error(e);
         } finally {
@@ -177,16 +174,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   const handleSaveSheetConfig = async () => {
-      if (isGlobalConfigActive) {
-          alert("Pengaturan dikunci karena Mode Global aktif.");
+      if (!isSupabaseConfigured()) {
+          alert("Supabase belum dikonfigurasi. Tidak bisa menyimpan pengaturan global.");
           return;
       }
       setIsLoadingConfig(true);
       try {
-          await saveSheetConfig(sheetConfig);
-          alert('Konfigurasi Google Sheet berhasil disimpan!');
+          await saveSettingsToSupabase(sheetConfig);
+          alert('Konfigurasi Global berhasil disimpan ke Supabase!');
       } catch (e) {
           console.error(e);
+          alert("Gagal menyimpan konfigurasi.");
       } finally {
           setIsLoadingConfig(false);
       }
@@ -215,21 +213,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white/50 shrink-0">
           <div className="flex items-center gap-3">
-             <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg text-white shadow-md">
+             <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-2 rounded-lg text-white shadow-md">
                 <Database className="w-5 h-5" />
              </div>
              <div>
-                 <h2 className="text-lg font-bold text-slate-800 leading-none">Admin Global</h2>
+                 <h2 className="text-lg font-bold text-slate-800 leading-none">Supabase Admin</h2>
                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                      {isSavingTemplates ? (
                          <span className="text-orange-600 animate-pulse font-bold flex items-center gap-1">
                              <Loader2 className="w-3 h-3 animate-spin" />
-                             Menyimpan ke Google Sheets...
+                             Menyimpan ke Supabase...
                          </span>
-                     ) : (
+                     ) : isSupabaseConfigured() ? (
                          <span className="text-green-600 flex items-center gap-1">
                              <Check className="w-3 h-3" />
-                             Terhubung & Stabil
+                             Connected to Supabase
+                         </span>
+                     ) : (
+                         <span className="text-red-500 flex items-center gap-1">
+                             <AlertTriangle className="w-3 h-3" />
+                             Supabase Not Configured
                          </span>
                      )}
                  </p>
@@ -387,7 +390,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex gap-3">
                                                 <Info className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
                                                 <p className="text-xs text-cyan-800">
-                                                    Perubahan akan disimpan di Google Sheet (Tab "Templates") dan otomatis terupdate di semua perangkat.
+                                                    Perubahan akan disimpan di Database Supabase dan otomatis terupdate di semua perangkat.
                                                 </p>
                                             </div>
                                         </div>
@@ -458,7 +461,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             isLoading={isSavingTemplates}
                                             className="shadow-lg shadow-cyan-500/20"
                                         >
-                                            {isSavingTemplates ? 'Menyimpan...' : 'Simpan Global'}
+                                            {isSavingTemplates ? 'Menyimpan...' : 'Simpan ke Supabase'}
                                         </Button>
                                     </div>
                                 </div>
@@ -476,42 +479,82 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
             {activeTab === 'settings' && (
                 <div className="p-6 sm:p-10 max-w-3xl mx-auto space-y-8 animate-fade-in-up overflow-y-auto h-full custom-scrollbar">
-                    <div className={`bg-white border rounded-2xl p-6 shadow-sm ${isGlobalConfigActive ? 'border-cyan-200 bg-cyan-50/50' : 'border-slate-200'}`}>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Globe className={`w-5 h-5 ${isGlobalConfigActive ? 'text-cyan-600' : 'text-green-600'}`} />
-                            Konfigurasi Global
+                            <Globe className="w-5 h-5 text-blue-600" />
+                            Konfigurasi Global (Supabase)
                         </h3>
                         
-                        <div className="space-y-4">
-                            {isGlobalConfigActive && (
-                                <div className="bg-cyan-100 border border-cyan-200 text-cyan-800 p-4 rounded-xl flex items-start gap-3 text-sm">
-                                    <Lock className="w-5 h-5 shrink-0" />
-                                    <div>
-                                        <p className="font-bold">Pengaturan Terpusat (Hardcoded)</p>
-                                        <p className="opacity-90 mt-1">
-                                            ID Spreadsheet dan URL Script dikelola secara terpusat dari kode. Anda tidak perlu mengubahnya di sini.
-                                        </p>
-                                    </div>
+                        {!isSupabaseConfigured() && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-start gap-3 text-sm mb-4">
+                                <AlertTriangle className="w-5 h-5 shrink-0" />
+                                <div>
+                                    <p className="font-bold">Supabase Belum Dikonfigurasi</p>
+                                    <p className="opacity-90 mt-1">
+                                        Harap isi URL dan KEY di file <code>config.ts</code> agar fitur Admin ini berjalan.
+                                    </p>
                                 </div>
-                            )}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <p className="text-sm text-slate-500">
+                                Pengaturan ini akan disimpan di Supabase dan menimpa konfigurasi lokal di semua perangkat pengguna.
+                            </p>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Spreadsheet ID</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Spreadsheet ID (Data Nasabah)</label>
                                 <input 
                                     type="text" 
-                                    className="w-full border rounded-xl p-3 text-slate-800 bg-slate-100 cursor-not-allowed"
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none"
                                     value={sheetConfig.spreadsheetId}
-                                    disabled
+                                    onChange={e => setSheetConfig({...sheetConfig, spreadsheetId: e.target.value})}
+                                    placeholder="Contoh: 1BxiMVs0XRA5..."
                                 />
                             </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Nama Sheet (Tab)</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none"
+                                        value={sheetConfig.sheetName}
+                                        onChange={e => setSheetConfig({...sheetConfig, sheetName: e.target.value})}
+                                        placeholder="Data"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Tab Template (Opsional)</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full border border-slate-200 rounded-xl p-3 text-slate-400 bg-slate-100 cursor-not-allowed"
+                                        value="Managed by Supabase"
+                                        disabled
+                                    />
+                                </div>
+                            </div>
+
                              <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script (Update No HP)</label>
                                 <input 
                                     type="text" 
-                                    className="w-full border rounded-xl p-3 text-slate-800 bg-slate-100 cursor-not-allowed font-mono text-xs"
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
                                     value={sheetConfig.googleScriptUrl || ''}
-                                    disabled
+                                    onChange={e => setSheetConfig({...sheetConfig, googleScriptUrl: e.target.value})}
+                                    placeholder="https://script.google.com/..."
                                 />
+                            </div>
+
+                            <div className="pt-4 flex justify-end">
+                                <Button 
+                                    onClick={handleSaveSheetConfig} 
+                                    isLoading={isLoadingConfig}
+                                    disabled={!isSupabaseConfigured()}
+                                    icon={<Save className="w-4 h-4" />}
+                                >
+                                    Simpan Konfigurasi
+                                </Button>
                             </div>
                         </div>
                     </div>
