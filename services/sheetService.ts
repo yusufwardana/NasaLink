@@ -94,17 +94,11 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         const name = getVal(idxName);
         const rawPhone = getVal(idxPhone);
         
-        // Skip invalid rows (must have name or phone)
-        if ((!name || name === 'Tanpa Nama') && !rawPhone) return null;
+        // Validation: Must have at least a Name to be a valid contact
+        if (!name || name === 'Tanpa Nama') return null;
 
-        const phone = rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, ''); // Clean phone
+        const phone = rawPhone ? rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, '') : ''; // Clean phone, allow empty
         
-        // Skip if phone is too short AND name is missing. 
-        // If name exists but phone is empty, we allow it (user might fill later), 
-        // BUT App.tsx relies on phone for ID. 
-        // Ideally we need a phone number. Let's keep the filter lenient but requires phone for sync key.
-        if (phone.length < 5) return null;
-
         // Determine flag
         let flag = getVal(idxFlag);
         // Fallback if flag empty
@@ -112,8 +106,8 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
         return {
             id: `sheet-${index}-${Date.now()}`,
-            name: name || 'Tanpa Nama',
-            phone: phone,
+            name: name,
+            phone: phone, // Can be empty string now
             flag: flag,
             sentra: getVal(idxSentra) || 'Pusat',
             
@@ -121,7 +115,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             plafon: getVal(idxPlafon),
             produk: getVal(idxProduk),
             tglJatuhTempo: getVal(idxJatuhTempo),
-            tglPrs: getVal(idxPrs), // Map TGL PRS
+            tglPrs: getVal(idxPrs),
             status: getVal(idxStatus), 
             
             notes: getVal(idxNotes),

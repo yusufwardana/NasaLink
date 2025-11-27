@@ -244,57 +244,89 @@ const App: React.FC = () => {
         try {
             const sheetContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
             
-            // Normalize phone number for comparison
+            // Helper: Normalize phone
             const normalizePhone = (p: string) => p.replace(/[^0-9]/g, '');
+            // Helper: Normalize Name+Sentra Key for matching when phone is missing
+            const generateNameKey = (c: Contact) => `${c.name.trim().toLowerCase()}_${(c.sentra || '').trim().toLowerCase()}`;
 
             const currentContacts = await getAllContacts();
-            const phoneMap = new Map<string, Contact>();
             
-            // Map existing
-            currentContacts.forEach(c => phoneMap.set(normalizePhone(c.phone), c));
+            // Build Maps for efficient Lookup
+            const dbPhoneMap = new Map<string, Contact>();
+            const dbNameMap = new Map<string, Contact>();
+
+            currentContacts.forEach(c => {
+                const p = normalizePhone(c.phone);
+                if (p.length >= 5) {
+                    dbPhoneMap.set(p, c);
+                }
+                // Always add to name map as fallback
+                dbNameMap.set(generateNameKey(c), c);
+            });
             
             let newCount = 0;
             let updatedCount = 0;
+            const processedIds = new Set<string>();
+            const mergedList: Contact[] = [];
 
-            // Merge logic
+            // Process Sheet Rows
             sheetContacts.forEach(sc => {
                 const cleanPhone = normalizePhone(sc.phone);
-                if (!cleanPhone) return;
+                
+                // 1. Try Match by Phone
+                let existing = cleanPhone.length >= 5 ? dbPhoneMap.get(cleanPhone) : undefined;
+                
+                // 2. If not found by phone, Try Match by Name+Sentra
+                if (!existing) {
+                    existing = dbNameMap.get(generateNameKey(sc));
+                }
 
-                const existing = phoneMap.get(cleanPhone);
                 if (existing) {
+                    // Avoid processing same existing contact twice (e.g. if sheet has duplicates)
+                    if (processedIds.has(existing.id)) return;
+                    
                     // SMART MERGE:
-                    // 1. Keep Local: ID, Notes, LastInteraction, Name (User might have fixed it), Flag (User might have segmented manually)
-                    // 2. Take Sheet: Plafon, Status, TglJatuhTempo, TglPRS, Produk, CO, Sentra (Bank Data)
                     const merged: Contact = {
-                        ...existing, // Start with existing to keep ID and custom props
+                        ...existing, 
                         
                         // Force Update Financial/System Fields from Sheet
                         plafon: sc.plafon || existing.plafon,
                         tglJatuhTempo: sc.tglJatuhTempo || existing.tglJatuhTempo,
-                        tglPrs: sc.tglPrs || existing.tglPrs, // SYNC PRS
+                        tglPrs: sc.tglPrs || existing.tglPrs,
                         produk: sc.produk || existing.produk,
                         status: sc.status || existing.status,
                         co: sc.co || existing.co,
                         sentra: sc.sentra || existing.sentra,
                         
-                        // Optional: If Sheet has a name but Local is "Tanpa Nama", take sheet. 
-                        // Otherwise keep local name (assuming user edited it).
+                        // If local has no phone but sheet does, update it
+                        phone: (existing.phone.length < 5 && sc.phone.length >= 5) ? sc.phone : existing.phone,
+
+                        // Name: prefer Sheet if Local is "Tanpa Nama"
                         name: (existing.name === 'Tanpa Nama' && sc.name) ? sc.name : existing.name,
                         
-                        // Same for Flag, if local is 'Prospect' or 'Active' (default) but sheet has value, take sheet.
+                        // Flag: prefer Sheet if Local is default
                         flag: ((existing.flag === 'Prospect' || existing.flag === 'Active') && sc.flag) ? sc.flag : existing.flag
                     };
 
-                    phoneMap.set(cleanPhone, merged);
+                    mergedList.push(merged);
+                    processedIds.add(existing.id);
                     updatedCount++;
                 } else {
-                    phoneMap.set(cleanPhone, sc);
+                    // New Contact
+                    mergedList.push(sc);
                     newCount++;
                 }
             });
             
-            const mergedList = Array.from(phoneMap.values());
+            // 3. Keep existing contacts that were NOT in the sheet? 
+            // Usually Sync means "Make app look like sheet". 
+            // But if user added manual contacts, we should keep them.
+            // Current Strategy: If it was in DB but not matched in Sheet, KEEP IT (Manual additions).
+            currentContacts.forEach(c => {
+                if (!processedIds.has(c.id)) {
+                    mergedList.push(c);
+                }
+            });
             
             await saveBulkContacts(mergedList);
             setContacts(mergedList);
