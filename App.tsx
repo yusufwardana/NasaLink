@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Contact, MessageTemplate, SheetConfig } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
-import { ImportModal } from './components/ImportModal';
 import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
 import { NotificationPanel } from './components/NotificationPanel';
@@ -12,7 +11,7 @@ import {
     getAllTemplates, saveBulkTemplates, clearAllData, getSheetConfig 
 } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Plus, Users, Settings, Shield, RefreshCw, Filter, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, CloudLightning, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown } from 'lucide-react';
 
 // Fallback templates only
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -46,7 +45,6 @@ const App: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState(50); // Hanya tampilkan 50 awal
   
   // State: Modals & Panels
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
@@ -193,9 +191,15 @@ const App: React.FC = () => {
       setSelectedSentra(''); // Reset Sentra when CO changes to avoid mismatch
   };
 
-  const handleImport = async (newContacts: Contact[]) => {
-    alert("Dalam mode Live Sheet, data import manual hanya bersifat sementara. Harap masukkan data ke Google Sheets agar permanen.");
-    setContacts(prev => [...newContacts, ...prev]);
+  // Admin Access Handler
+  const handleOpenAdmin = () => {
+      const pin = prompt("Masukkan PIN Admin untuk mengakses pengaturan:");
+      // PIN Default Sederhana
+      if (pin === "123456") {
+          setIsAdminModalOpen(true);
+      } else {
+          alert("Akses ditolak. PIN salah.");
+      }
   };
 
   // useCallback to prevent re-creation on every render
@@ -263,7 +267,7 @@ const App: React.FC = () => {
 
     if (!config || !config.spreadsheetId) {
         alert("Konfigurasi Google Sheet belum diatur. Silakan ke Menu Admin.");
-        setIsAdminModalOpen(true);
+        handleOpenAdmin();
         return;
     }
 
@@ -380,7 +384,7 @@ const App: React.FC = () => {
                     <Button
                         size="sm"
                         variant="glass"
-                        onClick={() => setIsAdminModalOpen(true)}
+                        onClick={handleOpenAdmin}
                         className="hidden sm:flex"
                         icon={<Shield className="w-4 h-4" />}
                     >
@@ -398,7 +402,7 @@ const App: React.FC = () => {
                     </Button>
 
                     <Button 
-                        onClick={() => setIsAdminModalOpen(true)}
+                        onClick={handleOpenAdmin}
                         variant="glass"
                         className="sm:hidden px-3"
                     >
@@ -457,15 +461,6 @@ const App: React.FC = () => {
                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
-
-                    <Button 
-                        onClick={() => setIsImportModalOpen(true)}
-                        className="whitespace-nowrap shadow-lg shadow-cyan-500/20 hidden sm:flex"
-                        variant='secondary'
-                        icon={<Plus className="w-5 h-5" />}
-                    >
-                        Tambah
-                    </Button>
                 </div>
             </div>
         </div>
@@ -541,7 +536,7 @@ const App: React.FC = () => {
                     </div>
                     <h3 className="text-lg font-bold text-slate-800 mb-2">Belum Terhubung</h3>
                     <p className="text-slate-500 mb-6 font-medium px-6">Hubungkan aplikasi dengan Google Sheet Anda di menu Admin untuk melihat data secara Live.</p>
-                    <Button variant="primary" onClick={() => setIsAdminModalOpen(true)}>
+                    <Button variant="primary" onClick={handleOpenAdmin}>
                         Buka Pengaturan
                     </Button>
                  </div>
@@ -646,12 +641,6 @@ const App: React.FC = () => {
         onResetData={handleResetData}
         onTestTemplate={handleTestTemplate}
         onBulkUpdateMode={handleBulkTemplateUpdate}
-      />
-
-      <ImportModal 
-        isOpen={isImportModalOpen} 
-        onClose={() => setIsImportModalOpen(false)} 
-        onImport={handleImport}
       />
 
     </div>
