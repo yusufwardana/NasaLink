@@ -75,7 +75,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     
     // Exact mapping prioritized
     const idxName = findColIndex(headers, ['nasabah', 'nama', 'name']);
-    const idxPhone = findColIndex(headers, ['nomer telp', 'no telp', 'telp', 'phone', 'hp', 'wa']); // Added 'nomer telp'
+    const idxPhone = findColIndex(headers, ['nomer telp', 'no telp', 'telp', 'phone', 'hp', 'wa']); 
     const idxFlag = findColIndex(headers, ['flag', 'segmen']);
     const idxStatus = findColIndex(headers, ['status', 'kondisi']);
     const idxSentra = findColIndex(headers, ['sentra', 'kelompok']);
@@ -83,8 +83,8 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     const idxPlafon = findColIndex(headers, ['plafon', 'limit']);
     const idxProduk = findColIndex(headers, ['produk', 'product']);
     const idxJatuhTempo = findColIndex(headers, ['tgl jatuh tempo', 'jatuh tempo']);
-    const idxPrs = findColIndex(headers, ['tgl prs', 'prs']); // New field
-    const idxNotes = findColIndex(headers, ['notes', 'catatan', 'keterangan']); // Optional
+    const idxPrs = findColIndex(headers, ['tgl prs', 'prs']); 
+    const idxNotes = findColIndex(headers, ['notes', 'catatan', 'keterangan']); 
 
     // Map rows to Contact objects
     return rows.slice(1).map((row, index): Contact | null => {
@@ -97,17 +97,16 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         // Validation: Must have at least a Name to be a valid contact
         if (!name || name === 'Tanpa Nama') return null;
 
-        const phone = rawPhone ? rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, '') : ''; // Clean phone, allow empty
+        const phone = rawPhone ? rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, '') : ''; 
         
         // Determine flag
         let flag = getVal(idxFlag);
-        // Fallback if flag empty
         if (!flag) flag = 'Active'; 
 
         return {
             id: `sheet-${index}-${Date.now()}`,
             name: name,
-            phone: phone, // Can be empty string now
+            phone: phone, 
             flag: flag,
             sentra: getVal(idxSentra) || 'Pusat',
             
@@ -126,5 +125,35 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
   } catch (error) {
     console.error("Sheet fetch error:", error);
     throw error;
+  }
+};
+
+export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPhone: string): Promise<void> => {
+  if (!scriptUrl) {
+    throw new Error("URL Google Apps Script belum dikonfigurasi.");
+  }
+
+  // Use no-cors mode cautiously, or handle CORS via script
+  // Google Apps Script Web App needs:
+  // 1. doPost(e)
+  // 2. return ContentService.createTextOutput(...)
+  // 3. Deployed as Web App, execute as 'Me', access 'Anyone'
+
+  const payload = {
+    action: 'update_phone',
+    name: name,
+    phone: newPhone
+  };
+
+  const response = await fetch(scriptUrl, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    // We use 'text/plain' to avoid CORS preflight options request which GAS doesn't handle well by default
+    headers: { 'Content-Type': 'text/plain' } 
+  });
+
+  const result = await response.json();
+  if (result.result !== 'success') {
+    throw new Error(result.message || 'Gagal update di Sheet');
   }
 };

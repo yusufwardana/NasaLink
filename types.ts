@@ -33,4 +33,5 @@ export interface GeneratedMessage {
 export interface SheetConfig {
   spreadsheetId: string;
   sheetName: string;
+  googleScriptUrl?: string; // New field for Apps Script URL
 }

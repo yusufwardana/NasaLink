@@ -3,7 +3,7 @@ import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Edit2, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [activeTab, setActiveTab] = useState<'templates' | 'settings'>('templates');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MessageTemplate>>({});
-  const [sheetConfig, setSheetConfig] = useState<SheetConfig>({ spreadsheetId: '', sheetName: '' });
+  const [sheetConfig, setSheetConfig] = useState<SheetConfig>({ spreadsheetId: '', sheetName: '', googleScriptUrl: '' });
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   
   // Check if global config is active
@@ -177,7 +177,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       if (window.confirm('PERINGATAN: Reset akan menghapus semua data di database lokal (IndexedDB). Lanjutkan?')) {
           onResetData();
           if (!isGlobalConfigActive) {
-              setSheetConfig({ spreadsheetId: '', sheetName: '' });
+              setSheetConfig({ spreadsheetId: '', sheetName: '', googleScriptUrl: '' });
           }
           onClose();
       }
@@ -242,7 +242,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {/* Content Area */}
         <div className="flex-1 overflow-hidden relative bg-slate-50/30">
             
-            {/* --- TEMPLATES TAB (Split View) --- */}
+            {/* --- TEMPLATES TAB --- */}
             {activeTab === 'templates' && (
                 <div className="flex h-full flex-col sm:flex-row">
                     
@@ -310,7 +310,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <div className="w-full sm:w-2/3 bg-slate-50/50 flex flex-col h-full overflow-y-auto custom-scrollbar">
                         {selectedTemplateId ? (
                             <div className="p-6 max-w-2xl mx-auto w-full space-y-6">
-                                {/* Editor Header */}
+                                {/* Editor Form */}
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-4 w-full">
                                         <div className="w-16">
@@ -334,7 +334,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Mode Switcher */}
                                 <div className="bg-white p-1 rounded-xl flex border border-slate-200 shadow-sm">
                                     <button 
                                         onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))}
@@ -358,7 +357,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     </button>
                                 </div>
 
-                                {/* Content Editor */}
                                 <div className="animate-fade-in-up">
                                     {editForm.type === 'ai' ? (
                                         <div className="space-y-3">
@@ -388,7 +386,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                 </label>
                                             </div>
                                             
-                                            {/* Smart Chips */}
                                             <div className="flex flex-wrap gap-2 mb-2">
                                                 {[
                                                     { label: '+ Nama Ibu', code: '{name}' },
@@ -422,7 +419,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     )}
                                 </div>
 
-                                {/* Actions */}
                                 <div className="pt-6 border-t border-slate-200 flex justify-between items-center">
                                     <button 
                                         onClick={handleDeleteCurrent}
@@ -491,7 +487,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                         <p className="font-bold">Pengaturan Dikunci (Hardcoded)</p>
                                         <p className="opacity-90 mt-1">
                                             ID Spreadsheet saat ini diatur langsung melalui kode aplikasi (file <code>config.ts</code>). 
-                                            Semua perangkat yang membuka website ini akan otomatis menggunakan ID di bawah ini.
                                         </p>
                                     </div>
                                 </div>
@@ -511,9 +506,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     onChange={(e) => setSheetConfig(prev => ({ ...prev, spreadsheetId: e.target.value }))}
                                     disabled={isGlobalConfigActive}
                                 />
-                                {!isGlobalConfigActive && (
-                                    <p className="text-[10px] text-slate-400 mt-1">ID dapat ditemukan di URL Spreadsheet Anda.</p>
-                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Nama Sheet (Tab)</label>
@@ -531,18 +523,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 />
                             </div>
 
-                            {!isGlobalConfigActive && (
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-xs text-green-800 leading-relaxed">
-                                    <p className="font-bold mb-2 flex items-center gap-2"><Info className="w-3 h-3"/> Panduan Integrasi:</p>
-                                    <ol className="list-decimal pl-4 space-y-1 opacity-90">
-                                        <li>Buka Google Sheet data nasabah Anda.</li>
-                                        <li>Pastikan kolom baris pertama: <code>Nama, Phone, Flag, Sentra, Notes</code>.</li>
-                                        <li>Klik File &gt; Share &gt; Publish to web.</li>
-                                        <li>Pilih "Entire Document" &gt; "Comma-separated values (.csv)".</li>
-                                        <li>Salin ID dari URL browser (bukan link publish).</li>
-                                    </ol>
-                                </div>
-                            )}
+                            <div className="border-t border-slate-100 pt-4 mt-2">
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-2">
+                                    <Code className="w-3 h-3"/> URL Apps Script (Opsional)
+                                </label>
+                                <p className="text-[10px] text-slate-400 mb-2">Diperlukan untuk fitur Update Nomor HP ke Sheets.</p>
+                                <input 
+                                    type="text" 
+                                    className={`w-full border rounded-xl p-3 text-slate-800 focus:outline-none font-mono text-sm transition-all ${
+                                        isGlobalConfigActive 
+                                        ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed' 
+                                        : 'bg-slate-50 border-slate-200 focus:ring-2 focus:ring-green-500/50 focus:bg-white'
+                                    }`}
+                                    placeholder="https://script.google.com/macros/s/.../exec"
+                                    value={sheetConfig.googleScriptUrl || ''}
+                                    onChange={(e) => setSheetConfig(prev => ({ ...prev, googleScriptUrl: e.target.value }))}
+                                    disabled={isGlobalConfigActive}
+                                />
+                            </div>
 
                             <div className="flex justify-end pt-2">
                                 <Button 

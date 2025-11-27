@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [configError, setConfigError] = useState<boolean>(false);
   const [isGlobalMode, setIsGlobalMode] = useState(false);
+  const [activeConfig, setActiveConfig] = useState<SheetConfig | null>(null);
 
   // State: UI & Selection
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,6 +72,8 @@ const App: React.FC = () => {
             setIsGlobalMode(false);
         }
         
+        setActiveConfig(config);
+
         if (config && config.spreadsheetId) {
             // Fetch LIVE data
             try {
@@ -154,27 +157,24 @@ const App: React.FC = () => {
 
   // Handlers
   const handleImport = async (newContacts: Contact[]) => {
-    // In Live Mode, Import only adds to temporary state
     alert("Dalam mode Live Sheet, data import manual hanya bersifat sementara. Harap masukkan data ke Google Sheets agar permanen.");
     setContacts(prev => [...newContacts, ...prev]);
   };
 
   const handleUpdateContact = async (updated: Contact) => {
-    // In Live Mode, we only update React State
+    // In Live Mode, we only update React State. 
+    // The Edit Modal handles the Google Script update if configured.
     setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
   };
 
   const handleDeleteContact = async (id: string) => {
-    // In Live Mode, we only update React State
     setContacts(prev => prev.filter(c => c.id !== id));
   };
   
   const handleResetData = async () => {
     await clearAllData();
-    // Re-seed templates
     await saveBulkTemplates(INITIAL_TEMPLATES_FALLBACK);
     
-    // If Global Config is active, we don't clear contacts, just refresh
     if (isGlobalMode) {
         alert("Data lokal direset. Mengambil ulang data dari Konfigurasi Global...");
         loadData();
@@ -182,6 +182,7 @@ const App: React.FC = () => {
         setContacts([]);
         setTemplates(INITIAL_TEMPLATES_FALLBACK);
         setConfigError(true);
+        setActiveConfig(null);
         alert("Aplikasi di-reset. Silakan masukkan ID Spreadsheet kembali.");
     }
   };
@@ -222,7 +223,8 @@ const App: React.FC = () => {
 
   const handleRefreshSheet = async () => {
     let config: SheetConfig | null = isGlobalMode ? GLOBAL_CONFIG : await getSheetConfig();
-    
+    setActiveConfig(config);
+
     if (!config || !config.spreadsheetId) {
         alert("Konfigurasi Google Sheet belum diatur. Silakan ke Menu Admin.");
         setIsAdminModalOpen(true);
@@ -234,7 +236,6 @@ const App: React.FC = () => {
         const liveContacts = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
         setContacts(liveContacts);
         setConfigError(false);
-        // We do NOT save to DB anymore. Live only.
     } catch (e: any) {
         console.error(e);
         alert(`Gagal mengambil data terbaru: ${e.message}`);
@@ -262,7 +263,6 @@ const App: React.FC = () => {
       <div className="sticky top-4 z-30 px-4 mb-8">
         <div className="max-w-3xl mx-auto bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-4 sm:p-5 relative">
             
-            {/* Notification Panel Component */}
             <NotificationPanel 
                 isOpen={isNotificationOpen} 
                 onClose={() => setIsNotificationOpen(false)}
@@ -297,7 +297,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex gap-2 items-center">
-                    {/* Notification Bell */}
                     <button 
                         onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                         className={`relative p-2.5 rounded-xl transition-all ${
@@ -345,7 +344,6 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="flex gap-2">
-                     {/* Sentra Filter */}
                     <div className="relative min-w-[140px] group">
                         <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-cyan-600 transition-colors" />
                         <select
@@ -358,7 +356,6 @@ const App: React.FC = () => {
                                 <option key={s} value={String(s)} className="bg-white text-slate-800">{s}</option>
                             ))}
                         </select>
-                        {/* Custom arrow */}
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
@@ -381,7 +378,6 @@ const App: React.FC = () => {
                         <Settings className="w-5 h-5" />
                     </Button>
 
-                    {/* Hide "Add Manual" on Mobile mostly, prioritized sheet */}
                     <Button 
                         onClick={() => setIsImportModalOpen(true)}
                         className="whitespace-nowrap shadow-lg shadow-cyan-500/20"
@@ -396,12 +392,11 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-3xl mx-auto px-4">
         <div className="space-y-4">
             <div className="flex justify-between items-end px-2">
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span className="w-2 h-2 rounded-full bg-green-50 animate-pulse"></span>
                     Live Data {selectedSentra ? `- ${selectedSentra}` : ''} ({filteredContacts.length})
                 </h2>
             </div>
@@ -446,7 +441,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Modals */}
       {selectedContact && (
         <MessageGeneratorModal 
             contact={selectedContact} 
@@ -466,6 +460,7 @@ const App: React.FC = () => {
         onClose={() => setContactToEdit(null)}
         onSave={handleUpdateContact}
         onDelete={handleDeleteContact}
+        sheetConfig={activeConfig}
       />
 
       <AdminModal

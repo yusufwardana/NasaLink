@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Contact } from '../types';
+import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
-import { X, Save, Trash2, Contact as ContactIcon, Info, Lock } from 'lucide-react';
+import { updatePhoneInSheet } from '../services/sheetService';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2 } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -9,10 +10,19 @@ interface EditContactModalProps {
   onClose: () => void;
   onSave: (updatedContact: Contact) => void;
   onDelete: (id: string) => void;
+  sheetConfig: SheetConfig | null;
 }
 
-export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isOpen, onClose, onSave, onDelete }) => {
+export const EditContactModal: React.FC<EditContactModalProps> = ({ 
+  contact, 
+  isOpen, 
+  onClose, 
+  onSave, 
+  onDelete,
+  sheetConfig
+}) => {
   const [formData, setFormData] = useState<Partial<Contact>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (contact) {
@@ -22,11 +32,28 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
 
   if (!isOpen || !contact) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name && formData.phone) {
-      onSave(formData as Contact);
-      onClose();
+      setIsSaving(true);
+      try {
+        // If Google Script URL is available, try to update sheet
+        if (sheetConfig?.googleScriptUrl) {
+           await updatePhoneInSheet(sheetConfig.googleScriptUrl, formData.name, formData.phone);
+           alert("Nomor telepon berhasil diperbarui di Google Sheets!");
+        } else {
+           // Just local warning
+           alert("Catatan: Perubahan ini hanya tersimpan di aplikasi. Untuk update permanen di database, mohon update file Google Sheets atau konfigurasikan Google Script URL.");
+        }
+        
+        onSave(formData as Contact);
+        onClose();
+      } catch (err: any) {
+        alert(`Gagal update ke Google Sheets: ${err.message}`);
+        // We do NOT save locally if sheet update failed to keep data consistent
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -127,7 +154,12 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-3">
              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
              <div className="text-xs text-blue-800 leading-relaxed">
-                 <span className="font-bold">Mode Live Sheet:</span> Data utama dikunci sesuai Google Sheet. Anda hanya dapat mengubah <b>Nomor Telepon</b> untuk keperluan pengiriman pesan WA.
+                 <span className="font-bold">Mode Live Sheet:</span> Data utama dikunci sesuai Google Sheet. 
+                 {sheetConfig?.googleScriptUrl ? (
+                     <span className="text-green-700 font-bold block mt-1">✓ Terhubung ke Script Update: Perubahan nomor HP akan langsung disimpan ke Sheet.</span>
+                 ) : (
+                     <span className="text-orange-700 block mt-1">⚠ Script Update Belum Dipasang: Perubahan nomor hanya sementara.</span>
+                 )}
              </div>
           </div>
 
@@ -163,7 +195,6 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                     <ContactIcon className="w-5 h-5" />
                 </button>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">*Klik ikon orang untuk ambil dari kontak HP (Khusus Android Chrome)</p>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -212,43 +243,16 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                 />
               </div>
           </div>
-           <div className="grid grid-cols-2 gap-4">
-              <div>
-                <LabelLocked label="Plafon" />
-                <input
-                  type="text"
-                  name="plafon"
-                  disabled
-                  value={formData.plafon || ''}
-                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
-                />
-              </div>
-               <div>
-                <LabelLocked label="Status" />
-                <input
-                  type="text"
-                  name="status"
-                  disabled
-                  value={formData.status || ''}
-                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
-                />
-              </div>
-          </div>
-
-          <div>
-            <LabelLocked label="Catatan Tambahan" />
-            <textarea
-              name="notes"
-              rows={2}
-              disabled
-              value={formData.notes || ''}
-              className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none resize-none"
-            />
-          </div>
           
            <div className="pt-5 flex justify-end items-center border-t border-slate-100 mt-2 gap-3">
-                <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-                <Button type="submit" icon={<Save className="w-4 h-4" />}>Simpan Nomor</Button>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Batal</Button>
+                <Button 
+                    type="submit" 
+                    icon={isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
+                    isLoading={isSaving}
+                >
+                    {isSaving ? 'Menyimpan...' : 'Simpan & Update'}
+                </Button>
           </div>
         </form>
       </div>

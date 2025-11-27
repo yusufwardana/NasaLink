@@ -3,19 +3,17 @@ import { SheetConfig } from './types';
 // ============================================================================
 // KONFIGURASI GLOBAL (BAKU)
 // ============================================================================
-// Masukkan ID Google Sheet Anda di sini agar aplikasi otomatis terhubung
-// di semua perangkat tanpa perlu setting manual satu per satu.
-//
-// Cara ambil ID: 
-// Buka Sheet > Lihat URL > Copy bagian acak antara '/d/' dan '/edit'
-// Contoh URL: docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKbBdBdB/edit
-// ID nya adalah: 1BxiMVs0XRA5nFMdKbBdBdB
+// Masukkan ID Google Sheet Anda di sini agar aplikasi otomatis terhubung.
 // ============================================================================
 
 export const GLOBAL_CONFIG: SheetConfig = {
-  // GANTI BAGIAN DALAM KUTIP DI BAWAH INI DENGAN ID SHEET ANDA
-  spreadsheetId: "", 
+  // GANTI DENGAN ID SHEET ANDA
+  spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
   
-  // Nama Tab di bawah (default: Sheet1)
-  sheetName: "Sheet1" 
+  // Nama Tab (default: Sheet1)
+  sheetName: "Data",
+
+  // URL Web App Google Apps Script (Untuk fitur Edit No HP)
+  // Kosongkan jika belum deploy script
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycby8ibza3Dz1YAQOakPEaASCLzOw0-S9ZMLcY7mwcarPrxwQv2fgebkZ3p7CYH1orie5KA/exec" 
 };
