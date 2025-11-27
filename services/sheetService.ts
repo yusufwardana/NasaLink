@@ -54,24 +54,40 @@ const findColIndex = (headers: string[], keywords: string[]): number => {
     return headers.findIndex(h => keywords.some(k => h.includes(k)));
 };
 
-// Helper to fetch CSV
-const fetchSheetCsv = async (spreadsheetId: string, sheetName: string) => {
-    const timestamp = new Date().getTime();
-    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}&single=true&t=${timestamp}`;
+// Helper to fetch CSV with retry mechanism
+const fetchSheetCsv = async (spreadsheetId: string, sheetName: string, retries = 1): Promise<string> => {
+    // Add aggressive cache busting
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 99999);
     
-    const response = await fetch(url, {
-        cache: "no-store",
-        headers: {
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache'
-        }
-    });
+    // Using 'export' format is faster than visualization API
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}&single=true&_cb=${timestamp}${random}`;
+    
+    try {
+        const response = await fetch(url, {
+            cache: "no-store",
+            headers: {
+                'Pragma': 'no-cache',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }
+        });
 
-    if (!response.ok) {
-        throw new Error(`Failed to fetch sheet ${sheetName}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch sheet ${sheetName} (${response.status})`);
+        }
+        return await response.text();
+    } catch (error) {
+        if (retries > 0) {
+            // Wait 1 second before retry
+            await new Promise(res => setTimeout(res, 1000));
+            return fetchSheetCsv(spreadsheetId, sheetName, retries - 1);
+        }
+        throw error;
     }
-    return await response.text();
 };
+
+// Helper delay
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: string = 'Sheet1'): Promise<Contact[]> => {
   try {
@@ -138,7 +154,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
 export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: string = 'Templates'): Promise<MessageTemplate[]> => {
     try {
-        const text = await fetchSheetCsv(spreadsheetId, sheetName);
+        const text = await fetchSheetCsv(spreadsheetId, sheetName, 2); // Retry twice
         const rows = parseCSV(text);
         if (rows.length < 2) return [];
 
@@ -178,12 +194,22 @@ export const saveTemplatesToSheet = async (scriptUrl: string, templates: Message
         templates: templates
     };
 
-    await fetch(scriptUrl, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'text/plain' },
-        mode: 'no-cors'
-    });
+    // Use no-cors mode (Fire and forget, but wait a bit to ensure request is sent)
+    try {
+        await fetch(scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'text/plain' },
+            mode: 'no-cors'
+        });
+        
+        // Artificial delay to allow Google Apps Script to process and FLUSH the data to disk
+        // This is critical for the next fetch to see the new data
+        await delay(3000); 
+    } catch (e) {
+        console.error("Save template error", e);
+        throw e;
+    }
 };
 
 export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPhone: string): Promise<void> => {
@@ -203,4 +229,7 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
     headers: { 'Content-Type': 'text/plain' },
     mode: 'no-cors'
   });
+  
+  // Small delay for UI stability
+  await delay(500);
 };

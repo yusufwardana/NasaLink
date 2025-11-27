@@ -17,5 +17,5 @@ export const GLOBAL_CONFIG: SheetConfig = {
   templateSheetName: "Templates",
 
   // URL Web App Google Apps Script (Wajib untuk fitur Global Admin & Edit No HP)
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycbwhNRiSPB-jte6QTCX9wz57J_qH4US_ttjGYKaEiYxCkBl7AaYXBgVf9rr0jf0VHo-3rg/exec" 
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycbx8WXSSX9zdfSlYLv2xw7NUc9913NyIYmindb6pocJx8VdBrfABxnaa8dbe-nKsEqmGFw/exec" 
 };

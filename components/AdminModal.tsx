@@ -4,7 +4,7 @@ import { Button } from './Button';
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { saveTemplatesToSheet } from '../services/sheetService'; // Import save sync
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe, Loader2 } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -111,8 +111,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (sheetConfig.googleScriptUrl) {
         setIsSavingTemplates(true);
         try {
+            // Note: services/sheetService now includes a 3s delay to allow Google Flush
             await saveTemplatesToSheet(sheetConfig.googleScriptUrl, updatedTemplates);
-            // No alert needed, just background sync
         } catch (e) {
             console.error("Failed to sync templates globally:", e);
             alert("Gagal menyimpan ke Cloud (Global). Periksa koneksi atau Script.");
@@ -173,9 +173,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleBulkMode = async (mode: 'ai' | 'manual') => {
       if (onBulkUpdateMode && window.confirm(`Ubah SEMUA template menjadi mode ${mode.toUpperCase()}?`)) {
           onBulkUpdateMode(mode);
-          // Note: App.tsx will update state, but we need to trigger save to sheet
-          // This is complex as onBulkUpdateMode is async state update.
-          // Ideally user should click "Save" on a template to trigger sync or we assume user knows they need to edit and save.
       }
   };
 
@@ -192,13 +189,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           console.error(e);
       } finally {
           setIsLoadingConfig(false);
-      }
-  };
-
-  const handleReset = () => {
-      if (window.confirm('PERINGATAN: Reset data lokal?')) {
-          onResetData();
-          onClose();
       }
   };
 
@@ -232,14 +222,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                  <h2 className="text-lg font-bold text-slate-800 leading-none">Admin Global</h2>
                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                      {isSavingTemplates ? (
-                         <span className="text-orange-500 animate-pulse font-bold">Menyimpan ke Cloud...</span>
+                         <span className="text-orange-600 animate-pulse font-bold flex items-center gap-1">
+                             <Loader2 className="w-3 h-3 animate-spin" />
+                             Menyimpan ke Google Sheets...
+                         </span>
                      ) : (
-                         <span className="text-green-600">Terhubung ke Google Sheets</span>
+                         <span className="text-green-600 flex items-center gap-1">
+                             <Check className="w-3 h-3" />
+                             Terhubung & Stabil
+                         </span>
                      )}
                  </p>
              </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors">
+          <button onClick={onClose} disabled={isSavingTemplates} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors disabled:opacity-50">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -267,6 +263,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <Button 
                                 onClick={handleStartAdd} 
                                 variant="outline" 
+                                disabled={isSavingTemplates}
                                 className="w-full justify-start text-xs border-dashed border-slate-300 hover:border-cyan-400 hover:text-cyan-600" 
                                 icon={<Plus className="w-3.5 h-3.5" />}
                             >
@@ -279,7 +276,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <button
                                     key={t.id}
                                     onClick={() => handleSelectTemplate(t)}
-                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center justify-between group ${
+                                    disabled={isSavingTemplates}
+                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center justify-between group disabled:opacity-50 ${
                                         selectedTemplateId === t.id 
                                         ? 'bg-cyan-50 border-cyan-200 shadow-sm' 
                                         : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'
@@ -308,10 +306,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <Layers className="w-3 h-3" /> Global Actions
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={() => handleBulkMode('ai')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-cyan-600 border border-slate-200 hover:border-cyan-300 transition-colors shadow-sm">
+                                <button disabled={isSavingTemplates} onClick={() => handleBulkMode('ai')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-cyan-600 border border-slate-200 hover:border-cyan-300 transition-colors shadow-sm disabled:opacity-50">
                                     Set All AI
                                 </button>
-                                <button onClick={() => handleBulkMode('manual')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-purple-600 border border-slate-200 hover:border-purple-300 transition-colors shadow-sm">
+                                <button disabled={isSavingTemplates} onClick={() => handleBulkMode('manual')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-purple-600 border border-slate-200 hover:border-purple-300 transition-colors shadow-sm disabled:opacity-50">
                                     Set All Manual
                                 </button>
                             </div>
@@ -327,7 +325,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase text-center">Icon</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 transition-all hover:bg-slate-50"
+                                                disabled={isSavingTemplates}
+                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.icon || ''}
                                                 onChange={e => setEditForm({...editForm, icon: e.target.value})}
                                             />
@@ -336,7 +335,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Nama Kategori</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full bg-white border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 font-bold text-lg placeholder-slate-300 transition-all hover:bg-slate-50"
+                                                disabled={isSavingTemplates}
+                                                className="w-full bg-white border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 font-bold text-lg placeholder-slate-300 transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.label || ''}
                                                 onChange={e => setEditForm({...editForm, label: e.target.value})}
                                             />
@@ -347,7 +347,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <div className="bg-white p-1 rounded-xl flex border border-slate-200 shadow-sm">
                                     <button 
                                         onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))}
-                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                                        disabled={isSavingTemplates}
+                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${
                                             editForm.type === 'ai' 
                                             ? 'bg-cyan-600 text-white shadow-md' 
                                             : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
@@ -357,7 +358,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     </button>
                                     <button 
                                         onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))}
-                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                                        disabled={isSavingTemplates}
+                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${
                                             editForm.type === 'manual' 
                                             ? 'bg-purple-600 text-white shadow-md' 
                                             : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
@@ -376,9 +378,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                 </label>
                                             </div>
                                             <textarea 
-                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 text-sm leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50"
+                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 text-sm leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.promptContext || ''}
                                                 onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
+                                                disabled={isSavingTemplates}
                                                 placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan..."
                                             />
                                             <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex gap-3">
@@ -401,7 +404,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                                     <button
                                                         key={chip.code}
                                                         onClick={() => handleInsertVariable(chip.code)}
-                                                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-600 uppercase tracking-wide"
+                                                        disabled={isSavingTemplates}
+                                                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-600 uppercase tracking-wide disabled:opacity-50"
                                                     >
                                                         {chip.label}
                                                     </button>
@@ -410,9 +414,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                                             <textarea 
                                                 ref={textAreaRef}
-                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50"
+                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.content || ''}
                                                 onChange={e => setEditForm({...editForm, content: e.target.value})}
+                                                disabled={isSavingTemplates}
                                                 placeholder="Assalamualaikum..."
                                             />
                                             {renderManualPreview()}
@@ -424,7 +429,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     <button 
                                         onClick={handleDeleteCurrent}
                                         disabled={isSavingTemplates}
-                                        className="px-4 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                        className="px-4 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2 disabled:opacity-50"
                                     >
                                         <Trash2 className="w-4 h-4" /> Hapus Global
                                     </button>
@@ -433,8 +438,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                         {onTestTemplate && (
                                             <Button 
                                                 variant="secondary"
+                                                disabled={isSavingTemplates}
                                                 onClick={() => {
-                                                    handleSaveCurrent();
+                                                    // Trigger background save but allow test immediately with local state
+                                                    handleSaveCurrent(); 
                                                     if (selectedTemplateId) {
                                                         onClose();
                                                         onTestTemplate(selectedTemplateId);
