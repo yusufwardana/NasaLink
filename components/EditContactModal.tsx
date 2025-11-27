@@ -108,33 +108,33 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] relative">
         {/* Top glow */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
 
-        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-          <h2 className="text-xl font-bold text-white">Edit Nasabah</h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
+          <h2 className="text-xl font-bold text-slate-800">Edit Nasabah</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
           <div>
-            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Nama Lengkap</label>
+            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Nama Lengkap</label>
             <input
               type="text"
               name="name"
               required
               value={formData.name || ''}
               onChange={handleChange}
-              className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none transition-all"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all focus:bg-white"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Nomor WhatsApp</label>
+            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Nomor WhatsApp</label>
             <div className="relative">
                 <input
                   type="text"
@@ -142,116 +142,116 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                   required
                   value={formData.phone || ''}
                   onChange={handleChange}
-                  className="w-full p-3 pr-12 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none transition-all"
+                  className="w-full p-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all focus:bg-white"
                   placeholder="08..."
                 />
                 <button
                     type="button"
                     onClick={handlePickContact}
-                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-colors z-10 cursor-pointer"
+                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-cyan-600 hover:bg-cyan-100 rounded-lg transition-colors z-10 cursor-pointer"
                     title="Ambil dari Kontak HP"
                 >
                     <ContactIcon className="w-5 h-5" />
                 </button>
             </div>
-            <p className="text-[10px] text-white/30 mt-1">*Klik ikon orang untuk ambil dari kontak HP (Khusus Android Chrome)</p>
+            <p className="text-[10px] text-slate-400 mt-1">*Klik ikon orang untuk ambil dari kontak HP (Khusus Android Chrome)</p>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Flag (Segmen)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Flag (Segmen)</label>
                 <select
                   name="flag"
                   value={formData.flag || 'Prospect'}
                   onChange={handleChange}
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none appearance-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none appearance-none focus:bg-white"
                 >
-                  <option value="Prospect" className="bg-slate-800">Prospect</option>
-                  <option value="Silver" className="bg-slate-800">Silver</option>
-                  <option value="Gold" className="bg-slate-800">Gold</option>
-                  <option value="Platinum" className="bg-slate-800">Platinum</option>
+                  <option value="Prospect">Prospect</option>
+                  <option value="Silver">Silver</option>
+                  <option value="Gold">Gold</option>
+                  <option value="Platinum">Platinum</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Sentra</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Sentra</label>
                 <input
                   type="text"
                   name="sentra"
                   value={formData.sentra || ''}
                   onChange={handleChange}
                   placeholder="Sentra Mawar"
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
                 />
               </div>
           </div>
           
           {/* BTPN Specific Fields */}
-          <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
               <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">CO (Petugas)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">CO (Petugas)</label>
                 <input
                   type="text"
                   name="co"
                   value={formData.co || ''}
                   onChange={handleChange}
                   placeholder="Nama CO"
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
                 />
               </div>
                <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Tgl Jatuh Tempo</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Tgl Jatuh Tempo</label>
                 <input
                   type="text"
                   name="tglJatuhTempo"
                   value={formData.tglJatuhTempo || ''}
                   onChange={handleChange}
                   placeholder="Contoh: 25"
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
                 />
               </div>
           </div>
            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Plafon</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Plafon</label>
                 <input
                   type="text"
                   name="plafon"
                   value={formData.plafon || ''}
                   onChange={handleChange}
                   placeholder="Rp ..."
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
                 />
               </div>
                <div>
-                <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Status</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Status</label>
                 <input
                   type="text"
                   name="status"
                   value={formData.status || ''}
                   onChange={handleChange}
                   placeholder="Lancar/Macet"
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
                 />
               </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-white/70 mb-2 uppercase tracking-wider">Catatan Tambahan</label>
+            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Catatan Tambahan</label>
             <textarea
               name="notes"
               rows={2}
               value={formData.notes || ''}
               onChange={handleChange}
-              className="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent outline-none resize-none"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none resize-none focus:bg-white"
               placeholder="Catatan personal..."
             />
           </div>
           
-           <div className="pt-5 flex justify-between items-center border-t border-white/10 mt-2">
+           <div className="pt-5 flex justify-between items-center border-t border-slate-100 mt-2">
                 <button 
                     type="button" 
                     onClick={handleDelete}
-                    className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                    className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
                 >
                     <Trash2 className="w-4 h-4" /> Hapus
                 </button>

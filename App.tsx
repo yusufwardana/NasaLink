@@ -130,9 +130,6 @@ const App: React.FC = () => {
             // Try to parse as Date
             const parsed = Date.parse(cleanDate);
             if (!isNaN(parsed)) {
-                // If full date, we usually treat it as recurring monthly in this context
-                // OR we check if the exact date is coming up.
-                // For simplicity in a CRM like this: use the Day of Month component.
                 const d = new Date(parsed);
                 targetDay = d.getDate();
             } else {
@@ -302,11 +299,11 @@ const App: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen pb-20 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-900/20 via-gray-900 to-black text-white">
+    <div className="min-h-screen pb-20 text-slate-800">
       
       {/* Floating Glass Header */}
       <div className="sticky top-4 z-30 px-4 mb-8">
-        <div className="max-w-3xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-4 sm:p-5 relative">
+        <div className="max-w-3xl mx-auto bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-4 sm:p-5 relative">
             
             {/* Notification Panel Component */}
             <NotificationPanel 
@@ -323,12 +320,12 @@ const App: React.FC = () => {
 
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="relative bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-cyan-500/30">
+                    <div className="relative bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
                         <Sparkles className="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">NasaLink</h1>
-                        <p className="text-xs text-cyan-200 font-medium tracking-wide uppercase">Database: IndexedDB v4</p>
+                        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NasaLink</h1>
+                        <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">Database: IndexedDB v5</p>
                     </div>
                 </div>
                 <div className="flex gap-2 items-center">
@@ -336,7 +333,7 @@ const App: React.FC = () => {
                     <button 
                         onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                         className={`relative p-2.5 rounded-xl transition-all ${
-                            isNotificationOpen ? 'bg-white/20 text-white' : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+                            isNotificationOpen ? 'bg-cyan-50 text-cyan-600' : 'bg-transparent text-slate-500 hover:text-cyan-600 hover:bg-slate-100'
                         }`}
                     >
                         <Bell className="w-5 h-5" />
@@ -369,11 +366,11 @@ const App: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1 group">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5 group-focus-within:text-cyan-400 transition-colors" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-cyan-600 transition-colors" />
                     <input 
                         type="text" 
                         placeholder="Cari nama Ibu, sentra, atau flag..." 
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/10 bg-black/20 text-white placeholder-white/30 focus:ring-2 focus:ring-cyan-400/50 focus:border-transparent focus:bg-black/40 transition-all backdrop-blur-sm"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 focus:bg-white transition-all outline-none"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -382,19 +379,19 @@ const App: React.FC = () => {
                 <div className="flex gap-2">
                      {/* Sentra Filter */}
                     <div className="relative min-w-[140px] group">
-                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-4 h-4 group-focus-within:text-cyan-400 transition-colors" />
+                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-cyan-600 transition-colors" />
                         <select
                             value={selectedSentra}
                             onChange={(e) => setSelectedSentra(e.target.value)}
-                            className="w-full pl-9 pr-8 py-3 rounded-xl border border-white/10 bg-black/20 text-white appearance-none text-sm focus:ring-2 focus:ring-cyan-400/50 focus:bg-black/40 transition-all backdrop-blur-sm cursor-pointer"
+                            className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-cyan-500/30 focus:bg-white transition-all cursor-pointer outline-none"
                         >
-                            <option value="" className="bg-slate-800 text-white">Semua Sentra</option>
+                            <option value="" className="bg-white text-slate-800">Semua Sentra</option>
                             {sentraOptions.map(s => (
-                                <option key={s} value={String(s)} className="bg-slate-800 text-white">{s}</option>
+                                <option key={s} value={String(s)} className="bg-white text-slate-800">{s}</option>
                             ))}
                         </select>
                         {/* Custom arrow */}
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-white/40">
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
@@ -418,7 +415,7 @@ const App: React.FC = () => {
 
                     <Button 
                         onClick={() => setIsImportModalOpen(true)}
-                        className="whitespace-nowrap shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+                        className="whitespace-nowrap shadow-lg shadow-cyan-500/20"
                         icon={<Plus className="w-5 h-5" />}
                     >
                         <span className="hidden sm:inline">Tambah</span>
@@ -433,8 +430,8 @@ const App: React.FC = () => {
       <div className="max-w-3xl mx-auto px-4">
         <div className="space-y-4">
             <div className="flex justify-between items-end px-2">
-                <h2 className="text-xs font-bold text-cyan-200/70 uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
                     Daftar Nasabah {selectedSentra ? `- ${selectedSentra}` : ''} ({filteredContacts.length})
                 </h2>
             </div>
@@ -442,14 +439,14 @@ const App: React.FC = () => {
             {isLoadingData ? (
                  <div className="text-center py-20">
                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-                     <p className="text-white/50 animate-pulse">Memuat Database...</p>
+                     <p className="text-slate-500 animate-pulse">Memuat Database...</p>
                  </div>
             ) : filteredContacts.length === 0 ? (
-                <div className="text-center py-16 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 border-dashed">
-                    <div className="w-16 h-16 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-4 text-white/30">
+                <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">
+                    <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                         <Users className="w-8 h-8" />
                     </div>
-                    <p className="text-white/50 mb-6 font-medium">Tidak ada nasabah ditemukan.</p>
+                    <p className="text-slate-500 mb-6 font-medium">Tidak ada nasabah ditemukan.</p>
                     <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
                         Import Kontak Baru
                     </Button>

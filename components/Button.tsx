@@ -17,15 +17,15 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  // Base: Rounded-2xl, backdrop blur, transitions
-  const baseStyles = "relative overflow-hidden inline-flex items-center justify-center rounded-2xl font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-105 active:scale-95";
+  // Base: Rounded-2xl, transitions
+  const baseStyles = "relative overflow-hidden inline-flex items-center justify-center rounded-2xl font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-105 active:scale-95";
   
   const variants = {
-    primary: "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] border border-white/10",
-    secondary: "bg-white/10 text-white hover:bg-white/20 border border-white/10 backdrop-blur-md",
-    outline: "bg-transparent border border-white/20 text-white hover:bg-white/5 hover:border-white/40",
-    danger: "bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)] border border-white/10",
-    glass: "bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 backdrop-blur-md shadow-lg",
+    primary: "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/40 border border-transparent",
+    secondary: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm hover:shadow-md",
+    outline: "bg-transparent border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-800",
+    danger: "bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-red-500/30 border border-transparent",
+    glass: "bg-white/50 hover:bg-white/80 text-cyan-700 border border-white/60 shadow-sm backdrop-blur-md",
   };
 
   const sizes = {
@@ -41,7 +41,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {/* Shimmer effect overlay */}
-      <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent z-0 pointer-events-none" />
+      <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent z-0 pointer-events-none" />
 
       <div className="relative z-10 flex items-center">
         {isLoading && (
