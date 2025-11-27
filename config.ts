@@ -15,5 +15,5 @@ export const GLOBAL_CONFIG: SheetConfig = {
 
   // URL Web App Google Apps Script (Untuk fitur Edit No HP)
   // Kosongkan jika belum deploy script
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycby8ibza3Dz1YAQOakPEaASCLzOw0-S9ZMLcY7mwcarPrxwQv2fgebkZ3p7CYH1orie5KA/exec" 
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycbyO1OIdkFaj-179wrMDFhRGy6jfxAzP5Grg5WHvK8oUiLpaM9-tsSsRn1zaGvOONHq0ug/exec" 
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
 import { updatePhoneInSheet } from '../services/sheetService';
-import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2 } from 'lucide-react';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -35,25 +35,22 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name && formData.phone) {
-      setIsSaving(true);
-      try {
-        // If Google Script URL is available, try to update sheet
-        if (sheetConfig?.googleScriptUrl) {
-           await updatePhoneInSheet(sheetConfig.googleScriptUrl, formData.name, formData.phone);
-           alert("Nomor telepon berhasil diperbarui di Google Sheets!");
-        } else {
-           // Just local warning
-           alert("Catatan: Perubahan ini hanya tersimpan di aplikasi. Untuk update permanen di database, mohon update file Google Sheets atau konfigurasikan Google Script URL.");
-        }
-        
-        onSave(formData as Contact);
-        onClose();
-      } catch (err: any) {
-        alert(`Gagal update ke Google Sheets: ${err.message}`);
-        // We do NOT save locally if sheet update failed to keep data consistent
-      } finally {
-        setIsSaving(false);
+      // OPTIMISTIC UI UPDATE:
+      // 1. Langsung update tampilan (UI) agar user merasa instan
+      onSave(formData as Contact);
+      onClose();
+
+      // 2. Kirim data ke Google Sheets di Background (Fire & Forget)
+      if (sheetConfig?.googleScriptUrl) {
+           // Tidak perlu await (blocking), biarkan berjalan di background
+           updatePhoneInSheet(sheetConfig.googleScriptUrl, formData.name, formData.phone)
+             .catch(err => {
+                console.error("Background sync failed:", err);
+                // Opsional: Bisa tambahkan toast notifikasi error global nanti
+             });
       }
+      
+      // Feedback visual instan (opsional, karena modal langsung tutup)
     }
   };
 
@@ -156,7 +153,9 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
              <div className="text-xs text-blue-800 leading-relaxed">
                  <span className="font-bold">Mode Live Sheet:</span> Data utama dikunci sesuai Google Sheet. 
                  {sheetConfig?.googleScriptUrl ? (
-                     <span className="text-green-700 font-bold block mt-1">✓ Terhubung ke Script Update: Perubahan nomor HP akan langsung disimpan ke Sheet.</span>
+                     <span className="text-green-700 font-bold block mt-1 flex items-center gap-1">
+                        <Zap className="w-3 h-3" /> Auto-Sync Aktif: Simpan instan ke Sheet.
+                     </span>
                  ) : (
                      <span className="text-orange-700 block mt-1">⚠ Script Update Belum Dipasang: Perubahan nomor hanya sementara.</span>
                  )}
@@ -245,13 +244,12 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
           </div>
           
            <div className="pt-5 flex justify-end items-center border-t border-slate-100 mt-2 gap-3">
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Batal</Button>
+                <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
                 <Button 
                     type="submit" 
-                    icon={isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
-                    isLoading={isSaving}
+                    icon={<Save className="w-4 h-4" />}
                 >
-                    {isSaving ? 'Menyimpan...' : 'Simpan & Update'}
+                    Simpan Perubahan
                 </Button>
           </div>
         </form>

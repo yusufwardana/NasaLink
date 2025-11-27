@@ -56,9 +56,10 @@ const findColIndex = (headers: string[], keywords: string[]): number => {
 
 export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: string = 'Sheet1'): Promise<Contact[]> => {
   try {
-    // Add cache buster timestamp to URL to prevent browser caching
+    // Add cache buster timestamp
+    // Add 'single=true' to force exporting ONLY this sheet (faster than workbook export)
     const timestamp = new Date().getTime();
-    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&t=${timestamp}`;
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}&single=true&t=${timestamp}`;
     
     // Add cache control headers
     const response = await fetch(url, {
@@ -158,7 +159,8 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
     method: 'POST',
     body: JSON.stringify(payload),
     // We use 'text/plain' to avoid CORS preflight options request which GAS doesn't handle well by default
-    headers: { 'Content-Type': 'text/plain' } 
+    headers: { 'Content-Type': 'text/plain' },
+    mode: 'no-cors'
   });
 
   // Karena mode no-cors (agar tidak error di browser), kita tidak bisa membaca response JSON.
