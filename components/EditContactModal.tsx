@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Contact } from '../types';
 import { Button } from './Button';
-import { X, Save, Trash2, Contact as ContactIcon, Info } from 'lucide-react';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -61,13 +61,9 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
         if (contacts && contacts.length > 0) {
             const selected = contacts[0];
             
-            let newName = formData.name;
+            // Note: We only update phone, as Name is locked now
             let newPhone = formData.phone;
             let phoneFound = false;
-            
-            if (selected.name && selected.name.length > 0) {
-                newName = selected.name[0];
-            }
             
             if (selected.tel && selected.tel.length > 0) {
                  const validPhone = selected.tel.find((t: any) => t && String(t).trim().length > 0);
@@ -86,7 +82,6 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
             
             setFormData(prev => ({
                 ...prev,
-                name: newName,
                 phone: newPhone
             }));
         }
@@ -107,6 +102,12 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
     }
   };
 
+  const LabelLocked = ({ label }: { label: string }) => (
+      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1">
+          {label} <Lock className="w-3 h-3 text-slate-300" />
+      </label>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] relative">
@@ -114,7 +115,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
 
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
-          <h2 className="text-xl font-bold text-slate-800">Edit Nasabah</h2>
+          <h2 className="text-xl font-bold text-slate-800">Edit Kontak</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors">
             <X className="w-6 h-6" />
           </button>
@@ -126,24 +127,23 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-3">
              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
              <div className="text-xs text-blue-800 leading-relaxed">
-                 <span className="font-bold">Mode Live Sheet:</span> Perubahan di sini hanya bersifat <span className="underline">sementara</span> di tampilan ini saja. Untuk mengubah data permanen, silakan edit langsung di file Google Sheet Anda.
+                 <span className="font-bold">Mode Live Sheet:</span> Data utama dikunci sesuai Google Sheet. Anda hanya dapat mengubah <b>Nomor Telepon</b> untuk keperluan pengiriman pesan WA.
              </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Nama Lengkap</label>
+            <LabelLocked label="Nama Lengkap" />
             <input
               type="text"
               name="name"
-              required
+              disabled
               value={formData.name || ''}
-              onChange={handleChange}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all focus:bg-white"
+              className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none font-medium"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Nomor WhatsApp</label>
+            <label className="block text-xs font-bold text-cyan-600 mb-2 uppercase tracking-wider">Nomor WhatsApp (Bisa Diedit)</label>
             <div className="relative">
                 <input
                   type="text"
@@ -151,7 +151,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
                   required
                   value={formData.phone || ''}
                   onChange={handleChange}
-                  className="w-full p-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all focus:bg-white"
+                  className="w-full p-3 pr-12 bg-white border border-cyan-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all shadow-sm"
                   placeholder="08..."
                 />
                 <button
@@ -168,28 +168,23 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
           
           <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Flag (Segmen)</label>
-                <select
+                <LabelLocked label="Flag (Segmen)" />
+                <input
+                  type="text"
                   name="flag"
-                  value={formData.flag || 'Prospect'}
-                  onChange={handleChange}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none appearance-none focus:bg-white"
-                >
-                  <option value="Prospect">Prospect</option>
-                  <option value="Silver">Silver</option>
-                  <option value="Gold">Gold</option>
-                  <option value="Platinum">Platinum</option>
-                </select>
+                  disabled
+                  value={formData.flag || ''}
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
+                />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Sentra</label>
+                <LabelLocked label="Sentra" />
                 <input
                   type="text"
                   name="sentra"
+                  disabled
                   value={formData.sentra || ''}
-                  onChange={handleChange}
-                  placeholder="Sentra Mawar"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
                 />
               </div>
           </div>
@@ -197,77 +192,63 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({ contact, isO
           {/* BTPN Specific Fields */}
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">CO (Petugas)</label>
+                <LabelLocked label="CO (Petugas)" />
                 <input
                   type="text"
                   name="co"
+                  disabled
                   value={formData.co || ''}
-                  onChange={handleChange}
-                  placeholder="Nama CO"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
                 />
               </div>
                <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Tgl Jatuh Tempo</label>
+                <LabelLocked label="Tgl Jatuh Tempo" />
                 <input
                   type="text"
                   name="tglJatuhTempo"
+                  disabled
                   value={formData.tglJatuhTempo || ''}
-                  onChange={handleChange}
-                  placeholder="Contoh: 25"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
                 />
               </div>
           </div>
            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Plafon</label>
+                <LabelLocked label="Plafon" />
                 <input
                   type="text"
                   name="plafon"
+                  disabled
                   value={formData.plafon || ''}
-                  onChange={handleChange}
-                  placeholder="Rp ..."
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
                 />
               </div>
                <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Status</label>
+                <LabelLocked label="Status" />
                 <input
                   type="text"
                   name="status"
+                  disabled
                   value={formData.status || ''}
-                  onChange={handleChange}
-                  placeholder="Lancar/Macet"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none focus:bg-white"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
                 />
               </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Catatan Tambahan</label>
+            <LabelLocked label="Catatan Tambahan" />
             <textarea
               name="notes"
               rows={2}
+              disabled
               value={formData.notes || ''}
-              onChange={handleChange}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none resize-none focus:bg-white"
-              placeholder="Catatan personal..."
+              className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none resize-none"
             />
           </div>
           
-           <div className="pt-5 flex justify-between items-center border-t border-slate-100 mt-2">
-                <button 
-                    type="button" 
-                    onClick={handleDelete}
-                    className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
-                >
-                    <Trash2 className="w-4 h-4" /> Hapus Sementara
-                </button>
-                <div className="flex gap-3">
-                    <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-                    <Button type="submit" icon={<Save className="w-4 h-4" />}>Update Tampilan</Button>
-                </div>
+           <div className="pt-5 flex justify-end items-center border-t border-slate-100 mt-2 gap-3">
+                <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
+                <Button type="submit" icon={<Save className="w-4 h-4" />}>Simpan Nomor</Button>
           </div>
         </form>
       </div>
