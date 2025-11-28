@@ -81,7 +81,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
         <div className="flex items-center gap-4 mb-6 pt-2">
             <button 
                 onClick={onBack}
-                className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-cyan-600 border border-slate-200 shadow-sm transition-all"
+                className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
             >
                 <ArrowLeft className="w-5 h-5" />
             </button>
@@ -106,7 +106,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                 <div className="relative">
                     <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <select 
-                        className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-cyan-500/20 outline-none appearance-none"
+                        className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none"
                         value={filterCo}
                         onChange={(e) => {
                             setFilterCo(e.target.value);
@@ -125,7 +125,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                 <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <select 
-                        className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-cyan-500/20 outline-none appearance-none"
+                        className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none"
                         value={filterSentra}
                         onChange={(e) => setFilterSentra(e.target.value)}
                     >
@@ -141,7 +141,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                 <div className="relative">
                      <CalendarClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <select 
-                        className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-cyan-500/20 outline-none appearance-none"
+                        className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none"
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
                     >

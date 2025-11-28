@@ -136,7 +136,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] relative">
         {/* Top glow */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50"></div>
 
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
           <h2 className="text-xl font-bold text-slate-800">Edit Kontak</h2>
@@ -174,7 +174,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-cyan-600 mb-2 uppercase tracking-wider">Nomor WhatsApp (Bisa Diedit)</label>
+            <label className="block text-xs font-bold text-orange-600 mb-2 uppercase tracking-wider">Nomor WhatsApp (Bisa Diedit)</label>
             <div className="relative">
                 <input
                   type="text"
@@ -182,13 +182,13 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
                   required
                   value={formData.phone || ''}
                   onChange={handleChange}
-                  className="w-full p-3 pr-12 bg-white border border-cyan-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all shadow-sm"
+                  className="w-full p-3 pr-12 bg-white border border-orange-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all shadow-sm"
                   placeholder="08..."
                 />
                 <button
                     type="button"
                     onClick={handlePickContact}
-                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-cyan-600 hover:bg-cyan-100 rounded-lg transition-colors z-10 cursor-pointer"
+                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-orange-600 hover:bg-orange-100 rounded-lg transition-colors z-10 cursor-pointer"
                     title="Ambil dari Kontak HP"
                 >
                     <ContactIcon className="w-5 h-5" />

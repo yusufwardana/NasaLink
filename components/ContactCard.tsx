@@ -22,19 +22,19 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
   return (
     <div className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
       {/* Decorative Top Border */}
-      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
 
       {/* HEADER: Identity */}
       <div className="p-5 pb-3 flex justify-between items-start gap-3">
         <div className="flex gap-4 items-center">
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 font-bold text-lg shadow-sm group-hover:bg-gradient-to-br group-hover:from-cyan-500 group-hover:to-blue-600 group-hover:text-white transition-all duration-300">
+            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 font-bold text-lg shadow-sm group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-amber-600 group-hover:text-white transition-all duration-300">
                 {contact.name.charAt(0).toUpperCase()}
             </div>
             
             {/* Name & Phone */}
             <div>
-                <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-cyan-700 transition-colors">
+                <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-orange-700 transition-colors">
                     {contact.name}
                 </h3>
                 <div className="flex items-center gap-1.5 mt-1 text-slate-500">
@@ -147,7 +147,7 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
         <div className="flex items-center gap-2 mt-1 sm:mt-0">
             <button
                 onClick={() => onGenerateClick(contact)}
-                className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-cyan-50 text-cyan-700 border border-slate-200 hover:border-cyan-300 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-orange-50 text-orange-700 border border-slate-200 hover:border-orange-300 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-2"
                 title="Buat Pesan WA"
             >
                 <Wand2 className="w-3.5 h-3.5" />

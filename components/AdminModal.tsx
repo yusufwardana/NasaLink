@@ -209,7 +209,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500"></div>
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500"></div>
 
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white/50 shrink-0">
           <div className="flex items-center gap-3">
@@ -246,13 +246,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         <div className="flex border-b border-slate-200 bg-slate-50/50 shrink-0">
             <button 
                 onClick={() => setActiveTab('templates')}
-                className={`px-6 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-all ${activeTab === 'templates' ? 'border-cyan-500 text-cyan-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
+                className={`px-6 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-all ${activeTab === 'templates' ? 'border-orange-500 text-orange-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
             >
                 <LayoutTemplate className="w-4 h-4" /> Template Pesan
             </button>
             <button 
                 onClick={() => setActiveTab('settings')}
-                className={`px-6 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-all ${activeTab === 'settings' ? 'border-pink-500 text-pink-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
+                className={`px-6 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-all ${activeTab === 'settings' ? 'border-amber-500 text-amber-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
             >
                 <Database className="w-4 h-4" /> Data & Config
             </button>
@@ -267,7 +267,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 onClick={handleStartAdd} 
                                 variant="outline" 
                                 disabled={isSavingTemplates}
-                                className="w-full justify-start text-xs border-dashed border-slate-300 hover:border-cyan-400 hover:text-cyan-600" 
+                                className="w-full justify-start text-xs border-dashed border-slate-300 hover:border-orange-400 hover:text-orange-600" 
                                 icon={<Plus className="w-3.5 h-3.5" />}
                             >
                                 Buat Template Baru
@@ -282,7 +282,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     disabled={isSavingTemplates}
                                     className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center justify-between group disabled:opacity-50 ${
                                         selectedTemplateId === t.id 
-                                        ? 'bg-cyan-50 border-cyan-200 shadow-sm' 
+                                        ? 'bg-orange-50 border-orange-200 shadow-sm' 
                                         : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'
                                     }`}
                                 >
@@ -292,14 +292,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             <div className="font-semibold text-sm text-slate-800">{t.label}</div>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wide ${
-                                                    t.type === 'manual' ? 'text-purple-600 bg-purple-100' : 'text-cyan-600 bg-cyan-100'
+                                                    t.type === 'manual' ? 'text-purple-600 bg-purple-100' : 'text-orange-600 bg-orange-100'
                                                 }`}>
                                                     {t.type === 'manual' ? 'MANUAL' : 'AI AUTO'}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                    <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform ${selectedTemplateId === t.id ? 'text-cyan-500 translate-x-1' : ''}`} />
+                                    <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform ${selectedTemplateId === t.id ? 'text-orange-500 translate-x-1' : ''}`} />
                                 </button>
                             ))}
                         </div>
@@ -309,7 +309,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 <Layers className="w-3 h-3" /> Global Actions
                             </div>
                             <div className="flex gap-2">
-                                <button disabled={isSavingTemplates} onClick={() => handleBulkMode('ai')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-cyan-600 border border-slate-200 hover:border-cyan-300 transition-colors shadow-sm disabled:opacity-50">
+                                <button disabled={isSavingTemplates} onClick={() => handleBulkMode('ai')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-orange-600 border border-slate-200 hover:border-orange-300 transition-colors shadow-sm disabled:opacity-50">
                                     Set All AI
                                 </button>
                                 <button disabled={isSavingTemplates} onClick={() => handleBulkMode('manual')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-purple-600 border border-slate-200 hover:border-purple-300 transition-colors shadow-sm disabled:opacity-50">
@@ -329,7 +329,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             <input 
                                                 type="text" 
                                                 disabled={isSavingTemplates}
-                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 transition-all hover:bg-slate-50 disabled:bg-slate-100"
+                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.icon || ''}
                                                 onChange={e => setEditForm({...editForm, icon: e.target.value})}
                                             />
@@ -339,7 +339,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             <input 
                                                 type="text" 
                                                 disabled={isSavingTemplates}
-                                                className="w-full bg-white border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 font-bold text-lg placeholder-slate-300 transition-all hover:bg-slate-50 disabled:bg-slate-100"
+                                                className="w-full bg-white border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 font-bold text-lg placeholder-slate-300 transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.label || ''}
                                                 onChange={e => setEditForm({...editForm, label: e.target.value})}
                                             />
@@ -353,7 +353,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                         disabled={isSavingTemplates}
                                         className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${
                                             editForm.type === 'ai' 
-                                            ? 'bg-cyan-600 text-white shadow-md' 
+                                            ? 'bg-orange-600 text-white shadow-md' 
                                             : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
                                         }`}
                                     >
@@ -376,20 +376,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     {editForm.type === 'ai' ? (
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-end">
-                                                <label className="text-xs font-bold text-cyan-600 uppercase tracking-wider flex items-center gap-2">
+                                                <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
                                                     <Wand2 className="w-3 h-3" /> Instruksi untuk AI
                                                 </label>
                                             </div>
                                             <textarea 
-                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500/50 outline-none text-slate-800 text-sm leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50 disabled:bg-slate-100"
+                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 text-sm leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50 disabled:bg-slate-100"
                                                 value={editForm.promptContext || ''}
                                                 onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
                                                 disabled={isSavingTemplates}
                                                 placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan..."
                                             />
-                                            <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex gap-3">
-                                                <Info className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
-                                                <p className="text-xs text-cyan-800">
+                                            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex gap-3">
+                                                <Info className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                                                <p className="text-xs text-orange-800">
                                                     Perubahan akan disimpan di Database Supabase dan otomatis terupdate di semua perangkat.
                                                 </p>
                                             </div>
@@ -459,7 +459,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             onClick={handleSaveCurrent}
                                             icon={<Check className="w-4 h-4" />}
                                             isLoading={isSavingTemplates}
-                                            className="shadow-lg shadow-cyan-500/20"
+                                            className="shadow-lg shadow-orange-500/20"
                                         >
                                             {isSavingTemplates ? 'Menyimpan...' : 'Simpan ke Supabase'}
                                         </Button>

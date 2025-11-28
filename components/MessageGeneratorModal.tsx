@@ -91,9 +91,9 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
           <div>
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 BTPN Syariah Assistant
-                <Wand2 className="w-5 h-5 text-cyan-600" />
+                <Wand2 className="w-5 h-5 text-orange-600" />
             </h2>
-            <p className="text-sm text-slate-500">Buat pesan untuk <span className="font-semibold text-cyan-600">{contact.name}</span></p>
+            <p className="text-sm text-slate-500">Buat pesan untuk <span className="font-semibold text-orange-600">{contact.name}</span></p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors">
             <X className="w-6 h-6" />
@@ -105,22 +105,22 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
             
             {/* Context Info Widget */}
             {(contact.tglJatuhTempo || contact.plafon || contact.tglPrs) && (
-                <div className="flex flex-wrap gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <div className="flex flex-wrap gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     {contact.tglJatuhTempo && (
-                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-white/50 px-2 py-1 rounded border border-blue-100">
-                            <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                        <div className="flex items-center gap-2 text-xs text-amber-700 bg-white/50 px-2 py-1 rounded border border-amber-100">
+                            <Calendar className="w-3.5 h-3.5 text-amber-500" />
                             <span>Jatuh Tempo: <b>{contact.tglJatuhTempo}</b></span>
                         </div>
                     )}
                      {contact.tglPrs && (
-                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-white/50 px-2 py-1 rounded border border-blue-100">
-                            <Users className="w-3.5 h-3.5 text-blue-500" />
+                        <div className="flex items-center gap-2 text-xs text-amber-700 bg-white/50 px-2 py-1 rounded border border-amber-100">
+                            <Users className="w-3.5 h-3.5 text-amber-500" />
                             <span>PRS: <b>{contact.tglPrs}</b></span>
                         </div>
                     )}
                     {contact.plafon && (
-                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-white/50 px-2 py-1 rounded border border-blue-100">
-                            <CreditCard className="w-3.5 h-3.5 text-blue-500" />
+                        <div className="flex items-center gap-2 text-xs text-amber-700 bg-white/50 px-2 py-1 rounded border border-amber-100">
+                            <CreditCard className="w-3.5 h-3.5 text-amber-500" />
                             <span>Plafon: <b>{contact.plafon}</b></span>
                         </div>
                     )}
@@ -147,7 +147,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                         }}
                         className={`p-4 rounded-2xl border text-left transition-all duration-300 group relative overflow-hidden flex flex-col gap-2 ${
                         selectedTemplate?.id === t.id
-                            ? 'border-cyan-500 bg-cyan-50 shadow-md ring-1 ring-cyan-500'
+                            ? 'border-orange-500 bg-orange-50 shadow-md ring-1 ring-orange-500'
                             : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300'
                         }`}
                     >
@@ -156,12 +156,12 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                             <span className={`text-[9px] px-1.5 py-0.5 rounded border ${
                                 t.type === 'manual' 
                                 ? 'border-purple-200 text-purple-700 bg-purple-50' 
-                                : 'border-cyan-200 text-cyan-700 bg-cyan-50'
+                                : 'border-orange-200 text-orange-700 bg-orange-50'
                             }`}>
                                 {t.type === 'manual' ? 'BAKU' : 'AI'}
                             </span>
                         </div>
-                        <div className={`text-sm font-medium relative z-10 ${selectedTemplate?.id === t.id ? 'text-cyan-700' : 'text-slate-700'}`}>
+                        <div className={`text-sm font-medium relative z-10 ${selectedTemplate?.id === t.id ? 'text-orange-700' : 'text-slate-700'}`}>
                             {t.label}
                         </div>
                     </button>
@@ -180,7 +180,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                                 onClick={() => setTone(t)}
                                 className={`px-5 py-2 rounded-lg text-sm capitalize transition-all duration-300 ${
                                     tone === t 
-                                    ? 'bg-white text-cyan-700 shadow border border-slate-200 font-semibold' 
+                                    ? 'bg-white text-orange-700 shadow border border-slate-200 font-semibold' 
                                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                                 }`}
                             >
@@ -199,7 +199,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                 disabled={!selectedTemplate} 
                 isLoading={isGenerating}
                 icon={<Wand2 className="w-4 h-4" />}
-                className="w-full sm:w-auto shadow-lg shadow-cyan-500/20"
+                className="w-full sm:w-auto shadow-lg shadow-orange-500/20"
              >
                 {selectedTemplate?.type === 'manual' ? 'Gunakan Template' : 'Generate Wording AI'}
              </Button>
@@ -220,7 +220,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                     {selectedTemplate?.type === 'ai' && (
                         <button 
                             onClick={handleGenerate}
-                            className="p-2 bg-white rounded-lg shadow-md text-slate-500 hover:text-cyan-600 border border-slate-100 transition-colors"
+                            className="p-2 bg-white rounded-lg shadow-md text-slate-500 hover:text-orange-600 border border-slate-100 transition-colors"
                             title="Regenerate"
                         >
                             <RefreshCw className="w-4 h-4" />
@@ -228,7 +228,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
                     )}
                     <button 
                         onClick={handleCopy}
-                        className="p-2 bg-white rounded-lg shadow-md text-slate-500 hover:text-cyan-600 border border-slate-100 transition-colors"
+                        className="p-2 bg-white rounded-lg shadow-md text-slate-500 hover:text-orange-600 border border-slate-100 transition-colors"
                         title="Copy Text"
                     >
                         <Copy className="w-4 h-4" />

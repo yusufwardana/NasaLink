@@ -410,15 +410,15 @@ const App: React.FC = () => {
             {/* Top Bar: Logo & Actions */}
             <div className={`flex justify-between items-center ${activeView === 'home' ? 'mb-6 border-b border-slate-100 pb-4' : ''}`}>
                 <div className="flex items-center gap-3">
-                    <div className="relative bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
+                    <div className="relative bg-gradient-to-br from-orange-500 to-amber-600 text-white p-2.5 rounded-xl shadow-lg shadow-orange-500/20">
                         <Sparkles className="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NasaLink CRM</h1>
                         <div className="flex items-center gap-2">
-                             <div className="flex items-center gap-1 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-100">
-                                <Globe className="w-3 h-3 text-cyan-600" />
-                                <p className="text-xs text-cyan-700 font-bold tracking-wide uppercase">Live Sheet</p>
+                             <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
+                                <Globe className="w-3 h-3 text-orange-600" />
+                                <p className="text-xs text-orange-700 font-bold tracking-wide uppercase">Live Sheet</p>
                             </div>
                             {isSupabaseConfigured() ? (
                                 <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">
@@ -426,9 +426,9 @@ const App: React.FC = () => {
                                     <p className="text-[10px] text-green-700 font-bold tracking-wide uppercase">Supabase On</p>
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
-                                    <AlertTriangle className="w-3 h-3 text-orange-600" />
-                                    <p className="text-[10px] text-orange-700 font-bold tracking-wide uppercase">Supabase Off</p>
+                                <div className="flex items-center gap-1 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
+                                    <AlertTriangle className="w-3 h-3 text-red-600" />
+                                    <p className="text-[10px] text-red-700 font-bold tracking-wide uppercase">Supabase Off</p>
                                 </div>
                             )}
                         </div>
@@ -440,7 +440,7 @@ const App: React.FC = () => {
                         <button 
                             onClick={handleNotificationClick}
                             className={`relative p-2.5 rounded-xl transition-all ${
-                                activeView === 'notifications' ? 'bg-cyan-50 text-cyan-600 shadow-inner' : 'bg-transparent text-slate-500 hover:text-cyan-600 hover:bg-slate-100'
+                                activeView === 'notifications' ? 'bg-orange-50 text-orange-600 shadow-inner' : 'bg-transparent text-slate-500 hover:text-orange-600 hover:bg-slate-100'
                             }`}
                             title="Notifikasi"
                         >
@@ -455,7 +455,7 @@ const App: React.FC = () => {
                             variant="glass" 
                             onClick={handleRefreshSheet}
                             isLoading={isSyncing}
-                            className="text-cyan-700 font-semibold"
+                            className="text-orange-700 font-semibold"
                             icon={<RefreshCw className="w-4 h-4"/>}
                         >
                             Sinkron Data
@@ -476,11 +476,11 @@ const App: React.FC = () => {
             {activeView === 'home' && (
                 <div className="flex flex-col md:flex-row gap-3 animate-fade-in-up">
                     <div className="relative flex-1 group">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-cyan-600 transition-colors" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-orange-600 transition-colors" />
                         <input 
                             type="text" 
                             placeholder="Cari nama Ibu, sentra, atau flag..." 
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 focus:bg-white transition-all outline-none"
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all outline-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -488,11 +488,11 @@ const App: React.FC = () => {
                     
                     <div className="flex gap-2 flex-col sm:flex-row">
                         <div className="relative min-w-[160px] group flex-1 sm:flex-none">
-                            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-cyan-600 transition-colors" />
+                            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-orange-600 transition-colors" />
                             <select
                                 value={selectedCo}
                                 onChange={handleCoChange}
-                                className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-cyan-500/30 focus:bg-white transition-all cursor-pointer outline-none font-medium truncate"
+                                className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-orange-500/30 focus:bg-white transition-all cursor-pointer outline-none font-medium truncate"
                             >
                                 <option value="" className="bg-white text-slate-500">Semua CO</option>
                                 {coOptions.map(co => (
@@ -505,11 +505,11 @@ const App: React.FC = () => {
                         </div>
 
                         <div className="relative min-w-[160px] group flex-1 sm:flex-none">
-                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-cyan-600 transition-colors" />
+                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-orange-600 transition-colors" />
                             <select
                                 value={selectedSentra}
                                 onChange={(e) => setSelectedSentra(e.target.value)}
-                                className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-cyan-500/30 focus:bg-white transition-all cursor-pointer outline-none font-medium truncate"
+                                className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-orange-500/30 focus:bg-white transition-all cursor-pointer outline-none font-medium truncate"
                             >
                                 <option value="" className="bg-white text-slate-500">Semua Sentra</option>
                                 {sentraOptions.map(s => (
@@ -555,37 +555,37 @@ const App: React.FC = () => {
             
             {!isFilterActive && contacts.length > 0 && (
                 <div className="mb-8 animate-fade-in-up">
-                    <div className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
+                    <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
                         
                         <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
                             <div className="flex-1 text-center sm:text-left">
                                 <h2 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Selamat Datang di NasaLink CRM</h2>
-                                <p className="text-cyan-50 text-sm sm:text-base leading-relaxed max-w-xl">
+                                <p className="text-orange-50 text-sm sm:text-base leading-relaxed max-w-xl">
                                     Aplikasi pendamping Community Officer (CO) BTPN Syariah untuk memanajemen data nasabah sentra, 
                                     memantau jadwal jatuh tempo (peluang cair), dan membuat pesan WhatsApp personal otomatis dengan bantuan AI.
                                 </p>
                                 
                                 <div className="mt-6 flex flex-wrap gap-4 justify-center sm:justify-start">
                                     <div className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-2 border border-white/20">
-                                        <Users className="w-5 h-5 text-cyan-200" />
+                                        <Users className="w-5 h-5 text-orange-200" />
                                         <div>
-                                            <p className="text-xs text-cyan-100 font-medium uppercase">Total Nasabah</p>
+                                            <p className="text-xs text-orange-100 font-medium uppercase">Total Nasabah</p>
                                             <p className="font-bold text-lg">{contacts.length}</p>
                                         </div>
                                     </div>
                                     <div className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-2 border border-white/20">
-                                        <MapPin className="w-5 h-5 text-cyan-200" />
+                                        <MapPin className="w-5 h-5 text-orange-200" />
                                         <div>
-                                            <p className="text-xs text-cyan-100 font-medium uppercase">Total Sentra</p>
+                                            <p className="text-xs text-orange-100 font-medium uppercase">Total Sentra</p>
                                             <p className="font-bold text-lg">{new Set(contacts.map(c=>c.sentra).filter(Boolean)).size}</p>
                                         </div>
                                     </div>
                                     <div className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-2 border border-white/20">
-                                        <Briefcase className="w-5 h-5 text-cyan-200" />
+                                        <Briefcase className="w-5 h-5 text-orange-200" />
                                         <div>
-                                            <p className="text-xs text-cyan-100 font-medium uppercase">Petugas CO</p>
+                                            <p className="text-xs text-orange-100 font-medium uppercase">Petugas CO</p>
                                             <p className="font-bold text-lg">{coOptions.length}</p>
                                         </div>
                                     </div>
@@ -605,7 +605,7 @@ const App: React.FC = () => {
             <div className="space-y-4">
                 {isLoadingData ? (
                     <div className="text-center py-20">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
                         <p className="text-slate-500 animate-pulse">Mengambil data Global dari Google Sheets & Supabase...</p>
                     </div>
                 ) : configError ? (
@@ -622,14 +622,14 @@ const App: React.FC = () => {
                 ) : (
                     !isFilterActive ? (
                         <div className="text-center py-12 px-6 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200/60 border-dashed animate-fade-in-up">
-                            <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-cyan-100 to-blue-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                                <Search className="w-10 h-10 text-cyan-500 opacity-80" />
+                            <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-orange-100 to-amber-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                                <Search className="w-10 h-10 text-orange-500 opacity-80" />
                             </div>
                             <h3 className="text-xl font-bold text-slate-800 mb-2">Mulai Pencarian</h3>
                             <p className="text-slate-500 max-w-md mx-auto leading-relaxed">
                                 Untuk menjaga performa aplikasi karena banyaknya data nasabah (3000+), daftar disembunyikan secara default.
                             </p>
-                            <p className="text-sm font-semibold text-cyan-600 mt-2">
+                            <p className="text-sm font-semibold text-orange-600 mt-2">
                                 Silakan ketik Nama Nasabah, pilih Sentra, atau pilih CO pada kolom di atas untuk menampilkan data.
                             </p>
                         </div>
@@ -691,9 +691,9 @@ const App: React.FC = () => {
           <div className="grid grid-cols-4 h-[72px]">
               <button 
                 onClick={handleHomeClick}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-cyan-600 active:scale-95 transition-all"
+                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all"
               >
-                  <div className={`p-1.5 rounded-xl ${activeView === 'home' ? 'bg-cyan-50 text-cyan-600' : ''}`}>
+                  <div className={`p-1.5 rounded-xl ${activeView === 'home' ? 'bg-orange-50 text-orange-600' : ''}`}>
                     <Home className="w-6 h-6" />
                   </div>
                   <span className="text-[10px] font-medium">Beranda</span>
@@ -701,9 +701,9 @@ const App: React.FC = () => {
 
               <button 
                 onClick={handleRefreshSheet}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-cyan-600 active:scale-95 transition-all"
+                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all"
               >
-                  <div className={`p-1.5 rounded-xl ${isSyncing ? 'animate-spin text-cyan-600' : ''}`}>
+                  <div className={`p-1.5 rounded-xl ${isSyncing ? 'animate-spin text-orange-600' : ''}`}>
                     <RefreshCw className="w-6 h-6" />
                   </div>
                   <span className="text-[10px] font-medium">Sinkron</span>
@@ -711,9 +711,9 @@ const App: React.FC = () => {
 
               <button 
                 onClick={handleNotificationClick}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-cyan-600 active:scale-95 transition-all relative"
+                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all relative"
               >
-                  <div className={`p-1.5 rounded-xl ${activeView === 'notifications' ? 'bg-cyan-50 text-cyan-600' : ''}`}>
+                  <div className={`p-1.5 rounded-xl ${activeView === 'notifications' ? 'bg-orange-50 text-orange-600' : ''}`}>
                     <Bell className="w-6 h-6" />
                     {upcomingEvents.length > 0 && (
                         <span className="absolute top-2 right-[25%] w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-white"></span>
@@ -724,9 +724,9 @@ const App: React.FC = () => {
 
               <button 
                 onClick={handleOpenAdmin}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-cyan-600 active:scale-95 transition-all"
+                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all"
               >
-                  <div className={`p-1.5 rounded-xl ${isAdminModalOpen ? 'bg-cyan-50 text-cyan-600' : ''}`}>
+                  <div className={`p-1.5 rounded-xl ${isAdminModalOpen ? 'bg-orange-50 text-orange-600' : ''}`}>
                     <Settings className="w-6 h-6" />
                   </div>
                   <span className="text-[10px] font-medium">Setting</span>
