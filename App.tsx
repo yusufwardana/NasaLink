@@ -123,18 +123,26 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // --- Notification Logic (Jatuh Tempo & PRS) ---
+  // --- Notification Logic (Refinancing M+1 & PRS H-1) ---
   const upcomingEvents = useMemo(() => {
     const today = new Date();
-    // Normalize today to start of day for accurate comparison
+    // Normalize today
     today.setHours(0, 0, 0, 0);
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Calculate Next Month Date
+    const nextMonthDate = new Date(today);
+    nextMonthDate.setMonth(currentMonth + 1);
+    const nextMonth = nextMonthDate.getMonth();
+    const nextMonthYear = nextMonthDate.getFullYear();
 
     // Helper: Parse DD/MM/YYYY or YYYY-MM-DD
     const parseFullDate = (dateStr: string): Date | null => {
         if (!dateStr) return null;
         const clean = dateStr.trim();
         
-        // Try format DD/MM/YYYY or DD-MM-YYYY (Indonesian format common in Excel)
+        // Try format DD/MM/YYYY or DD-MM-YYYY
         const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
         if (partsIndo) {
             const day = parseInt(partsIndo[1], 10);
@@ -153,15 +161,7 @@ const App: React.FC = () => {
         return null;
     };
 
-    // Helper for PRS only
-    const extractDayForRecurring = (dateStr: string): number | null => {
-         if (!dateStr) return null;
-         if (/^\d{1,2}$/.test(dateStr.trim())) {
-             return parseInt(dateStr, 10);
-         }
-         return null;
-    };
-    
+    // Helper for PRS diff days
     const getDiffDays = (target: Date, base: Date): number => {
         const diffTime = target.getTime() - base.getTime();
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -170,23 +170,37 @@ const App: React.FC = () => {
     const events: NotificationItem[] = [];
 
     contacts.forEach(c => {
-        // 1. Check Jatuh Tempo
+        // 1. Check Jatuh Tempo (REFINANCING)
+        // Logic: This Month or Next Month (M+1)
         if (c.tglJatuhTempo) {
             const targetDate = parseFullDate(c.tglJatuhTempo);
             
             if (targetDate) {
-                targetDate.setHours(0,0,0,0);
-                const diff = getDiffDays(targetDate, today);
+                const tMonth = targetDate.getMonth();
+                const tYear = targetDate.getFullYear();
 
-                if (diff === 0) {
-                    events.push({ contact: c, type: 'payment', status: 'today', daysLeft: 0 });
-                } else if (diff > 0 && diff <= 7) {
-                    events.push({ contact: c, type: 'payment', status: 'soon', daysLeft: diff });
+                // Check Current Month
+                if (tMonth === currentMonth && tYear === currentYear) {
+                     events.push({ 
+                         contact: c, 
+                         type: 'payment', 
+                         status: 'this_month', 
+                         daysLeft: 0 // Not relevant for monthly view
+                     });
+                } 
+                // Check Next Month
+                else if (tMonth === nextMonth && tYear === nextMonthYear) {
+                    events.push({ 
+                        contact: c, 
+                        type: 'payment', 
+                        status: 'next_month', 
+                        daysLeft: 30 // Approximate
+                    });
                 }
             }
         }
 
-        // 2. Check PRS
+        // 2. Check PRS (Logic: H-1 or Today)
         if (c.tglPrs) {
             let diff = -999;
             const fullDatePrs = parseFullDate(c.tglPrs);
@@ -195,33 +209,49 @@ const App: React.FC = () => {
                  fullDatePrs.setHours(0,0,0,0);
                  diff = getDiffDays(fullDatePrs, today);
             } else {
-                 const day = extractDayForRecurring(c.tglPrs);
-                 if (day !== null) {
-                    const currentDay = today.getDate();
-                    let targetMonth = today.getMonth();
-                    let targetYear = today.getFullYear();
-                    
-                    if (day < currentDay) {
-                        targetMonth++; 
-                    }
-                    const nextPrsDate = new Date(targetYear, targetMonth, day);
-                    diff = getDiffDays(nextPrsDate, today);
+                 // Logic for recurring day (e.g., "15" or "20")
+                 const dayStr = c.tglPrs.trim();
+                 if (/^\d{1,2}$/.test(dayStr)) {
+                     const day = parseInt(dayStr, 10);
+                     const currentDay = today.getDate();
+                     
+                     // Create PRS date for current month
+                     const prsThisMonth = new Date(currentYear, currentMonth, day);
+                     const diffThisMonth = getDiffDays(prsThisMonth, today);
+
+                     // If PRS day hasn't passed or is today/tomorrow
+                     if (diffThisMonth >= 0) {
+                         diff = diffThisMonth;
+                     } else {
+                         // Check next month just in case today is 31st and PRS is 1st
+                         const prsNextMonth = new Date(currentYear, currentMonth + 1, day);
+                         diff = getDiffDays(prsNextMonth, today);
+                     }
                  }
             }
 
             if (diff !== -999) {
                 if (diff === 0) {
+                    // Hari Ini (PRS Sedang Berlangsung)
                     events.push({ contact: c, type: 'prs', status: 'today', daysLeft: 0 });
-                } else if (diff > 0 && diff <= 3) {
-                    events.push({ contact: c, type: 'prs', status: 'soon', daysLeft: diff });
+                } else if (diff === 1) {
+                    // H-1 (Besok PRS)
+                    events.push({ contact: c, type: 'prs', status: 'soon', daysLeft: 1 });
                 }
             }
         }
     });
 
+    // Sort: Today first, then Soon, then This Month, then Next Month
     return events.sort((a, b) => {
-        if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
-        return 0;
+        const score = (status: string) => {
+            if (status === 'today') return 1;
+            if (status === 'soon') return 2;
+            if (status === 'this_month') return 3;
+            if (status === 'next_month') return 4;
+            return 5;
+        };
+        return score(a.status) - score(b.status);
     });
   }, [contacts]);
 

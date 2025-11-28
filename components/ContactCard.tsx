@@ -1,6 +1,6 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, CalendarClock, UserCircle, Users, CheckCircle2 } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, UserCircle, Users, CheckCircle2, CreditCard, Box } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -12,103 +12,154 @@ interface ContactCardProps {
 export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, onEditClick, onGenerateClick }) => {
   const getFlagStyle = (flag: string) => {
     const f = flag.toLowerCase();
-    if (f.includes('platinum')) return 'bg-purple-100 text-purple-700 border-purple-200 shadow-purple-500/10';
-    if (f.includes('gold') || f.includes('active')) return 'bg-yellow-100 text-yellow-800 border-yellow-200 shadow-yellow-500/10';
-    if (f.includes('silver')) return 'bg-slate-100 text-slate-700 border-slate-200';
+    if (f.includes('platinum')) return 'bg-purple-50 text-purple-700 border-purple-200';
+    if (f.includes('gold') || f.includes('active')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (f.includes('silver')) return 'bg-blue-50 text-blue-700 border-blue-200';
     if (f.includes('do') || f.includes('drop')) return 'bg-red-50 text-red-700 border-red-200';
-    return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+    return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
   return (
-    <div className="group relative bg-white/70 backdrop-blur-md border border-white/60 rounded-2xl p-5 hover:bg-white transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:shadow-cyan-900/5">
-      {/* Iridescent border gradient top */}
-      <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-4">
-          {/* Avatar */}
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 p-[1px] shadow-lg group-hover:shadow-cyan-500/30 transition-all duration-300 shrink-0">
-             <div className="h-full w-full rounded-2xl bg-white flex items-center justify-center text-cyan-700 font-bold text-xl border border-white/50">
+    <div className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
+      {/* Decorative Top Border */}
+      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+      {/* HEADER: Identity */}
+      <div className="p-5 pb-3 flex justify-between items-start gap-3">
+        <div className="flex gap-4 items-center">
+            {/* Avatar */}
+            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 font-bold text-lg shadow-sm group-hover:bg-gradient-to-br group-hover:from-cyan-500 group-hover:to-blue-600 group-hover:text-white transition-all duration-300">
                 {contact.name.charAt(0).toUpperCase()}
-             </div>
-          </div>
-          
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-bold text-slate-800 text-lg tracking-tight group-hover:text-cyan-700 transition-colors">{contact.name}</h3>
-              <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur-sm shadow-sm ${getFlagStyle(contact.flag)}`}>
-                {contact.flag}
-              </span>
-              {contact.status && (
-                   <span className="px-2 py-0.5 rounded text-[10px] border border-slate-200 bg-slate-50 text-slate-500">
-                       {contact.status}
-                   </span>
-              )}
             </div>
             
-            <div className="flex flex-col gap-1 mt-2">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Phone className="w-3.5 h-3.5 text-cyan-500" />
-                    <span className="font-mono tracking-wide">{contact.phone}</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-3">
-                    {contact.sentra && (
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                            <MapPin className="w-3.5 h-3.5 text-purple-500" />
-                            <span>{contact.sentra}</span>
-                        </div>
-                    )}
-                    {contact.co && (
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                            <UserCircle className="w-3.5 h-3.5 text-green-500" />
-                            <span>CO: {contact.co}</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex flex-wrap gap-2 mt-1">
-                    {contact.tglJatuhTempo && (
-                        // Jatuh Tempo now implies Finished Payment / Opportunity (Green)
-                        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Lunas: {contact.tglJatuhTempo}</span>
-                        </div>
-                    )}
-                     {contact.tglPrs && (
-                        <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                            <Users className="w-3.5 h-3.5 text-blue-500" />
-                            <span>PRS: {contact.tglPrs}</span>
-                        </div>
-                    )}
+            {/* Name & Phone */}
+            <div>
+                <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-cyan-700 transition-colors">
+                    {contact.name}
+                </h3>
+                <div className="flex items-center gap-1.5 mt-1 text-slate-500">
+                    <Phone className="w-3.5 h-3.5" />
+                    <span className="text-sm font-medium font-mono">{contact.phone}</span>
                 </div>
             </div>
-
-            {contact.notes && (
-                <p className="text-xs text-slate-400 mt-2 italic line-clamp-1 border-l-2 border-slate-200 pl-2">
-                  "{contact.notes}"
-                </p>
-            )}
-          </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <button
-              onClick={() => onGenerateClick(contact)}
-              className="px-3 py-2 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 rounded-xl transition-all duration-300 border border-cyan-200 hover:border-cyan-300 flex items-center gap-2 text-xs font-semibold shadow-sm hover:shadow-md"
-              title="Buat Pesan WA"
-          >
-              <Wand2 className="w-3.5 h-3.5" />
-              <span>Buat Pesan</span>
-          </button>
+        {/* Status Badge */}
+        <div className="flex flex-col items-end gap-1">
+             <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getFlagStyle(contact.flag)}`}>
+                {contact.flag}
+             </span>
+             {contact.status && (
+                 <span className="text-[10px] text-slate-400 font-medium">
+                     {contact.status}
+                 </span>
+             )}
+        </div>
+      </div>
 
-          <button
-              onClick={() => onEditClick(contact)}
-              className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-300 border border-transparent hover:border-slate-200"
-              title="Edit Kontak"
-          >
-              <Pencil className="w-4 h-4" />
-          </button>
+      {/* BODY: Info Grid */}
+      <div className="px-5 py-3 border-t border-slate-50 bg-slate-50/30">
+        <div className="grid grid-cols-2 gap-y-3 gap-x-6">
+            
+            {/* Row 1 */}
+            <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Sentra
+                </span>
+                <span className="text-sm font-semibold text-slate-700 truncate" title={contact.sentra}>
+                    {contact.sentra || '-'}
+                </span>
+            </div>
+            
+            <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                    <UserCircle className="w-3 h-3" /> Petugas (CO)
+                </span>
+                <span className="text-sm font-semibold text-slate-700 truncate" title={contact.co}>
+                    {contact.co || '-'}
+                </span>
+            </div>
+
+            {/* Row 2 (Optional Fields) */}
+            {(contact.produk || contact.plafon) && (
+                <>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                            <Box className="w-3 h-3" /> Produk
+                        </span>
+                        <span className="text-sm text-slate-600 truncate">
+                            {contact.produk || '-'}
+                        </span>
+                    </div>
+                    <div className="flex flex-col">
+                         <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                            <CreditCard className="w-3 h-3" /> Plafon
+                        </span>
+                        <span className="text-sm font-mono font-medium text-slate-600">
+                            {contact.plafon || '-'}
+                        </span>
+                    </div>
+                </>
+            )}
+        </div>
+        
+        {contact.notes && (
+             <div className="mt-3 pt-2 border-t border-slate-100">
+                <p className="text-xs text-slate-400 italic line-clamp-1">
+                  Catatan: "{contact.notes}"
+                </p>
+             </div>
+        )}
+      </div>
+
+      {/* FOOTER: Dates & Actions */}
+      <div className="px-5 py-3 bg-slate-50 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-t border-slate-100">
+        
+        {/* Dates Indicators */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {contact.tglJatuhTempo ? (
+                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg shadow-sm whitespace-nowrap">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[9px] text-slate-400 uppercase font-bold">Lunas</span>
+                        <span className="text-xs font-bold text-emerald-700">{contact.tglJatuhTempo}</span>
+                    </div>
+                 </div>
+            ) : (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg opacity-50 whitespace-nowrap">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs text-slate-400">Belum ada info lunas</span>
+                </div>
+            )}
+
+            {contact.tglPrs && (
+                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg shadow-sm whitespace-nowrap">
+                    <Users className="w-3.5 h-3.5 text-blue-500" />
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[9px] text-slate-400 uppercase font-bold">PRS</span>
+                        <span className="text-xs font-bold text-blue-700">{contact.tglPrs}</span>
+                    </div>
+                 </div>
+            )}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex items-center gap-2 mt-1 sm:mt-0">
+            <button
+                onClick={() => onGenerateClick(contact)}
+                className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-cyan-50 text-cyan-700 border border-slate-200 hover:border-cyan-300 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-2"
+                title="Buat Pesan WA"
+            >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span className="sm:hidden">Buat Pesan</span>
+            </button>
+            <button
+                onClick={() => onEditClick(contact)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition-all"
+                title="Edit Detail"
+            >
+                <Pencil className="w-4 h-4" />
+            </button>
         </div>
       </div>
     </div>
