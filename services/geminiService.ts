@@ -2,22 +2,23 @@ import { GoogleGenAI } from "@google/genai";
 import { Contact } from '../types';
 import { GEMINI_CONFIG } from '../config';
 
-const apiKey = GEMINI_CONFIG.apiKey;
-
-// Initialize GoogleGenAI only if key is present to avoid immediate crash
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
 export const generateWhatsAppMessage = async (
   contact: Contact, // Changed to accept full Contact object
   context: string,
-  tone: 'formal' | 'casual' | 'friendly' = 'friendly'
+  tone: 'formal' | 'casual' | 'friendly' = 'friendly',
+  overrideApiKey?: string
 ): Promise<string> => {
-  if (!ai) {
+  const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
+
+  if (!apiKey) {
     console.error("Gemini API Key is missing.");
-    return "Error: API Key AI belum disetting. Mohon hubungi administrator sistem.";
+    return "Error: API Key AI belum disetting. Mohon input API Key di menu Setting (Admin) atau hubungi administrator.";
   }
 
   try {
+    // Initialize AI client dynamically with the provided key
+    const ai = new GoogleGenAI({ apiKey });
+
     // Build rich context from contact details
     let details = `
       Nama Nasabah: ${contact.name}
@@ -60,14 +61,17 @@ export const generateWhatsAppMessage = async (
     return response.text || "Maaf, tidak dapat membuat pesan saat ini.";
   } catch (error) {
     console.error("Error generating message:", error);
-    return "Maaf, terjadi kesalahan koneksi ke AI. Silakan coba lagi.";
+    return "Maaf, terjadi kesalahan koneksi ke AI. Periksa API Key Anda.";
   }
 };
 
-export const extractContactsFromText = async (rawText: string): Promise<string> => {
-  if (!ai) return "[]";
+export const extractContactsFromText = async (rawText: string, overrideApiKey?: string): Promise<string> => {
+  const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
+  if (!apiKey) return "[]";
 
   try {
+    const ai = new GoogleGenAI({ apiKey });
+
     const prompt = `
       Ekstrak data kontak dari teks mentah berikut ini dan ubah menjadi format JSON Array.
       Setiap objek harus memiliki properti: "name", "phone" (format +62), "flag" (Gold/Silver/Platinum/Prospect), "sentra", "plafon".

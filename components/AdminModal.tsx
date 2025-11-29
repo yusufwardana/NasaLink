@@ -3,7 +3,7 @@ import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe, Loader2, Server } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe, Loader2, Server, Key } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [activeTab, setActiveTab] = useState<'templates' | 'settings'>('templates');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MessageTemplate>>({});
-  const [sheetConfig, setSheetConfig] = useState<SheetConfig>({ spreadsheetId: '', sheetName: '', googleScriptUrl: '' });
+  const [sheetConfig, setSheetConfig] = useState<SheetConfig>({ spreadsheetId: '', sheetName: '', googleScriptUrl: '', geminiApiKey: '' });
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
   
@@ -544,6 +544,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     onChange={e => setSheetConfig({...sheetConfig, googleScriptUrl: e.target.value})}
                                     placeholder="https://script.google.com/..."
                                 />
+                            </div>
+
+                            <div className="border-t border-slate-100 pt-4 mt-4">
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
+                                    Gemini API Key (Opsional) <Key className="w-3 h-3" />
+                                </label>
+                                <input 
+                                    type="password" 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
+                                    value={sheetConfig.geminiApiKey || ''}
+                                    onChange={e => setSheetConfig({...sheetConfig, geminiApiKey: e.target.value})}
+                                    placeholder="AIza..."
+                                />
+                                <p className="text-[10px] text-orange-500 mt-1 italic">
+                                    PENTING: Key ini akan disimpan di konfigurasi bersama. Pastikan aman. Jika kosong, akan menggunakan System Environment Variable.
+                                </p>
                             </div>
 
                             <div className="pt-4 flex justify-end">

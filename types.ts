@@ -35,4 +35,5 @@ export interface SheetConfig {
   sheetName: string;
   templateSheetName?: string; // New field for Templates Tab
   googleScriptUrl?: string; // New field for Apps Script URL
+  geminiApiKey?: string; // New field for Gemini API Key override
 }

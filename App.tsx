@@ -164,628 +164,471 @@ const App: React.FC = () => {
         return null;
     };
 
-    // Helper for PRS diff days
-    const getDiffDays = (target: Date, base: Date): number => {
-        const diffTime = target.getTime() - base.getTime();
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    };
-
-    const events: NotificationItem[] = [];
-
-    contacts.forEach(c => {
-        // 1. Check Jatuh Tempo (REFINANCING)
-        // Logic: This Month or Next Month (M+1)
-        if (c.tglJatuhTempo) {
-            const targetDate = parseFullDate(c.tglJatuhTempo);
+    return contacts.reduce<NotificationItem[]>((acc, contact) => {
+        // 1. Check Jatuh Tempo (Payment/Refinancing)
+        if (contact.tglJatuhTempo) {
+            const dueDate = parseFullDate(contact.tglJatuhTempo);
             
-            if (targetDate) {
-                const tMonth = targetDate.getMonth();
-                const tYear = targetDate.getFullYear();
+            if (dueDate) {
+                const dueMonth = dueDate.getMonth();
+                const dueYear = dueDate.getFullYear();
 
-                // Check Current Month
-                if (tMonth === currentMonth && tYear === currentYear) {
-                     events.push({ 
-                         contact: c, 
-                         type: 'payment', 
-                         status: 'this_month', 
-                         daysLeft: 0 // Not relevant for monthly view
-                     });
-                } 
-                // Check Next Month
-                else if (tMonth === nextMonth && tYear === nextMonthYear) {
-                    events.push({ 
-                        contact: c, 
-                        type: 'payment', 
-                        status: 'next_month', 
-                        daysLeft: 30 // Approximate
-                    });
+                let status: 'today' | 'soon' | 'this_month' | 'next_month' | null = null;
+                
+                // Logic: Only capture This Month and Next Month
+                if (dueYear === currentYear && dueMonth === currentMonth) {
+                     // Check if exact today
+                     if (dueDate.getDate() === today.getDate()) status = 'today';
+                     else if (dueDate > today) status = 'this_month';
+                } else if (
+                    (dueYear === nextMonthYear && dueMonth === nextMonth)
+                ) {
+                    status = 'next_month';
                 }
-            }
-        }
 
-        // 2. Check PRS (Logic: H-1 or Today)
-        if (c.tglPrs) {
-            let diff = -999;
-            const fullDatePrs = parseFullDate(c.tglPrs);
-            
-            if (fullDatePrs) {
-                 fullDatePrs.setHours(0,0,0,0);
-                 diff = getDiffDays(fullDatePrs, today);
-            } else {
-                 // Logic for recurring day (e.g., "15" or "20")
-                 const dayStr = c.tglPrs.trim();
-                 if (/^\d{1,2}$/.test(dayStr)) {
-                     const day = parseInt(dayStr, 10);
-                     const currentDay = today.getDate();
+                if (status) {
+                     const diffTime = dueDate.getTime() - today.getTime();
+                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                      
-                     // Create PRS date for current month
-                     const prsThisMonth = new Date(currentYear, currentMonth, day);
-                     const diffThisMonth = getDiffDays(prsThisMonth, today);
-
-                     // If PRS day hasn't passed or is today/tomorrow
-                     if (diffThisMonth >= 0) {
-                         diff = diffThisMonth;
-                     } else {
-                         // Check next month just in case today is 31st and PRS is 1st
-                         const prsNextMonth = new Date(currentYear, currentMonth + 1, day);
-                         diff = getDiffDays(prsNextMonth, today);
-                     }
-                 }
-            }
-
-            if (diff !== -999) {
-                if (diff === 0) {
-                    // Hari Ini (PRS Sedang Berlangsung)
-                    events.push({ contact: c, type: 'prs', status: 'today', daysLeft: 0 });
-                } else if (diff === 1) {
-                    // H-1 (Besok PRS)
-                    events.push({ contact: c, type: 'prs', status: 'soon', daysLeft: 1 });
+                     acc.push({
+                         contact,
+                         type: 'payment',
+                         status: status,
+                         daysLeft: diffDays
+                     });
                 }
             }
         }
-    });
 
-    // Sort: Today first, then Soon, then This Month, then Next Month
-    return events.sort((a, b) => {
-        const score = (status: string) => {
-            if (status === 'today') return 1;
-            if (status === 'soon') return 2;
-            if (status === 'this_month') return 3;
-            if (status === 'next_month') return 4;
-            return 5;
-        };
-        return score(a.status) - score(b.status);
-    });
+        // 2. Check PRS (Meeting)
+        if (contact.tglPrs) {
+             // PRS is usually just "Day of Month" (e.g., "25") or Full Date
+             // If just number, assume current month
+             let prsDate: Date | null = null;
+             
+             if (contact.tglPrs.match(/^\d{1,2}$/)) {
+                 const day = parseInt(contact.tglPrs);
+                 prsDate = new Date(today.getFullYear(), today.getMonth(), day);
+             } else {
+                 prsDate = parseFullDate(contact.tglPrs);
+             }
+
+             if (prsDate) {
+                 const diffTime = prsDate.getTime() - today.getTime();
+                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                 
+                 // Alert for Tomorrow (1) or Today (0)
+                 if (diffDays === 0) {
+                     acc.push({ contact, type: 'prs', status: 'today', daysLeft: 0 });
+                 } else if (diffDays === 1) {
+                     acc.push({ contact, type: 'prs', status: 'soon', daysLeft: 1 });
+                 }
+             }
+        }
+
+        return acc;
+    }, []).sort((a, b) => a.daysLeft - b.daysLeft);
   }, [contacts]);
 
 
-  const coOptions = useMemo(() => {
-      return Array.from(new Set(contacts.map(c => c.co).filter(Boolean))).sort();
-  }, [contacts]);
-
-  const sentraOptions = useMemo(() => {
-      const sourceContacts = selectedCo 
-        ? contacts.filter(c => c.co === selectedCo)
-        : contacts;
-      return Array.from(new Set(sourceContacts.map(c => c.sentra).filter(Boolean))).sort();
+  // --- Filtering Logic ---
+  const uniqueSentras = useMemo(() => {
+    // Only show sentras that belong to selected CO if CO is selected
+    let sourceContacts = contacts;
+    if (selectedCo) {
+        sourceContacts = contacts.filter(c => (c.co || 'Unassigned') === selectedCo);
+    }
+    const sentras = new Set(sourceContacts.map(c => c.sentra || 'Unknown'));
+    return Array.from(sentras).sort();
   }, [contacts, selectedCo]);
 
-  const handleCoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const newCo = e.target.value;
-      setSelectedCo(newCo);
-      setSelectedSentra('');
-  };
-
-  const handleOpenAdmin = () => {
-      const pin = prompt("Masukkan PIN Admin untuk mengakses pengaturan:");
-      if (pin === "123456") {
-          setIsAdminModalOpen(true);
-      } else {
-          alert("Akses ditolak. PIN salah.");
-      }
-  };
-
-  const handleUpdateContact = useCallback(async (updated: Contact) => {
-    setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
-  }, []);
-
-  const handleDeleteContact = useCallback(async (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
-  }, []);
-  
-  const handleResetData = async () => {
-    // Only fetch fresh data
-    loadData();
-    alert("Data di-refresh.");
-  };
-
-  const handleUpdateTemplates = async (newTemplates: MessageTemplate[]) => {
-      // Optimistic update
-      setTemplates(newTemplates);
-  };
-  
-  const handleTestTemplate = (templateId: string) => {
-      let sampleContact: Contact;
-      if (contacts.length > 0) {
-          sampleContact = contacts[0];
-      } else {
-          sampleContact = {
-            id: 'test',
-            name: 'Ibu Siti (Contoh)',
-            phone: '08123456789',
-            flag: 'Gold',
-            sentra: 'Pusat'
-          };
-      }
-      setSelectedContact(sampleContact);
-      setInitialTemplateId(templateId);
-  };
-
-  const handleBulkTemplateUpdate = (mode: 'ai' | 'manual') => {
-      setTemplates(prev => {
-          const updated = prev.map(t => ({
-            ...t,
-            type: mode,
-            promptContext: mode === 'ai' && !t.promptContext ? 'Buat pesan ramah untuk nasabah.' : t.promptContext,
-            content: mode === 'manual' && !t.content ? 'Halo {name}, apa kabar?' : t.content
-          }));
-          return updated;
-      });
-  };
-
-  const handleRefreshSheet = async () => {
-    if (!activeConfig || !activeConfig.spreadsheetId) {
-        alert("Konfigurasi Google Sheet belum diatur.");
-        return;
-    }
-
-    setIsSyncing(true);
-    // Don't clear contacts immediately to avoid flashing empty state too aggressively
-    // setContacts([]); 
-    try {
-        const liveContacts = await fetchContactsFromSheet(activeConfig.spreadsheetId, activeConfig.sheetName);
-        setContacts(liveContacts);
-        
-        // Refresh templates from Supabase
-        if (isSupabaseConfigured()) {
-            const sbTemplates = await fetchTemplatesFromSupabase();
-            if (sbTemplates.length > 0) setTemplates(sbTemplates);
-        }
-
-        setConfigError(false);
-    } catch (e: any) {
-        console.error(e);
-        alert(`Gagal mengambil data terbaru: ${e.message}`);
-    } finally {
-        setIsSyncing(false);
-    }
-  };
-
-  const handleHomeClick = () => {
-      setActiveView('home');
-      setSearchTerm('');
-      setDebouncedSearchTerm('');
-      setSelectedCo('');
-      setSelectedSentra('');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  
-  const handleNotificationClick = () => {
-      setActiveView('notifications');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const isFilterActive = debouncedSearchTerm.trim() !== '' || selectedSentra !== '' || selectedCo !== '';
+  const uniqueCos = useMemo(() => {
+      const cos = new Set(contacts.map(c => c.co || 'Unassigned'));
+      return Array.from(cos).sort();
+  }, [contacts]);
 
   const filteredContacts = useMemo(() => {
-      if (!isFilterActive) return [];
+    // If user is typing, filtering is visually handled by loading state, 
+    // but actual data is filtered by DEBOUNCED term
+    if (!debouncedSearchTerm && !selectedSentra && !selectedCo) return [];
+
+    return contacts.filter(contact => {
+      const matchesSearch = 
+        !debouncedSearchTerm || 
+        contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        contact.phone.includes(debouncedSearchTerm);
       
-      const term = debouncedSearchTerm.toLowerCase();
+      const matchesSentra = !selectedSentra || (contact.sentra || 'Unknown') === selectedSentra;
+      const matchesCo = !selectedCo || (contact.co || 'Unassigned') === selectedCo;
 
-      return contacts.filter(c => {
-        const matchesSearch = 
-            (c.name && c.name.toLowerCase().includes(term)) ||
-            (c.phone && c.phone.includes(term)) ||
-            (c.flag && c.flag.toLowerCase().includes(term)) ||
-            (c.sentra && c.sentra.toLowerCase().includes(term));
-        
-        const matchesSentra = selectedSentra ? c.sentra === selectedSentra : true;
-        const matchesCo = selectedCo ? c.co === selectedCo : true;
+      return matchesSearch && matchesSentra && matchesCo;
+    });
+  }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo]);
 
-        return matchesSearch && matchesSentra && matchesCo;
-      });
-  }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo, isFilterActive]);
-
-  const displayedContacts = useMemo(() => {
+  // Paginated Contacts
+  const visibleContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
   }, [filteredContacts, visibleCount]);
 
-  const handleLoadMore = () => {
-      setVisibleCount(prev => prev + 50);
+
+  // --- Handlers ---
+  const handleSyncSheet = async () => {
+    setIsSyncing(true);
+    // Visual reset to imply fresh fetch
+    setContacts([]); 
+    
+    try {
+        await loadData();
+    } catch (e) {
+        alert("Gagal sinkronisasi. Cek koneksi internet.");
+    } finally {
+        setTimeout(() => setIsSyncing(false), 800);
+    }
   };
 
-  return (
-    <div className="min-h-screen pb-24 text-slate-800">
-      
-      {/* Floating Glass Header */}
-      <div className="sticky top-4 z-30 px-4 mb-8">
-        <div className="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl rounded-3xl p-4 sm:p-5 relative transition-all">
-            
-            {/* Top Bar: Logo & Actions */}
-            <div className={`flex justify-between items-center ${activeView === 'home' ? 'mb-6 border-b border-slate-100 pb-4' : ''}`}>
-                <div className="flex items-center gap-3">
-                    <div className="relative bg-gradient-to-br from-orange-500 to-amber-600 text-white p-2.5 rounded-xl shadow-lg shadow-orange-500/20">
-                        <Sparkles className="w-6 h-6 animate-pulse" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">B-Connect CRM</h1>
-                        <div className="flex items-center gap-2">
-                             <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
-                                <Globe className="w-3 h-3 text-orange-600" />
-                                <p className="text-xs text-orange-700 font-bold tracking-wide uppercase">Live Sheet</p>
-                            </div>
-                            {isSupabaseConfigured() ? (
-                                <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">
-                                    <Server className="w-3 h-3 text-green-600" />
-                                    <p className="text-[10px] text-green-700 font-bold tracking-wide uppercase">Supabase On</p>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
-                                    <AlertTriangle className="w-3 h-3 text-red-600" />
-                                    <p className="text-[10px] text-red-700 font-bold tracking-wide uppercase">Supabase Off</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                <div className="flex gap-2 items-center">
-                    {/* Desktop Buttons (Hidden on Mobile) */}
-                    <div className="hidden sm:flex items-center gap-2">
-                        <button 
-                            onClick={handleNotificationClick}
-                            className={`relative p-2.5 rounded-xl transition-all ${
-                                activeView === 'notifications' ? 'bg-orange-50 text-orange-600 shadow-inner' : 'bg-transparent text-slate-500 hover:text-orange-600 hover:bg-slate-100'
-                            }`}
-                            title="Notifikasi"
-                        >
-                            <Bell className="w-5 h-5" />
-                            {upcomingEvents.length > 0 && (
-                                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
-                            )}
+  const handleUpdateContact = (updatedContact: Contact) => {
+    setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
+  };
+
+  const handleDeleteContact = (id: string) => {
+    setContacts(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleAdminAuth = () => {
+      const pin = prompt("Masukkan PIN Admin:");
+      if (pin === '123456') {
+          setIsAdminModalOpen(true);
+      } else if (pin !== null) {
+          alert("PIN Salah");
+      }
+  };
+
+
+  // --- Render Helpers ---
+
+  // 1. Notification View
+  if (activeView === 'notifications') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
+            <NotificationPanel 
+                items={upcomingEvents}
+                onBack={() => setActiveView('home')}
+                onRemind={(contact, type) => {
+                    // Logic: Select template based on type
+                    const templateName = type === 'payment' ? 'Tawaran Lanjut (Cair)' : 'Pengingat PRS';
+                    const found = templates.find(t => t.label.toLowerCase().includes(templateName.toLowerCase()));
+                    setInitialTemplateId(found?.id || templates[0]?.id);
+                    setSelectedContact(contact);
+                }}
+            />
+            {/* Modal must be rendered here too if triggered from notif */}
+            {selectedContact && (
+                <MessageGeneratorModal
+                    contact={selectedContact}
+                    isOpen={!!selectedContact}
+                    onClose={() => setSelectedContact(null)}
+                    templates={templates}
+                    initialTemplateId={initialTemplateId}
+                    apiKey={activeConfig?.geminiApiKey}
+                />
+            )}
+             {/* Bottom Nav */}
+            <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
+                <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+                    <button onClick={() => setActiveView('home')} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                        <Home className="w-5 h-5 mb-0.5" />
+                        <span className="text-[10px] font-medium">Beranda</span>
+                    </button>
+                    <button onClick={handleSyncSheet} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                        <RefreshCw className={`w-5 h-5 mb-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                        <span className="text-[10px] font-medium">Sinkron</span>
+                    </button>
+                    <div className="relative">
+                        <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
+                            <Bell className="w-5 h-5 mb-0.5" />
+                            <span className="text-[10px] font-medium">Notifikasi</span>
                         </button>
-
-                        <Button 
-                            size="sm" 
-                            variant="glass" 
-                            onClick={handleRefreshSheet}
-                            isLoading={isSyncing}
-                            className="text-orange-700 font-semibold"
-                            icon={<RefreshCw className="w-4 h-4"/>}
-                        >
-                            Sinkron Data
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="glass"
-                            onClick={handleOpenAdmin}
-                            icon={<Shield className="w-4 h-4" />}
-                        >
-                            Menu Admin
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Filter Controls (Only shown on Home View) */}
-            {activeView === 'home' && (
-                <div className="flex flex-col md:flex-row gap-3 animate-fade-in-up">
-                    <div className="relative flex-1 group">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-orange-600 transition-colors" />
-                        <input 
-                            type="text" 
-                            placeholder="Cari nama Ibu, sentra, atau flag..." 
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all outline-none"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        {isFiltering && (
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
-                            </div>
+                        {upcomingEvents.length > 0 && (
+                            <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                         )}
                     </div>
-                    
-                    <div className="flex gap-2 flex-col sm:flex-row">
-                        <div className="relative min-w-[160px] group flex-1 sm:flex-none">
-                            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-orange-600 transition-colors" />
-                            <select
-                                value={selectedCo}
-                                onChange={handleCoChange}
-                                className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-orange-500/30 focus:bg-white transition-all cursor-pointer outline-none font-medium truncate"
-                            >
-                                <option value="" className="bg-white text-slate-500">Semua CO</option>
-                                {coOptions.map(co => (
-                                    <option key={co} value={String(co)} className="bg-white text-slate-800">{co}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
-
-                        <div className="relative min-w-[160px] group flex-1 sm:flex-none">
-                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-orange-600 transition-colors" />
-                            <select
-                                value={selectedSentra}
-                                onChange={(e) => setSelectedSentra(e.target.value)}
-                                className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 appearance-none text-sm focus:ring-2 focus:ring-orange-500/30 focus:bg-white transition-all cursor-pointer outline-none font-medium truncate"
-                            >
-                                <option value="" className="bg-white text-slate-500">Semua Sentra</option>
-                                {sentraOptions.map(s => (
-                                    <option key={s} value={String(s)} className="bg-white text-slate-800">{s}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
-                    </div>
+                    <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                        <Settings className="w-5 h-5 mb-0.5" />
+                        <span className="text-[10px] font-medium">Setting</span>
+                    </button>
                 </div>
-            )}
-        </div>
-      </div>
-
-      {/* MAIN CONTENT AREA */}
-      {activeView === 'notifications' ? (
-        // NOTIFICATIONS VIEW
-        <NotificationPanel 
-            items={upcomingEvents}
-            onBack={handleHomeClick}
-            onRemind={(c, type) => {
-                setSelectedContact(c);
-                if (type === 'prs') {
-                    const prsTemplate = templates.find(t => t.label.toLowerCase().includes('prs') || t.label.toLowerCase().includes('kumpulan'));
-                    if (prsTemplate) setInitialTemplateId(prsTemplate.id);
-                    else if (templates.length > 0) setInitialTemplateId(templates[0].id);
-                } else {
-                    const modalTemplate = templates.find(t => 
-                        t.label.toLowerCase().includes('cair') || 
-                        t.label.toLowerCase().includes('modal') || 
-                        t.label.toLowerCase().includes('lanjut')
-                    );
-                    if (modalTemplate) setInitialTemplateId(modalTemplate.id);
-                    else if (templates.length > 0) setInitialTemplateId(templates[0].id);
-                }
-            }}
-        />
-      ) : (
-        // HOME VIEW (Search results & Hero)
-        <div className="max-w-4xl mx-auto px-4">
-            
-            {!isFilterActive && contacts.length > 0 && !isSyncing && !isFiltering && (
-                <div className="mb-8 animate-fade-in-up">
-                    <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-400/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
-                        
-                        <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
-                            <div className="flex-1 text-center sm:text-left">
-                                <h2 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Selamat Datang di B-Connect CRM</h2>
-                                <p className="text-orange-50 text-sm sm:text-base leading-relaxed max-w-xl">
-                                    Aplikasi pendamping Community Officer (CO) BTPN Syariah untuk memanajemen data nasabah sentra, 
-                                    memantau jadwal jatuh tempo (peluang cair), dan membuat pesan WhatsApp personal otomatis dengan bantuan AI.
-                                </p>
-                                
-                                <div className="mt-6 flex flex-wrap gap-4 justify-center sm:justify-start">
-                                    <div className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-2 border border-white/20">
-                                        <Users className="w-5 h-5 text-orange-200" />
-                                        <div>
-                                            <p className="text-xs text-orange-100 font-medium uppercase">Total Nasabah</p>
-                                            <p className="font-bold text-lg">{contacts.length}</p>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-2 border border-white/20">
-                                        <MapPin className="w-5 h-5 text-orange-200" />
-                                        <div>
-                                            <p className="text-xs text-orange-100 font-medium uppercase">Total Sentra</p>
-                                            <p className="font-bold text-lg">{new Set(contacts.map(c=>c.sentra).filter(Boolean)).size}</p>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-2 border border-white/20">
-                                        <Briefcase className="w-5 h-5 text-orange-200" />
-                                        <div>
-                                            <p className="text-xs text-orange-100 font-medium uppercase">Petugas CO</p>
-                                            <p className="font-bold text-lg">{coOptions.length}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="hidden sm:block">
-                                <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/20 rotate-3 transform shadow-lg">
-                                    <HeartHandshake className="w-16 h-16 text-white/90" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="space-y-4">
-                {isLoadingData ? (
-                    <div className="text-center py-20">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-                        <p className="text-slate-500 animate-pulse">Mengambil data Global dari Google Sheets & Supabase...</p>
-                    </div>
-                ) : isSyncing ? (
-                     <div className="text-center py-24 bg-white/50 backdrop-blur-sm rounded-3xl border border-orange-200 border-dashed animate-pulse">
-                        <div className="mx-auto w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-6"></div>
-                        <h3 className="text-xl font-bold text-slate-700 mb-2">Sedang Mensinkronisasi Data...</h3>
-                        <p className="text-slate-500">Mohon tunggu, sedang mengambil data terbaru dari Google Sheets.</p>
-                    </div>
-                ) : isFiltering ? (
-                     <div className="text-center py-24 bg-white/50 backdrop-blur-sm rounded-3xl">
-                        <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-slate-700">Memproses Pencarian...</h3>
-                    </div>
-                ) : configError ? (
-                    <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">
-                        <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                            <Database className="w-8 h-8" />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-2">Belum Terhubung</h3>
-                        <p className="text-slate-500 mb-6 font-medium px-6">Hubungkan aplikasi dengan Google Sheet Anda di menu Admin untuk melihat data secara Live.</p>
-                        <Button variant="primary" onClick={handleOpenAdmin}>
-                            Buka Pengaturan
-                        </Button>
-                    </div>
-                ) : (
-                    !isFilterActive ? (
-                        <div className="text-center py-12 px-6 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200/60 border-dashed animate-fade-in-up">
-                            <div className="w-20 h-20 mx-auto bg-gradient-to-tr from-orange-100 to-amber-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                                <Search className="w-10 h-10 text-orange-500 opacity-80" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">Mulai Pencarian</h3>
-                            <p className="text-slate-500 max-w-md mx-auto leading-relaxed">
-                                Untuk menjaga performa aplikasi karena banyaknya data nasabah (3000+), daftar disembunyikan secara default.
-                            </p>
-                            <p className="text-sm font-semibold text-orange-600 mt-2">
-                                Silakan ketik Nama Nasabah, pilih Sentra, atau pilih CO pada kolom di atas untuk menampilkan data.
-                            </p>
-                        </div>
-                    ) : filteredContacts.length === 0 ? (
-                        <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">
-                            <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                                <Users className="w-8 h-8" />
-                            </div>
-                            <p className="text-slate-500 mb-2 font-medium">Tidak ada nasabah ditemukan sesuai pencarian.</p>
-                            <Button variant="outline" onClick={handleRefreshSheet} isLoading={isSyncing} icon={<RefreshCw className="w-4 h-4"/>} className="mt-4">
-                                Coba Sinkron Ulang
-                            </Button>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="flex justify-between items-end px-2 animate-fade-in-up">
-                                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-green-50 animate-pulse"></span>
-                                    Hasil Pencarian 
-                                    {selectedCo ? ` • CO ${selectedCo}` : ''}
-                                    {selectedSentra ? ` • ${selectedSentra}` : ''} 
-                                    <span className="ml-1 bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">
-                                        {filteredContacts.length}
-                                    </span>
-                                </h2>
-                            </div>
-                            <div className="grid gap-4 animate-fade-in-up">
-                                {displayedContacts.map(contact => (
-                                    <ContactCard 
-                                        key={contact.id} 
-                                        contact={contact} 
-                                        onEditClick={setContactToEdit}
-                                        onGenerateClick={setSelectedContact}
-                                    />
-                                ))}
-                            </div>
-                            
-                            {visibleCount < filteredContacts.length && (
-                                <div className="flex justify-center mt-6 pb-10">
-                                    <Button 
-                                        variant="secondary" 
-                                        onClick={handleLoadMore}
-                                        className="w-full sm:w-auto shadow-md"
-                                        icon={<ChevronDown className="w-4 h-4" />}
-                                    >
-                                        Tampilkan Lebih Banyak ({filteredContacts.length - visibleCount} tersisa)
-                                    </Button>
-                                </div>
-                            )}
-                        </>
-                    )
-                )}
             </div>
         </div>
-      )}
+      );
+  }
 
-      {/* MOBILE BOTTOM NAVIGATION FOOTER */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] sm:hidden">
-          <div className="grid grid-cols-4 h-[72px]">
-              <button 
-                onClick={handleHomeClick}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all"
-              >
-                  <div className={`p-1.5 rounded-xl ${activeView === 'home' ? 'bg-orange-50 text-orange-600' : ''}`}>
-                    <Home className="w-6 h-6" />
+  // 2. Home View
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24">
+      {/* HEADER: Hidden on Mobile if scrolled, mostly static for simplicity */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="bg-gradient-to-br from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg shadow-orange-500/20 text-white">
+              <HeartHandshake className="w-5 h-5" />
+            </div>
+            <div>
+                <h1 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">
+                B-Connect <span className="text-orange-600">CRM</span>
+                </h1>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Direktori Nasabah</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1.5 ${
+                activeConfig?.spreadsheetId 
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                : 'bg-red-50 text-red-600 border-red-200'
+            }`}>
+                 <span className={`w-1.5 h-1.5 rounded-full ${activeConfig?.spreadsheetId ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                 {activeConfig?.spreadsheetId ? 'ONLINE' : 'OFFLINE'}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* HERO SECTION */}
+      <div className="bg-gradient-to-b from-white to-orange-50 border-b border-orange-100">
+          <div className="max-w-4xl mx-auto px-6 py-8">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                  Assalamualaikum, <span className="text-orange-600">Pejuang Syariah</span>
+              </h2>
+              <p className="text-slate-500 text-sm leading-relaxed mb-6 max-w-lg">
+                  Kelola data nasabah sentra dengan mudah. Gunakan filter di bawah untuk menemukan nasabah dan kirim pesan personalisasi.
+              </p>
+              
+              <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Nasabah</p>
+                      <p className="text-xl font-bold text-slate-800">{contacts.length}</p>
                   </div>
+                   <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Sentra</p>
+                      <p className="text-xl font-bold text-slate-800">{uniqueSentras.length}</p>
+                  </div>
+                   <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total CO</p>
+                      <p className="text-xl font-bold text-slate-800">{uniqueCos.length}</p>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      {/* MAIN CONTENT */}
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        
+        {/* Filters */}
+        <div className="sticky top-[68px] z-30 space-y-3 bg-white/50 backdrop-blur-xl p-3 rounded-2xl border border-white/40 shadow-sm">
+           <div className="relative">
+              <input
+                type="text"
+                placeholder="Cari nama nasabah atau no HP..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm text-sm"
+              />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+           </div>
+
+           <div className="flex gap-2">
+              <div className="relative flex-1">
+                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                 <select
+                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm"
+                    value={selectedCo}
+                    onChange={(e) => {
+                        setSelectedCo(e.target.value);
+                        setSelectedSentra(''); // Reset Sentra when CO changes
+                    }}
+                 >
+                    <option value="">Semua Petugas (CO)</option>
+                    {uniqueCos.map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+              </div>
+
+              <div className="relative flex-1">
+                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                 <select
+                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm"
+                    value={selectedSentra}
+                    onChange={(e) => setSelectedSentra(e.target.value)}
+                 >
+                    <option value="">Semua Sentra</option>
+                    {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+              </div>
+           </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="min-h-[300px]">
+            {isLoadingData || isSyncing ? (
+                // Loading State
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-fade-in-up">
+                    <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-4" />
+                    <p className="font-medium text-slate-600">Sedang menyinkronkan data...</p>
+                    <p className="text-xs mt-1">Mengambil data terbaru dari BTPN Sheets</p>
+                </div>
+            ) : configError ? (
+                // Error State
+                <div className="text-center py-16 px-4 bg-white rounded-3xl border border-red-100 shadow-sm">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Konfigurasi Belum Sesuai</h3>
+                    <p className="text-slate-500 text-sm max-w-xs mx-auto mb-6">
+                        ID Spreadsheet belum diatur atau tidak valid. Silakan hubungi admin untuk melakukan setup awal.
+                    </p>
+                    <Button onClick={handleAdminAuth} variant="secondary">Buka Menu Admin</Button>
+                </div>
+            ) : filteredContacts.length > 0 ? (
+                // List State
+                <div className="space-y-4 animate-fade-in-up">
+                    {/* Visual Loading Indicator for Filter */}
+                    {isFiltering && (
+                        <div className="flex items-center justify-center py-4 bg-orange-50/50 rounded-xl border border-orange-100 mb-4">
+                            <Loader2 className="w-4 h-4 animate-spin text-orange-600 mr-2" />
+                            <span className="text-xs font-bold text-orange-700">Memproses pencarian...</span>
+                        </div>
+                    )}
+
+                    {visibleContacts.map(contact => (
+                    <ContactCard
+                        key={contact.id}
+                        contact={contact}
+                        onEditClick={setContactToEdit}
+                        onGenerateClick={(c) => {
+                            setSelectedContact(c);
+                            setInitialTemplateId(undefined);
+                        }}
+                    />
+                    ))}
+                    
+                    {/* Load More Trigger */}
+                    {visibleContacts.length < filteredContacts.length && (
+                        <div className="flex justify-center pt-4 pb-12">
+                            <Button variant="secondary" onClick={() => setVisibleCount(p => p + 50)}>
+                                Tampilkan Lebih Banyak ({filteredContacts.length - visibleContacts.length})
+                            </Button>
+                        </div>
+                    )}
+
+                    <p className="text-center text-xs text-slate-300 py-4">
+                        Menampilkan {visibleContacts.length} dari {filteredContacts.length} hasil
+                    </p>
+                </div>
+            ) : (
+                // Empty State
+                <div className="text-center py-20 px-4">
+                    {!debouncedSearchTerm && !selectedSentra && !selectedCo ? (
+                         <div className="opacity-60">
+                             <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-orange-100">
+                                <Search className="w-8 h-8 text-orange-300" />
+                             </div>
+                             <p className="font-bold text-slate-400">Siapa yang ingin dicari?</p>
+                             <p className="text-xs text-slate-400 mt-1">Ketik nama atau pilih sentra di atas</p>
+                         </div>
+                    ) : (
+                        <div className="opacity-80">
+                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                                <Users className="w-8 h-8 text-slate-300" />
+                             </div>
+                             <p className="font-bold text-slate-600">Tidak ada nasabah ditemukan</p>
+                             <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau reset filter</p>
+                             <div className="mt-4">
+                                <Button variant="outline" size="sm" onClick={handleSyncSheet} icon={<RefreshCw className="w-3 h-3"/>}>
+                                    Coba Sinkron Ulang
+                                </Button>
+                             </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+
+      </main>
+
+      {/* FOOTER NAVIGATION */}
+      <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
+          <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+              <button onClick={() => { setActiveView('home'); setSearchTerm(''); setSelectedSentra(''); setSelectedCo(''); }} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
+                  <Home className="w-5 h-5 mb-0.5" />
                   <span className="text-[10px] font-medium">Beranda</span>
               </button>
-
-              <button 
-                onClick={handleRefreshSheet}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all"
-              >
-                  <div className={`p-1.5 rounded-xl ${isSyncing ? 'animate-spin text-orange-600' : ''}`}>
-                    <RefreshCw className="w-6 h-6" />
-                  </div>
+              <button onClick={handleSyncSheet} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                  <RefreshCw className={`w-5 h-5 mb-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
                   <span className="text-[10px] font-medium">Sinkron</span>
               </button>
-
-              <button 
-                onClick={handleNotificationClick}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all relative"
-              >
-                  <div className={`p-1.5 rounded-xl ${activeView === 'notifications' ? 'bg-orange-50 text-orange-600' : ''}`}>
-                    <Bell className="w-6 h-6" />
-                    {upcomingEvents.length > 0 && (
-                        <span className="absolute top-2 right-[25%] w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-white"></span>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-medium">Notifikasi</span>
-              </button>
-
-              <button 
-                onClick={handleOpenAdmin}
-                className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-orange-600 active:scale-95 transition-all"
-              >
-                  <div className={`p-1.5 rounded-xl ${isAdminModalOpen ? 'bg-orange-50 text-orange-600' : ''}`}>
-                    <Settings className="w-6 h-6" />
-                  </div>
+              <div className="relative">
+                  <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                      <Bell className="w-5 h-5 mb-0.5" />
+                      <span className="text-[10px] font-medium">Notifikasi</span>
+                  </button>
+                  {upcomingEvents.length > 0 && (
+                      <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                  )}
+              </div>
+              <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                  <Settings className="w-5 h-5 mb-0.5" />
                   <span className="text-[10px] font-medium">Setting</span>
               </button>
           </div>
       </div>
 
+      {/* Modals */}
       {selectedContact && (
-        <MessageGeneratorModal 
-            contact={selectedContact} 
-            isOpen={!!selectedContact} 
-            onClose={() => {
-                setSelectedContact(null);
-                setInitialTemplateId(undefined);
-            }}
-            templates={templates}
-            initialTemplateId={initialTemplateId}
+        <MessageGeneratorModal
+          contact={selectedContact}
+          isOpen={!!selectedContact}
+          onClose={() => setSelectedContact(null)}
+          templates={templates}
+          initialTemplateId={initialTemplateId}
+          apiKey={activeConfig?.geminiApiKey} // Pass API Key correctly
         />
       )}
 
-      <EditContactModal
-        isOpen={!!contactToEdit}
-        contact={contactToEdit}
-        onClose={() => setContactToEdit(null)}
-        onSave={handleUpdateContact}
-        onDelete={handleDeleteContact}
-        sheetConfig={activeConfig}
-      />
+      {contactToEdit && (
+        <EditContactModal
+          contact={contactToEdit}
+          isOpen={!!contactToEdit}
+          onClose={() => setContactToEdit(null)}
+          onSave={handleUpdateContact}
+          onDelete={handleDeleteContact}
+          sheetConfig={activeConfig}
+        />
+      )}
 
-      <AdminModal
-        isOpen={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
-        templates={templates}
-        onUpdateTemplates={handleUpdateTemplates}
-        onResetData={handleResetData}
-        onTestTemplate={handleTestTemplate}
-        onBulkUpdateMode={handleBulkTemplateUpdate}
-      />
-
+      {isAdminModalOpen && (
+        <AdminModal
+          isOpen={isAdminModalOpen}
+          onClose={() => setIsAdminModalOpen(false)}
+          templates={templates}
+          onUpdateTemplates={setTemplates}
+          onResetData={() => {
+              setContacts([]);
+              loadData();
+          }}
+          onTestTemplate={(id) => {
+              // Create mock contact for testing
+              const mockContact: Contact = {
+                  id: 'test', name: 'Ibu Ratna (Contoh)', phone: '081234567890', flag: 'Active', sentra: 'Mawar Indah', co: 'Budi Santoso', plafon: '5.000.000', tglJatuhTempo: '25/12/2025'
+              };
+              setInitialTemplateId(id);
+              setSelectedContact(mockContact);
+          }}
+          onBulkUpdateMode={(mode) => {
+              setTemplates(prev => prev.map(t => ({...t, type: mode})));
+          }}
+        />
+      )}
     </div>
   );
 };

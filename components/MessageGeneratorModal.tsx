@@ -10,9 +10,17 @@ interface MessageGeneratorModalProps {
   onClose: () => void;
   templates: MessageTemplate[];
   initialTemplateId?: string;
+  apiKey?: string; // New Prop for dynamic API key
 }
 
-export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ contact, isOpen, onClose, templates, initialTemplateId }) => {
+export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ 
+  contact, 
+  isOpen, 
+  onClose, 
+  templates, 
+  initialTemplateId,
+  apiKey
+}) => {
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -61,7 +69,8 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ co
     const text = await generateWhatsAppMessage(
       contact,
       extendedContext,
-      tone
+      tone,
+      apiKey // Pass the dynamic API key
     );
     setGeneratedText(text);
     setIsGenerating(false);
