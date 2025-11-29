@@ -1,15 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { Contact } from '../types';
+import { GEMINI_CONFIG } from '../config';
 
-const apiKey = process.env.API_KEY || ''; 
+const apiKey = GEMINI_CONFIG.apiKey;
 
-const ai = new GoogleGenAI({ apiKey });
+// Initialize GoogleGenAI only if key is present to avoid immediate crash
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const generateWhatsAppMessage = async (
   contact: Contact, // Changed to accept full Contact object
   context: string,
   tone: 'formal' | 'casual' | 'friendly' = 'friendly'
 ): Promise<string> => {
+  if (!ai) {
+    console.error("Gemini API Key is missing.");
+    return "Error: API Key AI belum disetting. Mohon hubungi administrator sistem.";
+  }
+
   try {
     // Build rich context from contact details
     let details = `
@@ -58,6 +65,8 @@ export const generateWhatsAppMessage = async (
 };
 
 export const extractContactsFromText = async (rawText: string): Promise<string> => {
+  if (!ai) return "[]";
+
   try {
     const prompt = `
       Ekstrak data kontak dari teks mentah berikut ini dan ubah menjadi format JSON Array.

@@ -11,6 +11,16 @@ export const SUPABASE_CONFIG = {
 };
 
 // ============================================================================
+// KONFIGURASI GEMINI AI
+// ============================================================================
+// API Key diambil dari Environment Variable (disuntikkan otomatis oleh sistem).
+// Jangan hardcode key di sini untuk keamanan.
+// ============================================================================
+export const GEMINI_CONFIG = {
+  apiKey: process.env.API_KEY || "" 
+};
+
+// ============================================================================
 // KONFIGURASI GLOBAL (GOOGLE SHEETS - DATA NASABAH)
 // ============================================================================
 // Konfigurasi ini sekarang bisa dioverride oleh data dari Supabase (Table app_settings)
