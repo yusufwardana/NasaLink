@@ -2,7 +2,14 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#f97316" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="B-Connect" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1041/1041916.png" />
+    
     <title>B-Connect - Direktori Nasabah</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,6 +20,7 @@
         background: radial-gradient(circle at 0% 0%, #fff7ed 0%, #ffedd5 50%, #ffffff 100%);
         background-attachment: fixed;
         color: #1e293b; /* slate-800 */
+        overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile app feel */
       }
       
       /* Custom scrollbar for light theme */
@@ -45,6 +53,20 @@
           transform: translateY(0);
         }
       }
+
+      /* Hide scrollbar for clean UI in PWA */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+      
+      /* Safe area for iPhone X+ */
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
     </style>
   <script type="importmap">
 {
@@ -63,5 +85,20 @@
   <body class="tracking-tighter antialiased selection:bg-orange-200 selection:text-orange-900">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js')
+            .then((registration) => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch((err) => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
