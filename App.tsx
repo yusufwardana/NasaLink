@@ -9,7 +9,7 @@ import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2 } from 'lucide-react';
 
 // Fallback templates updated to reflect NEW logic (Refinancing focus)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -47,11 +47,14 @@ const App: React.FC = () => {
   // State: Pagination / Lazy Load
   const [visibleCount, setVisibleCount] = useState(50); // Hanya tampilkan 50 awal
   
+  // Derived State for UI Feedback
+  const isFiltering = searchTerm !== debouncedSearchTerm;
+
   // --- 0. Debounce Logic for Search ---
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-    }, 300); // Wait 300ms after user stops typing
+    }, 500); // Wait 500ms after user stops typing to reduce lag
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
@@ -337,7 +340,8 @@ const App: React.FC = () => {
     }
 
     setIsSyncing(true);
-    setContacts([]); 
+    // Don't clear contacts immediately to avoid flashing empty state too aggressively
+    // setContacts([]); 
     try {
         const liveContacts = await fetchContactsFromSheet(activeConfig.spreadsheetId, activeConfig.sheetName);
         setContacts(liveContacts);
@@ -414,7 +418,7 @@ const App: React.FC = () => {
                         <Sparkles className="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NasaLink CRM</h1>
+                        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">B-Connect CRM</h1>
                         <div className="flex items-center gap-2">
                              <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
                                 <Globe className="w-3 h-3 text-orange-600" />
@@ -484,6 +488,11 @@ const App: React.FC = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                        {isFiltering && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
+                            </div>
+                        )}
                     </div>
                     
                     <div className="flex gap-2 flex-col sm:flex-row">
@@ -553,7 +562,7 @@ const App: React.FC = () => {
         // HOME VIEW (Search results & Hero)
         <div className="max-w-4xl mx-auto px-4">
             
-            {!isFilterActive && contacts.length > 0 && (
+            {!isFilterActive && contacts.length > 0 && !isSyncing && !isFiltering && (
                 <div className="mb-8 animate-fade-in-up">
                     <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
@@ -561,7 +570,7 @@ const App: React.FC = () => {
                         
                         <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
                             <div className="flex-1 text-center sm:text-left">
-                                <h2 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Selamat Datang di NasaLink CRM</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Selamat Datang di B-Connect CRM</h2>
                                 <p className="text-orange-50 text-sm sm:text-base leading-relaxed max-w-xl">
                                     Aplikasi pendamping Community Officer (CO) BTPN Syariah untuk memanajemen data nasabah sentra, 
                                     memantau jadwal jatuh tempo (peluang cair), dan membuat pesan WhatsApp personal otomatis dengan bantuan AI.
@@ -607,6 +616,17 @@ const App: React.FC = () => {
                     <div className="text-center py-20">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
                         <p className="text-slate-500 animate-pulse">Mengambil data Global dari Google Sheets & Supabase...</p>
+                    </div>
+                ) : isSyncing ? (
+                     <div className="text-center py-24 bg-white/50 backdrop-blur-sm rounded-3xl border border-orange-200 border-dashed animate-pulse">
+                        <div className="mx-auto w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-6"></div>
+                        <h3 className="text-xl font-bold text-slate-700 mb-2">Sedang Mensinkronisasi Data...</h3>
+                        <p className="text-slate-500">Mohon tunggu, sedang mengambil data terbaru dari Google Sheets.</p>
+                    </div>
+                ) : isFiltering ? (
+                     <div className="text-center py-24 bg-white/50 backdrop-blur-sm rounded-3xl">
+                        <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-slate-700">Memproses Pencarian...</h3>
                     </div>
                 ) : configError ? (
                     <div className="text-center py-16 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-200 border-dashed">
