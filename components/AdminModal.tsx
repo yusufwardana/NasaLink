@@ -558,7 +558,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     placeholder="AIza..."
                                 />
                                 <p className="text-[10px] text-orange-500 mt-1 italic">
-                                    PENTING: Key ini akan disimpan di konfigurasi bersama. Pastikan aman. Jika kosong, akan menggunakan System Environment Variable.
+                                    PENTING: Key ini akan disimpan di konfigurasi bersama. Pastikan aman. Jika kosong, menggunakan System Environment Variable.
                                 </p>
                             </div>
 

@@ -7,7 +7,7 @@ export interface Contact {
   lastInteraction?: string;
   notes?: string;
   
-  // New Fields based on BTPN Sheet
+  // New Fields based on BTPN Sheet cek
   co?: string;             // Map from 'CO'
   plafon?: string;         // Map from 'PLAFON'
   produk?: string;         // Map from 'PRODUK'

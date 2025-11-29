@@ -40,7 +40,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({
   const handleGenerate = async () => {
     if (!selectedTemplate) return;
     
-    // MANUAL MODE:
+    // MANUAL MODE CEK:
     if (selectedTemplate.type === 'manual') {
         let text = selectedTemplate.content || '';
         // Replace placeholders
