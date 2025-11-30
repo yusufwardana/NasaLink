@@ -87,7 +87,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
             </button>
             <div>
                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    Agenda & Peluang
+                    Follow Up Nasabah
                     <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full border border-red-200">
                         {filteredItems.length}
                     </span>
@@ -99,7 +99,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
         {/* Filters Section */}
         <div className="mb-6 bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200 p-4">
             <div className="flex items-center gap-2 mb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <Filter className="w-4 h-4" /> Filter Notifikasi
+                <Filter className="w-4 h-4" /> Filter Follow Up
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Filter CO */}

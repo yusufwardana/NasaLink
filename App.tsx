@@ -9,7 +9,7 @@ import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2 } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X } from 'lucide-react';
 
 // Fallback templates updated to reflect NEW logic (Refinancing focus)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -46,6 +46,10 @@ const App: React.FC = () => {
   
   // State: Pagination / Lazy Load
   const [visibleCount, setVisibleCount] = useState(50); // Hanya tampilkan 50 awal
+
+  // State: PWA Install
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
   
   // Derived State for UI Feedback
   const isFiltering = searchTerm !== debouncedSearchTerm;
@@ -62,6 +66,44 @@ const App: React.FC = () => {
   useEffect(() => {
       setVisibleCount(50);
   }, [debouncedSearchTerm, selectedSentra, selectedCo]);
+
+  // --- 0.1 PWA Install Prompt Listener ---
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      // Update UI notify the user they can install the PWA
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    
+    // Show the install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+      setShowInstallBanner(false);
+    } else {
+      console.log('User dismissed the install prompt');
+    }
+    
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+  };
 
 
   // --- 1. Load Data on Mount ---
@@ -346,7 +388,7 @@ const App: React.FC = () => {
                     <div className="relative">
                         <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
                             <Bell className="w-5 h-5 mb-0.5" />
-                            <span className="text-[10px] font-medium">Notifikasi</span>
+                            <span className="text-[10px] font-medium">Follow Up</span>
                         </button>
                         {upcomingEvents.length > 0 && (
                             <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
@@ -364,7 +406,39 @@ const App: React.FC = () => {
 
   // 2. Home View
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
+      
+      {/* PWA INSTALL BANNER */}
+      {showInstallBanner && (
+        <div className="bg-orange-600 text-white p-3 shadow-md relative z-50 animate-fade-in-up">
+            <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-lg">
+                        <Download className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-sm">Install B-Connect CRM</p>
+                        <p className="text-xs text-orange-100">Lebih cepat & hemat kuota</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handleInstallClick}
+                        className="px-3 py-1.5 bg-white text-orange-700 rounded-lg text-xs font-bold shadow-sm hover:bg-orange-50 transition-colors"
+                    >
+                        Install
+                    </button>
+                    <button 
+                        onClick={() => setShowInstallBanner(false)}
+                        className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                    >
+                        <X className="w-5 h-5 text-white/80" />
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* HEADER: Hidden on Mobile if scrolled, mostly static for simplicity */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
@@ -507,81 +581,58 @@ const App: React.FC = () => {
                         onEditClick={setContactToEdit}
                         onGenerateClick={(c) => {
                             setSelectedContact(c);
-                            setInitialTemplateId(undefined);
+                            setInitialTemplateId(undefined); // Reset specific template
                         }}
                     />
                     ))}
-                    
-                    {/* Load More Trigger */}
-                    {visibleContacts.length < filteredContacts.length && (
+
+                    {/* Pagination Button */}
+                    {visibleCount < filteredContacts.length && (
                         <div className="flex justify-center pt-4 pb-12">
-                            <Button variant="secondary" onClick={() => setVisibleCount(p => p + 50)}>
-                                Tampilkan Lebih Banyak ({filteredContacts.length - visibleContacts.length})
+                            <Button 
+                                variant="secondary" 
+                                onClick={() => setVisibleCount(prev => prev + 50)}
+                                className="w-full shadow-sm"
+                                icon={<ChevronDown className="w-4 h-4" />}
+                            >
+                                Tampilkan Lebih Banyak ({filteredContacts.length - visibleCount})
                             </Button>
                         </div>
                     )}
-
-                    <p className="text-center text-xs text-slate-300 py-4">
-                        Menampilkan {visibleContacts.length} dari {filteredContacts.length} hasil
-                    </p>
                 </div>
             ) : (
-                // Empty State
-                <div className="text-center py-20 px-4">
-                    {!debouncedSearchTerm && !selectedSentra && !selectedCo ? (
-                         <div className="opacity-60">
-                             <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-orange-100">
-                                <Search className="w-8 h-8 text-orange-300" />
-                             </div>
-                             <p className="font-bold text-slate-400">Siapa yang ingin dicari?</p>
-                             <p className="text-xs text-slate-400 mt-1">Ketik nama atau pilih sentra di atas</p>
-                         </div>
+                // Empty State with Filters
+                <div className="text-center py-20 bg-white/50 backdrop-blur-sm rounded-3xl border border-dashed border-slate-200">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Users className="w-8 h-8 text-slate-300" />
+                    </div>
+                    {debouncedSearchTerm || selectedSentra || selectedCo ? (
+                         <>
+                            <h3 className="text-lg font-bold text-slate-600">Tidak ada nasabah ditemukan</h3>
+                            <p className="text-slate-400 text-sm">Coba sesuaikan filter pencarian Anda.</p>
+                         </>
                     ) : (
-                        <div className="opacity-80">
-                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                                <Users className="w-8 h-8 text-slate-300" />
-                             </div>
-                             <p className="font-bold text-slate-600">Tidak ada nasabah ditemukan</p>
-                             <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau reset filter</p>
-                             <div className="mt-4">
-                                <Button variant="outline" size="sm" onClick={handleSyncSheet} icon={<RefreshCw className="w-3 h-3"/>}>
-                                    Coba Sinkron Ulang
-                                </Button>
-                             </div>
-                        </div>
+                         <>
+                            <h3 className="text-lg font-bold text-slate-600">Siap Mencari?</h3>
+                            <p className="text-slate-400 text-sm max-w-xs mx-auto">
+                                Ketik nama, pilih Sentra, atau pilih CO di atas untuk menampilkan data nasabah.
+                            </p>
+                         </>
                     )}
+                     <div className="mt-6">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleSyncSheet}
+                            icon={<RefreshCw className="w-3.5 h-3.5" />}
+                        >
+                            Coba Sinkron Ulang
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
-
       </main>
-
-      {/* FOOTER NAVIGATION */}
-      <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
-          <div className="flex justify-around items-center p-2 max-w-md mx-auto">
-              <button onClick={() => { setActiveView('home'); setSearchTerm(''); setSelectedSentra(''); setSelectedCo(''); }} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
-                  <Home className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-medium">Beranda</span>
-              </button>
-              <button onClick={handleSyncSheet} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                  <RefreshCw className={`w-5 h-5 mb-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span className="text-[10px] font-medium">Sinkron</span>
-              </button>
-              <div className="relative">
-                  <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                      <Bell className="w-5 h-5 mb-0.5" />
-                      <span className="text-[10px] font-medium">Notifikasi</span>
-                  </button>
-                  {upcomingEvents.length > 0 && (
-                      <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                  )}
-              </div>
-              <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                  <Settings className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-medium">Setting</span>
-              </button>
-          </div>
-      </div>
 
       {/* Modals */}
       {selectedContact && (
@@ -591,44 +642,56 @@ const App: React.FC = () => {
           onClose={() => setSelectedContact(null)}
           templates={templates}
           initialTemplateId={initialTemplateId}
-          apiKey={activeConfig?.geminiApiKey} // Pass API Key correctly
+          apiKey={activeConfig?.geminiApiKey}
         />
       )}
 
-      {contactToEdit && (
-        <EditContactModal
-          contact={contactToEdit}
-          isOpen={!!contactToEdit}
-          onClose={() => setContactToEdit(null)}
-          onSave={handleUpdateContact}
-          onDelete={handleDeleteContact}
-          sheetConfig={activeConfig}
-        />
-      )}
+      <EditContactModal
+        contact={contactToEdit}
+        isOpen={!!contactToEdit}
+        onClose={() => setContactToEdit(null)}
+        onSave={handleUpdateContact}
+        onDelete={handleDeleteContact}
+        sheetConfig={activeConfig}
+      />
 
-      {isAdminModalOpen && (
-        <AdminModal
-          isOpen={isAdminModalOpen}
-          onClose={() => setIsAdminModalOpen(false)}
-          templates={templates}
-          onUpdateTemplates={setTemplates}
-          onResetData={() => {
-              setContacts([]);
-              loadData();
-          }}
-          onTestTemplate={(id) => {
-              // Create mock contact for testing cek
-              const mockContact: Contact = {
-                  id: 'test', name: 'Ibu Ratna (Contoh)', phone: '081234567890', flag: 'Active', sentra: 'Mawar Indah', co: 'Budi Santoso', plafon: '5.000.000', tglJatuhTempo: '25/12/2025'
-              };
-              setInitialTemplateId(id);
-              setSelectedContact(mockContact);
-          }}
-          onBulkUpdateMode={(mode) => {
-              setTemplates(prev => prev.map(t => ({...t, type: mode})));
-          }}
-        />
-      )}
+      <AdminModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        templates={templates}
+        onUpdateTemplates={setTemplates}
+        onResetData={async () => {
+             await loadData();
+             setIsAdminModalOpen(false);
+        }}
+      />
+
+       {/* Bottom Navigation */}
+        <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
+            <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+                <button onClick={() => setActiveView('home')} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
+                    <Home className="w-5 h-5 mb-0.5" />
+                    <span className="text-[10px] font-medium">Beranda</span>
+                </button>
+                <button onClick={handleSyncSheet} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                    <RefreshCw className={`w-5 h-5 mb-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span className="text-[10px] font-medium">Sinkron</span>
+                </button>
+                <div className="relative">
+                    <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                        <Bell className="w-5 h-5 mb-0.5" />
+                        <span className="text-[10px] font-medium">Follow Up</span>
+                    </button>
+                    {upcomingEvents.length > 0 && (
+                        <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    )}
+                </div>
+                <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                    <Settings className="w-5 h-5 mb-0.5" />
+                    <span className="text-[10px] font-medium">Setting</span>
+                </button>
+            </div>
+        </div>
     </div>
   );
 };
