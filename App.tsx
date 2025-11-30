@@ -19,7 +19,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   { id: '3', label: 'Undangan (Manual)', type: 'manual', content: 'Assalamualaikum Ibu {name}, besok ada kunjungan dari pusat di sentra {sentra}. Diharapkan kehadirannya ya Bu. Terima kasih.', icon: '📩' },
   { id: '4', label: 'Penawaran Modal', type: 'ai', promptContext: 'Tawarkan penambahan modal usaha untuk nasabah dengan rekam jejak baik. Fokus pada pengembangan usaha Ibu.', icon: '📈' },
   { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
-  { id: '6', label: 'Penagihan Menunggak (CTX)', type: 'ai', promptContext: 'Buat pesan penagihan yang tegas namun tetap sopan dan profesional untuk nasabah yang menunggak angsuran (CTX). Ingatkan kewajiban dan konsekuensi jika tidak segera membayar. Ajak untuk segera menyelesaikan tunggakan.', icon: '⚠️' },
+  { id: '6', label: 'Penagihan Menunggak (CTX)', type: 'ai', promptContext: 'Buat pesan penagihan yang tegas dan profesional untuk nasabah menunggak (CTX). Tekankan urgensi pembayaran SEGERA hari ini. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk). Minta nasabah segera konfirmasi pembayaran.', icon: '⚠️' },
 ];
 
 type AppView = 'home' | 'notifications' | 'broadcast' | 'settings';
