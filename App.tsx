@@ -422,6 +422,7 @@ const App: React.FC = () => {
                 contacts={contacts}
                 templates={templates}
                 onBack={() => setActiveView('home')}
+                apiKey={activeConfig?.geminiApiKey}
               />
               {renderBottomNav()}
           </div>

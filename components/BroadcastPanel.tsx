@@ -1,22 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import { Contact, MessageTemplate } from '../types';
-import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, Filter, Copy, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, Filter, Copy, ChevronDown, Loader2, Wand2 } from 'lucide-react';
 import { Button } from './Button';
+import { generateWhatsAppMessage } from '../services/geminiService';
 
 interface BroadcastPanelProps {
   contacts: Contact[];
   templates: MessageTemplate[];
   onBack: () => void;
+  apiKey?: string;
 }
 
 export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   contacts,
   templates,
-  onBack
+  onBack,
+  apiKey
 }) => {
   const [selectedSentra, setSelectedSentra] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
 
   // Extract Sentras
   const uniqueSentras = useMemo(() => {
@@ -30,39 +34,62 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
     return contacts.filter(c => (c.sentra || 'Unknown') === selectedSentra);
   }, [contacts, selectedSentra]);
 
-  // Generate Message Logic
-  const generateMessage = (contact: Contact) => {
-    if (!selectedTemplate) return '';
-    
-    // Simple generator logic (Manual/Template only for speed, AI is too slow for bulk)
-    let text = selectedTemplate.content || selectedTemplate.promptContext || '';
-    
-    // Replace variables
-    text = text.replace(/{name}/g, contact.name);
-    text = text.replace(/{sentra}/g, contact.sentra || '');
-    text = text.replace(/{flag}/g, contact.flag);
-    text = text.replace(/{phone}/g, contact.phone);
-    text = text.replace(/{co}/g, contact.co || '');
-    text = text.replace(/{plafon}/g, contact.plafon || '');
-    text = text.replace(/{tgl_jatuh_tempo}/g, contact.tglJatuhTempo || '');
-
-    return encodeURIComponent(text);
-  };
-
-  const handleSend = (contact: Contact) => {
+  const handleSend = async (contact: Contact) => {
     if (!selectedTemplate) {
         alert("Pilih template pesan terlebih dahulu");
         return;
     }
 
-    const message = generateMessage(contact);
+    let messageText = '';
+
+    // 1. GENERATE MESSAGE (Manual vs AI)
+    if (selectedTemplate.type === 'manual') {
+        let text = selectedTemplate.content || '';
+        // Replace variables
+        text = text.replace(/{name}/g, contact.name);
+        text = text.replace(/{sentra}/g, contact.sentra || 'Sentra');
+        text = text.replace(/{flag}/g, contact.flag);
+        text = text.replace(/{segment}/g, contact.flag);
+        text = text.replace(/{phone}/g, contact.phone);
+        text = text.replace(/{co}/g, contact.co || 'Petugas');
+        text = text.replace(/{plafon}/g, contact.plafon || '');
+        text = text.replace(/{tgl_jatuh_tempo}/g, contact.tglJatuhTempo || '');
+        text = text.replace(/{tgl_prs}/g, contact.tglPrs || '');
+        messageText = text;
+    } else {
+        // AI Logic
+        setGeneratingId(contact.id);
+        try {
+            // Enrich Context
+            let extendedContext = selectedTemplate.promptContext || 'Sapaan ramah';
+            if (contact.tglPrs) {
+                extendedContext += `\n[Info Tambahan]: Tanggal PRS/Kumpulan nasabah adalah ${contact.tglPrs}.`;
+            }
+
+            const generated = await generateWhatsAppMessage(
+                contact, 
+                extendedContext, 
+                'friendly', 
+                apiKey
+            );
+            messageText = generated;
+        } catch (e) {
+            console.error("AI Error:", e);
+            alert("Gagal membuat pesan AI. Cek koneksi atau API Key.");
+            setGeneratingId(null);
+            return;
+        }
+        setGeneratingId(null);
+    }
+
+    // 2. OPEN WHATSAPP
+    const encodedMessage = encodeURIComponent(messageText);
     const cleanPhone = contact.phone.replace(/\D/g, '');
     const finalPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.substring(1) : cleanPhone;
 
-    // Open WhatsApp
-    window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
+    window.open(`https://wa.me/${finalPhone}?text=${encodedMessage}`, '_blank');
 
-    // Mark as sent
+    // 3. MARK AS SENT
     setSentStatus(prev => ({ ...prev, [contact.id]: true }));
   };
 
@@ -83,10 +110,10 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 Siaran Sentra
                 <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full border border-orange-200">
-                    BETA
+                    AI SUPPORT
                 </span>
             </h2>
-            <p className="text-sm text-slate-500">Kirim pesan massal (satu per satu) ke anggota sentra.</p>
+            <p className="text-sm text-slate-500">Kirim pesan massal personalisasi (AI/Manual).</p>
         </div>
       </div>
 
@@ -120,23 +147,30 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                 <MessageSquare className="w-3.5 h-3.5" /> Pilih Template Pesan
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
-                {templates.filter(t => t.type === 'manual').length === 0 && (
+                {templates.length === 0 && (
                     <div className="p-3 text-center text-xs text-slate-400 border border-dashed rounded-lg col-span-2">
-                        Tidak ada template manual. Buat template tipe 'MANUAL' di menu Setting.
+                        Belum ada template. Buat di menu Setting.
                     </div>
                 )}
-                {templates.filter(t => t.type === 'manual').map(t => (
+                {templates.map(t => (
                     <button
                         key={t.id}
                         onClick={() => setSelectedTemplate(t)}
                         className={`text-left p-3 rounded-xl border text-sm transition-all flex items-center gap-3 ${
                             selectedTemplate?.id === t.id 
-                            ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm ring-1 ring-orange-500' 
+                            ? (t.type === 'manual' 
+                                ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm ring-1 ring-purple-500' 
+                                : 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm ring-1 ring-orange-500')
                             : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
                         }`}
                     >
                         <span className="text-lg">{t.icon}</span>
-                        <span className="font-medium truncate">{t.label}</span>
+                        <div className="overflow-hidden">
+                             <div className="font-medium truncate">{t.label}</div>
+                             <div className={`text-[9px] uppercase font-bold tracking-wider ${t.type === 'manual' ? 'text-purple-400' : 'text-orange-400'}`}>
+                                 {t.type === 'manual' ? 'Manual Text' : 'AI Generator'}
+                             </div>
+                        </div>
                     </button>
                 ))}
             </div>
@@ -166,6 +200,8 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                   {targetContacts.map((contact, idx) => {
                       const isSent = sentStatus[contact.id];
+                      const isGenerating = generatingId === contact.id;
+                      
                       return (
                           <div 
                             key={contact.id} 
@@ -189,11 +225,18 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                                 size="sm"
                                 variant={isSent ? "outline" : "primary"}
                                 onClick={() => handleSend(contact)}
-                                disabled={!selectedTemplate}
+                                disabled={!selectedTemplate || isGenerating}
+                                isLoading={isGenerating}
                                 className={isSent ? 'border-green-200 text-green-600 bg-white' : 'shadow-orange-200'}
-                                icon={isSent ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                                icon={isSent 
+                                    ? <CheckCircle2 className="w-3.5 h-3.5" /> 
+                                    : (selectedTemplate?.type === 'ai' ? <Wand2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />)
+                                }
                               >
-                                  {isSent ? 'Terkirim' : 'Kirim WA'}
+                                  {isSent 
+                                    ? 'Terkirim' 
+                                    : (selectedTemplate?.type === 'ai' ? 'Generate & Kirim' : 'Kirim WA')
+                                  }
                               </Button>
                           </div>
                       );
