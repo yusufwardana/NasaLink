@@ -1,11 +1,11 @@
-const CACHE_NAME = 'b-connect-crm-v1';
+const CACHE_NAME = 'b-connect-crm-v2';
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json'
+  '/',
+  '/index.html',
+  '/manifest.json'
 ];
 
-// Install Service Worker
+// Install Service Workers
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -32,19 +32,16 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch Strategy: Network First, falling back to Cache
-// We use Network First because this is a CRM with Live Data (Google Sheets).
-// We don't want to show stale customer data.
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests (like Google Sheets API, Gemini, Supabase) from caching logic
-  // to avoid opaque response issues, let browser handle HTTP cache for those.
+  // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
+  // Handle API/dynamic requests usually via network first
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Return response and add to cache
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
@@ -55,8 +52,15 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // If offline, try to serve from cache
-        return caches.match(event.request);
+        return caches.match(event.request)
+          .then((response) => {
+             // If cache hit, return it
+             if (response) return response;
+             // If not found in cache and network fails, try serving index.html (SPA Fallback)
+             if (event.request.mode === 'navigate') {
+                 return caches.match('/index.html');
+             }
+          });
       })
   );
 });

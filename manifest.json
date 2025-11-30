@@ -1,7 +1,7 @@
 {
   "name": "B-Connect CRM",
   "short_name": "B-Connect",
-  "start_url": "./",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#fff7ed",
   "theme_color": "#f97316",
