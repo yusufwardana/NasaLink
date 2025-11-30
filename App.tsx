@@ -75,8 +75,13 @@ const App: React.FC = () => {
       e.preventDefault();
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
-      setShowInstallBanner(true);
+      
+      // Check if not already in standalone mode (redundant usually, but safe)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      if (!isStandalone) {
+          // Update UI notify the user they can install the PWA
+          setShowInstallBanner(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
