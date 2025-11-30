@@ -77,8 +77,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
   return (
     <div className="max-w-4xl mx-auto px-4 pb-24 animate-fade-in-up">
         
-        {/* Page Header */}
-        <div className="flex items-center gap-4 mb-6 pt-2">
+        {/* Page Header - Fixed */}
+        <div className="sticky top-0 z-40 -mx-4 px-4 py-4 mb-6 bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm flex items-center gap-4">
             <button 
                 onClick={onBack}
                 className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
