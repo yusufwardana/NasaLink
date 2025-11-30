@@ -5,11 +5,12 @@ import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
+import { BroadcastPanel } from './components/BroadcastPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio } from 'lucide-react';
 
 // Fallback templates updated to reflect NEW logic (Refinancing focus)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -20,7 +21,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
 ];
 
-type AppView = 'home' | 'notifications';
+type AppView = 'home' | 'notifications' | 'broadcast';
 
 const App: React.FC = () => {
   // State: Data
@@ -345,6 +346,35 @@ const App: React.FC = () => {
       }
   };
 
+  // --- Render Navigation ---
+  const renderBottomNav = () => (
+    <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
+        <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+            <button onClick={() => setActiveView('home')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'home' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+                <Home className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-medium">Beranda</span>
+            </button>
+            <div className="relative">
+                <button onClick={() => setActiveView('notifications')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'notifications' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+                    <Bell className="w-5 h-5 mb-0.5" />
+                    <span className="text-[10px] font-medium">Follow Up</span>
+                </button>
+                {upcomingEvents.length > 0 && (
+                    <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                )}
+            </div>
+            <button onClick={() => setActiveView('broadcast')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'broadcast' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+                <Radio className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-medium">Siaran</span>
+            </button>
+            <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+                <Settings className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-medium">Setting</span>
+            </button>
+        </div>
+    </div>
+  );
+
 
   // --- Render Helpers ---
 
@@ -374,37 +404,26 @@ const App: React.FC = () => {
                     apiKey={activeConfig?.geminiApiKey}
                 />
             )}
-             {/* Bottom Nav */}
-            <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
-                <div className="flex justify-around items-center p-2 max-w-md mx-auto">
-                    <button onClick={() => setActiveView('home')} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                        <Home className="w-5 h-5 mb-0.5" />
-                        <span className="text-[10px] font-medium">Beranda</span>
-                    </button>
-                    <button onClick={handleSyncSheet} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                        <RefreshCw className={`w-5 h-5 mb-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                        <span className="text-[10px] font-medium">Sinkron</span>
-                    </button>
-                    <div className="relative">
-                        <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
-                            <Bell className="w-5 h-5 mb-0.5" />
-                            <span className="text-[10px] font-medium">Follow Up</span>
-                        </button>
-                        {upcomingEvents.length > 0 && (
-                            <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                        )}
-                    </div>
-                    <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                        <Settings className="w-5 h-5 mb-0.5" />
-                        <span className="text-[10px] font-medium">Setting</span>
-                    </button>
-                </div>
-            </div>
+            {renderBottomNav()}
         </div>
       );
   }
 
-  // 2. Home View
+  // 2. Broadcast View
+  if (activeView === 'broadcast') {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
+              <BroadcastPanel 
+                contacts={contacts}
+                templates={templates}
+                onBack={() => setActiveView('home')}
+              />
+              {renderBottomNav()}
+          </div>
+      );
+  }
+
+  // 3. Home View
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
       
@@ -439,7 +458,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* HEADER: Hidden on Mobile if scrolled, mostly static for simplicity */}
+      {/* HEADER */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -455,14 +474,15 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1.5 ${
-                activeConfig?.spreadsheetId 
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                : 'bg-red-50 text-red-600 border-red-200'
-            }`}>
-                 <span className={`w-1.5 h-1.5 rounded-full ${activeConfig?.spreadsheetId ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                 {activeConfig?.spreadsheetId ? 'ONLINE' : 'OFFLINE'}
-            </div>
+             <Button 
+                onClick={handleSyncSheet}
+                size="sm"
+                variant="outline"
+                className="h-8 border-orange-200 text-orange-600 hover:bg-orange-50"
+                icon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}
+            >
+                {isSyncing ? 'Syncing' : 'Sync'}
+            </Button>
           </div>
         </div>
       </header>
@@ -666,32 +686,7 @@ const App: React.FC = () => {
         }}
       />
 
-       {/* Bottom Navigation */}
-        <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
-            <div className="flex justify-around items-center p-2 max-w-md mx-auto">
-                <button onClick={() => setActiveView('home')} className="flex flex-col items-center p-2 text-orange-600 bg-orange-50 rounded-xl transition-colors">
-                    <Home className="w-5 h-5 mb-0.5" />
-                    <span className="text-[10px] font-medium">Beranda</span>
-                </button>
-                <button onClick={handleSyncSheet} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                    <RefreshCw className={`w-5 h-5 mb-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                    <span className="text-[10px] font-medium">Sinkron</span>
-                </button>
-                <div className="relative">
-                    <button onClick={() => setActiveView('notifications')} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                        <Bell className="w-5 h-5 mb-0.5" />
-                        <span className="text-[10px] font-medium">Follow Up</span>
-                    </button>
-                    {upcomingEvents.length > 0 && (
-                        <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                    )}
-                </div>
-                <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
-                    <Settings className="w-5 h-5 mb-0.5" />
-                    <span className="text-[10px] font-medium">Setting</span>
-                </button>
-            </div>
-        </div>
+      {renderBottomNav()}
     </div>
   );
 };
