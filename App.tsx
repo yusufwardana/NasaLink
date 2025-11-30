@@ -12,13 +12,14 @@ import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfig
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio } from 'lucide-react';
 
-// Fallback templates updated to reflect NEW logic (Refinancing focus)
+// Fallback templates updated to reflect NEW logic (Refinancing focus) + CTX
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   { id: '1', label: 'Pengingat PRS', type: 'ai', promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Sampaikan pentingnya kehadiran untuk tepat waktu.', icon: '👥' },
   { id: '2', label: 'Tawaran Lanjut (Cair)', type: 'ai', promptContext: 'Ucapkan selamat karena angsuran nasabah akan segera lunas (Jatuh Tempo). Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' },
   { id: '3', label: 'Undangan (Manual)', type: 'manual', content: 'Assalamualaikum Ibu {name}, besok ada kunjungan dari pusat di sentra {sentra}. Diharapkan kehadirannya ya Bu. Terima kasih.', icon: '📩' },
   { id: '4', label: 'Penawaran Modal', type: 'ai', promptContext: 'Tawarkan penambahan modal usaha untuk nasabah dengan rekam jejak baik. Fokus pada pengembangan usaha Ibu.', icon: '📈' },
   { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
+  { id: '6', label: 'Penagihan Menunggak (CTX)', type: 'ai', promptContext: 'Buat pesan penagihan yang tegas namun tetap sopan dan profesional untuk nasabah yang menunggak angsuran (CTX). Ingatkan kewajiban dan konsekuensi jika tidak segera membayar. Ajak untuk segera menyelesaikan tunggakan.', icon: '⚠️' },
 ];
 
 type AppView = 'home' | 'notifications' | 'broadcast' | 'settings';
