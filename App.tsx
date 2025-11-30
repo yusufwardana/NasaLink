@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Contact, MessageTemplate, SheetConfig } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
@@ -10,7 +10,7 @@ import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, RefreshCw, Bell, Briefcase, MapPin, HeartHandshake, ChevronDown, AlertTriangle, Home, Loader2, Download, X, Radio } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio } from 'lucide-react';
 
 // Fallback templates updated to reflect NEW logic (Refinancing focus)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -466,27 +466,65 @@ const App: React.FC = () => {
       </header>
 
       {/* HERO SECTION */}
-      <div className="bg-gradient-to-b from-white to-orange-50 border-b border-orange-100">
-          <div className="max-w-4xl mx-auto px-6 py-8">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                  Assalamualaikum, <span className="text-orange-600">Pejuang Syariah</span>
-              </h2>
-              <p className="text-slate-500 text-sm leading-relaxed mb-6 max-w-lg">
-                  Kelola data nasabah sentra dengan mudah. Gunakan filter di bawah untuk menemukan nasabah dan kirim pesan personalisasi.
-              </p>
+      <div className="bg-gradient-to-b from-white to-orange-50/80 border-b border-orange-100 relative overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-orange-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+
+          <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
+              <div className="mb-6">
+                <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest rounded-full mb-3 border border-orange-200">
+                    BTPN Syariah Digital Tool
+                </span>
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-3 leading-tight">
+                    Bangun Interaksi, <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
+                        Tumbuh Bersama.
+                    </span>
+                </h2>
+                <p className="text-slate-600 text-sm leading-relaxed max-w-lg mb-4">
+                    B-Connect CRM membantu Community Officer mengelola data nasabah sentra, memantau jadwal jatuh tempo, dan mengirim pesan personalisasi berbasis AI dalam satu genggaman.
+                </p>
+              </div>
               
+              {/* Feature Highlights (Mini Chips) */}
+              <div className="flex flex-wrap gap-2 mb-8">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
+                      <Users className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-xs font-semibold text-slate-600">Data Sentra</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-xs font-semibold text-slate-600">AI Messaging</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
+                      <Bell className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-xs font-semibold text-slate-600">Smart Alert</span>
+                  </div>
+              </div>
+
+              {/* Stats Cards */}
               <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Nasabah</p>
-                      <p className="text-xl font-bold text-slate-800">{contacts.length}</p>
+                  <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
+                      <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <Users className="w-12 h-12 text-orange-600" />
+                      </div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Nasabah</p>
+                      <p className="text-2xl font-black text-slate-800 relative z-10">{contacts.length}</p>
                   </div>
-                   <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Sentra</p>
-                      <p className="text-xl font-bold text-slate-800">{uniqueSentras.length}</p>
+                   <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
+                      <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <MapPin className="w-12 h-12 text-orange-600" />
+                      </div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Sentra</p>
+                      <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueSentras.length}</p>
                   </div>
-                   <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total CO</p>
-                      <p className="text-xl font-bold text-slate-800">{uniqueCos.length}</p>
+                   <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
+                      <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <Briefcase className="w-12 h-12 text-orange-600" />
+                      </div>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total CO</p>
+                      <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueCos.length}</p>
                   </div>
               </div>
           </div>
