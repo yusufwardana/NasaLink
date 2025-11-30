@@ -3,7 +3,7 @@ import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Lock, Code, Globe, Loader2, Server, Key } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -53,10 +53,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-      if (isOpen && activeTab === 'templates' && templates.length > 0 && !selectedTemplateId) {
-          handleSelectTemplate(templates[0]);
-      }
-  }, [isOpen, activeTab, templates]);
+      // Auto-select first template on desktop only, or logic adjustment
+      // For mobile, we want list view first.
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -128,12 +127,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       
       onUpdateTemplates(remaining);
       
-      if (remaining.length > 0) {
-          handleSelectTemplate(remaining[0]);
-      } else {
-          setSelectedTemplateId(null);
-          setEditForm({});
-      }
+      // Reset view
+      setSelectedTemplateId(null);
+      setEditForm({});
 
       if (isSupabaseConfigured()) {
         setIsSavingTemplates(true);
@@ -207,90 +203,206 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500"></div>
-
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white/50 shrink-0">
-          <div className="flex items-center gap-3">
-             <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-2 rounded-lg text-white shadow-md">
-                <Database className="w-5 h-5" />
-             </div>
+    <div className="min-h-screen bg-slate-50 pb-24 animate-fade-in-up">
+      {/* Page Header */}
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-4 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+             <button 
+                onClick={onClose}
+                className="p-2 rounded-xl bg-white/50 hover:bg-slate-100 text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
              <div>
-                 <h2 className="text-lg font-bold text-slate-800 leading-none">Supabase Admin</h2>
+                 <h2 className="text-lg font-bold text-slate-800 leading-none flex items-center gap-2">
+                    <Database className="w-5 h-5 text-slate-400" />
+                    Pengaturan Admin
+                 </h2>
                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                      {isSavingTemplates ? (
                          <span className="text-orange-600 animate-pulse font-bold flex items-center gap-1">
                              <Loader2 className="w-3 h-3 animate-spin" />
-                             Menyimpan ke Supabase...
+                             Menyimpan...
                          </span>
                      ) : isSupabaseConfigured() ? (
                          <span className="text-green-600 flex items-center gap-1">
                              <Check className="w-3 h-3" />
-                             Connected to Supabase
+                             Online (Supabase)
                          </span>
                      ) : (
                          <span className="text-red-500 flex items-center gap-1">
                              <AlertTriangle className="w-3 h-3" />
-                             Supabase Not Configured
+                             Offline Mode
                          </span>
                      )}
                  </p>
              </div>
-          </div>
-          <button onClick={onClose} disabled={isSavingTemplates} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors disabled:opacity-50">
-            <X className="w-5 h-5" />
-          </button>
         </div>
+      </div>
 
-        <div className="flex border-b border-slate-200 bg-slate-50/50 shrink-0">
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b border-slate-200 px-4 sticky top-[73px] z-30 shadow-sm">
+        <div className="flex">
             <button 
                 onClick={() => setActiveTab('templates')}
-                className={`px-6 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-all ${activeTab === 'templates' ? 'border-orange-500 text-orange-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'templates' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-400'}`}
             >
-                <LayoutTemplate className="w-4 h-4" /> Template Pesan
+                <LayoutTemplate className="w-4 h-4" /> Template
             </button>
             <button 
                 onClick={() => setActiveTab('settings')}
-                className={`px-6 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-all ${activeTab === 'settings' ? 'border-amber-500 text-amber-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'}`}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'settings' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-400'}`}
             >
-                <Database className="w-4 h-4" /> Data & Config
+                <Database className="w-4 h-4" /> Config
             </button>
         </div>
+      </div>
 
-        <div className="flex-1 overflow-hidden relative bg-slate-50/30">
-            {activeTab === 'templates' && (
-                <div className="flex h-full flex-col sm:flex-row">
-                    <div className="w-full sm:w-1/3 border-r border-slate-200 bg-white/50 flex flex-col h-full">
-                        <div className="p-3 border-b border-slate-100 bg-white">
-                            <Button 
-                                onClick={handleStartAdd} 
-                                variant="outline" 
-                                disabled={isSavingTemplates}
-                                className="w-full justify-start text-xs border-dashed border-slate-300 hover:border-orange-400 hover:text-orange-600" 
-                                icon={<Plus className="w-3.5 h-3.5" />}
-                            >
-                                Buat Template Baru
-                            </Button>
+      {/* Content Area */}
+      <div className="max-w-4xl mx-auto p-4">
+        {activeTab === 'templates' && (
+            <div className="space-y-4">
+                {/* Mobile Master-Detail Logic: If selectedTemplateId is set, show Form, else Show List */}
+                {selectedTemplateId ? (
+                    // --- FORM EDIT TEMPLATE ---
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-fade-in-up">
+                        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-slate-100">
+                             <button onClick={() => setSelectedTemplateId(null)} className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
+                                 <ArrowLeft className="w-5 h-5" />
+                             </button>
+                             <h3 className="font-bold text-slate-700">Edit Template</h3>
                         </div>
-                        
-                        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+
+                        <div className="space-y-6">
+                            <div className="flex gap-4">
+                                <div className="w-16">
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase text-center">Icon</label>
+                                    <input 
+                                        type="text" 
+                                        disabled={isSavingTemplates}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-orange-500/50 outline-none"
+                                        value={editForm.icon || ''}
+                                        onChange={e => setEditForm({...editForm, icon: e.target.value})}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Judul Template</label>
+                                    <input 
+                                        type="text" 
+                                        disabled={isSavingTemplates}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-orange-500/50 outline-none font-bold text-slate-800"
+                                        value={editForm.label || ''}
+                                        onChange={e => setEditForm({...editForm, label: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 p-1 rounded-xl flex border border-slate-200">
+                                <button 
+                                    onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))}
+                                    disabled={isSavingTemplates}
+                                    className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                                        editForm.type === 'ai' 
+                                        ? 'bg-orange-600 text-white shadow-md' 
+                                        : 'text-slate-400'
+                                    }`}
+                                >
+                                    <Bot className="w-4 h-4" /> AI Generator
+                                </button>
+                                <button 
+                                    onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))}
+                                    disabled={isSavingTemplates}
+                                    className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                                        editForm.type === 'manual' 
+                                        ? 'bg-purple-600 text-white shadow-md' 
+                                        : 'text-slate-400'
+                                    }`}
+                                >
+                                    <Type className="w-4 h-4" /> Manual Text
+                                </button>
+                            </div>
+
+                            {editForm.type === 'ai' ? (
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                                        <Wand2 className="w-3 h-3" /> Instruksi untuk AI
+                                    </label>
+                                    <textarea 
+                                        className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 text-sm leading-relaxed"
+                                        value={editForm.promptContext || ''}
+                                        onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
+                                        placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan..."
+                                    />
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2">
+                                        <Type className="w-3 h-3" /> Isi Pesan Baku
+                                    </label>
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {[{ label: '+ Nama', code: '{name}' }, { label: '+ Sentra', code: '{sentra}' }, { label: '+ HP', code: '{phone}' }].map((chip) => (
+                                            <button
+                                                key={chip.code}
+                                                onClick={() => handleInsertVariable(chip.code)}
+                                                className="px-2 py-1 bg-purple-50 border border-purple-200 rounded text-[10px] font-bold text-purple-600"
+                                            >
+                                                {chip.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <textarea 
+                                        ref={textAreaRef}
+                                        className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed"
+                                        value={editForm.content || ''}
+                                        onChange={e => setEditForm({...editForm, content: e.target.value})}
+                                        placeholder="Assalamualaikum..."
+                                    />
+                                    {renderManualPreview()}
+                                </div>
+                            )}
+
+                            <div className="pt-6 border-t border-slate-100 flex gap-3">
+                                <button 
+                                    onClick={handleDeleteCurrent}
+                                    className="p-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                                <Button 
+                                    className="flex-1 shadow-lg shadow-orange-500/20"
+                                    onClick={handleSaveCurrent}
+                                    isLoading={isSavingTemplates}
+                                    icon={<Save className="w-4 h-4" />}
+                                >
+                                    Simpan Template
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    // --- LIST TEMPLATE ---
+                    <>
+                        <Button 
+                            onClick={handleStartAdd} 
+                            variant="outline" 
+                            className="w-full justify-center text-sm border-dashed border-slate-300 hover:border-orange-400 hover:text-orange-600 py-3 mb-4 bg-white" 
+                            icon={<Plus className="w-4 h-4" />}
+                        >
+                            Buat Template Baru
+                        </Button>
+
+                        <div className="space-y-3">
                             {templates.map(t => (
                                 <button
                                     key={t.id}
                                     onClick={() => handleSelectTemplate(t)}
-                                    disabled={isSavingTemplates}
-                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-center justify-between group disabled:opacity-50 ${
-                                        selectedTemplateId === t.id 
-                                        ? 'bg-orange-50 border-orange-200 shadow-sm' 
-                                        : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'
-                                    }`}
+                                    className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-between group active:scale-95 transition-all"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-xl opacity-80">{t.icon}</span>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-2xl w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg">{t.icon}</span>
                                         <div>
-                                            <div className="font-semibold text-sm text-slate-800">{t.label}</div>
-                                            <div className="flex items-center gap-2 mt-0.5">
+                                            <div className="font-bold text-slate-800 text-sm">{t.label}</div>
+                                            <div className="flex items-center gap-2 mt-1">
                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wide ${
                                                     t.type === 'manual' ? 'text-purple-600 bg-purple-100' : 'text-orange-600 bg-orange-100'
                                                 }`}>
@@ -299,284 +411,97 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                             </div>
                                         </div>
                                     </div>
-                                    <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform ${selectedTemplateId === t.id ? 'text-orange-500 translate-x-1' : ''}`} />
+                                    <ChevronRight className="w-5 h-5 text-slate-300" />
                                 </button>
                             ))}
                         </div>
-                        
-                        <div className="p-3 border-t border-slate-200 bg-slate-100/50">
-                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1">
-                                <Layers className="w-3 h-3" /> Global Actions
-                            </div>
-                            <div className="flex gap-2">
-                                <button disabled={isSavingTemplates} onClick={() => handleBulkMode('ai')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-orange-600 border border-slate-200 hover:border-orange-300 transition-colors shadow-sm disabled:opacity-50">
-                                    Set All AI
-                                </button>
-                                <button disabled={isSavingTemplates} onClick={() => handleBulkMode('manual')} className="flex-1 py-1.5 rounded bg-white text-[10px] text-slate-500 hover:text-purple-600 border border-slate-200 hover:border-purple-300 transition-colors shadow-sm disabled:opacity-50">
-                                    Set All Manual
-                                </button>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="w-full sm:w-2/3 bg-slate-50/50 flex flex-col h-full overflow-y-auto custom-scrollbar">
-                        {selectedTemplateId ? (
-                            <div className="p-6 max-w-2xl mx-auto w-full space-y-6">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex gap-4 w-full">
-                                        <div className="w-16">
-                                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase text-center">Icon</label>
-                                            <input 
-                                                type="text" 
-                                                disabled={isSavingTemplates}
-                                                className="w-full bg-white border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 transition-all hover:bg-slate-50 disabled:bg-slate-100"
-                                                value={editForm.icon || ''}
-                                                onChange={e => setEditForm({...editForm, icon: e.target.value})}
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Nama Kategori</label>
-                                            <input 
-                                                type="text" 
-                                                disabled={isSavingTemplates}
-                                                className="w-full bg-white border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 font-bold text-lg placeholder-slate-300 transition-all hover:bg-slate-50 disabled:bg-slate-100"
-                                                value={editForm.label || ''}
-                                                onChange={e => setEditForm({...editForm, label: e.target.value})}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-1 rounded-xl flex border border-slate-200 shadow-sm">
-                                    <button 
-                                        onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))}
-                                        disabled={isSavingTemplates}
-                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${
-                                            editForm.type === 'ai' 
-                                            ? 'bg-orange-600 text-white shadow-md' 
-                                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <Bot className="w-3.5 h-3.5" /> AI Generator
+                        {templates.length > 0 && (
+                             <div className="mt-8 p-4 bg-slate-100 rounded-xl border border-slate-200">
+                                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Bulk Actions</p>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleBulkMode('ai')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
+                                        Reset All to AI
                                     </button>
-                                    <button 
-                                        onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))}
-                                        disabled={isSavingTemplates}
-                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${
-                                            editForm.type === 'manual' 
-                                            ? 'bg-purple-600 text-white shadow-md' 
-                                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <Type className="w-3.5 h-3.5" /> Manual Text
+                                     <button onClick={() => handleBulkMode('manual')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
+                                        Reset All to Manual
                                     </button>
                                 </div>
-
-                                <div>
-                                    {editForm.type === 'ai' ? (
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-end">
-                                                <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
-                                                    <Wand2 className="w-3 h-3" /> Instruksi untuk AI
-                                                </label>
-                                            </div>
-                                            <textarea 
-                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 text-sm leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50 disabled:bg-slate-100"
-                                                value={editForm.promptContext || ''}
-                                                onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
-                                                disabled={isSavingTemplates}
-                                                placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan..."
-                                            />
-                                            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex gap-3">
-                                                <Info className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                                                <p className="text-xs text-orange-800">
-                                                    Perubahan akan disimpan di Database Supabase dan otomatis terupdate di semua perangkat.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                             <div className="flex justify-between items-end">
-                                                <label className="text-xs font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2">
-                                                    <Type className="w-3 h-3" /> Isi Pesan Baku
-                                                </label>
-                                            </div>
-                                            
-                                            <div className="flex flex-wrap gap-2 mb-2">
-                                                {[{ label: '+ Nama', code: '{name}' }, { label: '+ Sentra', code: '{sentra}' }, { label: '+ Flag', code: '{flag}' }, { label: '+ HP', code: '{phone}' }, { label: '+ CO', code: '{co}' }].map((chip) => (
-                                                    <button
-                                                        key={chip.code}
-                                                        onClick={() => handleInsertVariable(chip.code)}
-                                                        disabled={isSavingTemplates}
-                                                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-[10px] font-bold text-purple-600 uppercase tracking-wide disabled:opacity-50"
-                                                    >
-                                                        {chip.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            <textarea 
-                                                ref={textAreaRef}
-                                                className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed placeholder-slate-300 resize-none transition-all hover:bg-slate-50 disabled:bg-slate-100"
-                                                value={editForm.content || ''}
-                                                onChange={e => setEditForm({...editForm, content: e.target.value})}
-                                                disabled={isSavingTemplates}
-                                                placeholder="Assalamualaikum..."
-                                            />
-                                            {renderManualPreview()}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="pt-6 border-t border-slate-200 flex justify-between items-center">
-                                    <button 
-                                        onClick={handleDeleteCurrent}
-                                        disabled={isSavingTemplates}
-                                        className="px-4 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2 disabled:opacity-50"
-                                    >
-                                        <Trash2 className="w-4 h-4" /> Hapus Global
-                                    </button>
-                                    
-                                    <div className="flex gap-3">
-                                        {onTestTemplate && (
-                                            <Button 
-                                                variant="secondary"
-                                                disabled={isSavingTemplates}
-                                                onClick={() => {
-                                                    // Trigger background save but allow test immediately with local state
-                                                    handleSaveCurrent(); 
-                                                    if (selectedTemplateId) {
-                                                        onClose();
-                                                        onTestTemplate(selectedTemplateId);
-                                                    }
-                                                }}
-                                                icon={<PlayCircle className="w-4 h-4" />}
-                                            >
-                                                Simpan & Test
-                                            </Button>
-                                         )}
-                                        <Button 
-                                            onClick={handleSaveCurrent}
-                                            icon={<Check className="w-4 h-4" />}
-                                            isLoading={isSavingTemplates}
-                                            className="shadow-lg shadow-orange-500/20"
-                                        >
-                                            {isSavingTemplates ? 'Menyimpan...' : 'Simpan ke Supabase'}
-                                        </Button>
-                                    </div>
-                                </div>
-
-                            </div>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-10 text-center">
-                                <LayoutTemplate className="w-16 h-16 mb-4 opacity-50" />
-                                <p>Pilih template untuk diedit</p>
-                            </div>
+                             </div>
                         )}
-                    </div>
-                </div>
-            )}
+                    </>
+                )}
+            </div>
+        )}
 
-            {activeTab === 'settings' && (
-                <div className="p-6 sm:p-10 max-w-3xl mx-auto space-y-8 animate-fade-in-up overflow-y-auto h-full custom-scrollbar">
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-blue-600" />
-                            Konfigurasi Global (Supabase)
-                        </h3>
-                        
-                        {!isSupabaseConfigured() && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-start gap-3 text-sm mb-4">
-                                <AlertTriangle className="w-5 h-5 shrink-0" />
-                                <div>
-                                    <p className="font-bold">Supabase Belum Dikonfigurasi</p>
-                                    <p className="opacity-90 mt-1">
-                                        Harap isi URL dan KEY di file <code>config.ts</code> agar fitur Admin ini berjalan.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <p className="text-sm text-slate-500">
-                                Pengaturan ini akan disimpan di Supabase dan menimpa konfigurasi lokal di semua perangkat pengguna.
-                            </p>
-
+        {activeTab === 'settings' && (
+            <div className="space-y-6 animate-fade-in-up">
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Database className="w-5 h-5 text-blue-600" />
+                        Database Configuration
+                    </h3>
+                    
+                    {!isSupabaseConfigured() && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-start gap-3 text-sm mb-6">
+                            <AlertTriangle className="w-5 h-5 shrink-0" />
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Spreadsheet ID (Data Nasabah)</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none"
-                                    value={sheetConfig.spreadsheetId}
-                                    onChange={e => setSheetConfig({...sheetConfig, spreadsheetId: e.target.value})}
-                                    placeholder="Contoh: 1BxiMVs0XRA5..."
-                                />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Nama Sheet (Tab)</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none"
-                                        value={sheetConfig.sheetName}
-                                        onChange={e => setSheetConfig({...sheetConfig, sheetName: e.target.value})}
-                                        placeholder="Data"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Tab Template (Opsional)</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full border border-slate-200 rounded-xl p-3 text-slate-400 bg-slate-100 cursor-not-allowed"
-                                        value="Managed by Supabase"
-                                        disabled
-                                    />
-                                </div>
-                            </div>
-
-                             <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script (Update No HP)</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
-                                    value={sheetConfig.googleScriptUrl || ''}
-                                    onChange={e => setSheetConfig({...sheetConfig, googleScriptUrl: e.target.value})}
-                                    placeholder="https://script.google.com/..."
-                                />
-                            </div>
-
-                            <div className="border-t border-slate-100 pt-4 mt-4">
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
-                                    Gemini API Key (Opsional) <Key className="w-3 h-3" />
-                                </label>
-                                <input 
-                                    type="password" 
-                                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
-                                    value={sheetConfig.geminiApiKey || ''}
-                                    onChange={e => setSheetConfig({...sheetConfig, geminiApiKey: e.target.value})}
-                                    placeholder="AIza..."
-                                />
-                                <p className="text-[10px] text-orange-500 mt-1 italic">
-                                    PENTING: Key ini akan disimpan di konfigurasi bersama. Pastikan aman. Jika kosong, menggunakan System Environment Variable.
+                                <p className="font-bold">Supabase Disconnected</p>
+                                <p className="text-xs opacity-90 mt-1">
+                                    Cek file config.ts
                                 </p>
                             </div>
+                        </div>
+                    )}
 
-                            <div className="pt-4 flex justify-end">
-                                <Button 
-                                    onClick={handleSaveSheetConfig} 
-                                    isLoading={isLoadingConfig}
-                                    disabled={!isSupabaseConfigured()}
-                                    icon={<Save className="w-4 h-4" />}
-                                >
-                                    Simpan Konfigurasi
-                                </Button>
-                            </div>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Spreadsheet ID</label>
+                            <input 
+                                type="text" 
+                                className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none font-mono"
+                                value={sheetConfig.spreadsheetId}
+                                onChange={e => setSheetConfig({...sheetConfig, spreadsheetId: e.target.value})}
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script (Update No HP)</label>
+                            <input 
+                                type="text" 
+                                className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
+                                value={sheetConfig.googleScriptUrl || ''}
+                                onChange={e => setSheetConfig({...sheetConfig, googleScriptUrl: e.target.value})}
+                            />
+                        </div>
+
+                        <div className="border-t border-slate-100 pt-4 mt-4">
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
+                                Gemini API Key <Key className="w-3 h-3" />
+                            </label>
+                            <input 
+                                type="password" 
+                                className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
+                                value={sheetConfig.geminiApiKey || ''}
+                                onChange={e => setSheetConfig({...sheetConfig, geminiApiKey: e.target.value})}
+                                placeholder="AIza..."
+                            />
+                        </div>
+
+                        <div className="pt-4 flex justify-end">
+                            <Button 
+                                onClick={handleSaveSheetConfig} 
+                                isLoading={isLoadingConfig}
+                                disabled={!isSupabaseConfigured()}
+                                icon={<Save className="w-4 h-4" />}
+                            >
+                                Simpan Konfigurasi
+                            </Button>
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            </div>
+        )}
       </div>
     </div>
   );
