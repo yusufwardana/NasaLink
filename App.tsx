@@ -21,7 +21,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
 ];
 
-type AppView = 'home' | 'notifications' | 'broadcast';
+type AppView = 'home' | 'notifications' | 'broadcast' | 'settings';
 
 const App: React.FC = () => {
   // State: Data
@@ -41,7 +41,6 @@ const App: React.FC = () => {
   // State: Modals
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   
@@ -76,10 +75,9 @@ const App: React.FC = () => {
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
       
-      // Check if not already in standalone mode (redundant usually, but safe)
+      // Check if not already in standalone mode
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       if (!isStandalone) {
-          // Update UI notify the user they can install the PWA
           setShowInstallBanner(true);
       }
     };
@@ -93,21 +91,11 @@ const App: React.FC = () => {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    
-    // Show the install prompt
     deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    
     if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
       setShowInstallBanner(false);
-    } else {
-      console.log('User dismissed the install prompt');
     }
-    
-    // We've used the prompt, and can't use it again, throw it away
     setDeferredPrompt(null);
   };
 
@@ -125,7 +113,6 @@ const App: React.FC = () => {
                 const supabaseSettings = await fetchSettingsFromSupabase();
                 if (supabaseSettings && supabaseSettings.spreadsheetId) {
                     finalConfig = { ...finalConfig, ...supabaseSettings };
-                    console.log("Using Supabase Config");
                 }
             } catch (err) {
                 console.warn("Failed to load settings from Supabase, using local config.", err);
@@ -177,7 +164,6 @@ const App: React.FC = () => {
   // --- Notification Logic (Refinancing M+1 & PRS H-1) ---
   const upcomingEvents = useMemo(() => {
     const today = new Date();
-    // Normalize today
     today.setHours(0, 0, 0, 0);
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
@@ -192,23 +178,18 @@ const App: React.FC = () => {
     const parseFullDate = (dateStr: string): Date | null => {
         if (!dateStr) return null;
         const clean = dateStr.trim();
-        
-        // Try format DD/MM/YYYY or DD-MM-YYYY
         const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
         if (partsIndo) {
             const day = parseInt(partsIndo[1], 10);
-            const month = parseInt(partsIndo[2], 10) - 1; // JS months 0-11
+            const month = parseInt(partsIndo[2], 10) - 1; 
             const year = parseInt(partsIndo[3], 10);
             const d = new Date(year, month, day);
             if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) {
                 return d;
             }
         }
-
         const parsed = Date.parse(clean);
-        if (!isNaN(parsed)) {
-            return new Date(parsed);
-        }
+        if (!isNaN(parsed)) return new Date(parsed);
         return null;
     };
 
@@ -220,40 +201,26 @@ const App: React.FC = () => {
             if (dueDate) {
                 const dueMonth = dueDate.getMonth();
                 const dueYear = dueDate.getFullYear();
-
                 let status: 'today' | 'soon' | 'this_month' | 'next_month' | null = null;
                 
-                // Logic: Only capture This Month and Next Month
                 if (dueYear === currentYear && dueMonth === currentMonth) {
-                     // Check if exact today
                      if (dueDate.getDate() === today.getDate()) status = 'today';
                      else if (dueDate > today) status = 'this_month';
-                } else if (
-                    (dueYear === nextMonthYear && dueMonth === nextMonth)
-                ) {
+                } else if ((dueYear === nextMonthYear && dueMonth === nextMonth)) {
                     status = 'next_month';
                 }
 
                 if (status) {
                      const diffTime = dueDate.getTime() - today.getTime();
                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                     
-                     acc.push({
-                         contact,
-                         type: 'payment',
-                         status: status,
-                         daysLeft: diffDays
-                     });
+                     acc.push({ contact, type: 'payment', status: status, daysLeft: diffDays });
                 }
             }
         }
 
         // 2. Check PRS (Meeting)
         if (contact.tglPrs) {
-             // PRS is usually just "Day of Month" (e.g., "25") or Full Date
-             // If just number, assume current month
              let prsDate: Date | null = null;
-             
              if (contact.tglPrs.match(/^\d{1,2}$/)) {
                  const day = parseInt(contact.tglPrs);
                  prsDate = new Date(today.getFullYear(), today.getMonth(), day);
@@ -264,8 +231,6 @@ const App: React.FC = () => {
              if (prsDate) {
                  const diffTime = prsDate.getTime() - today.getTime();
                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                 
-                 // Alert for Tomorrow (1) or Today (0)
                  if (diffDays === 0) {
                      acc.push({ contact, type: 'prs', status: 'today', daysLeft: 0 });
                  } else if (diffDays === 1) {
@@ -273,7 +238,6 @@ const App: React.FC = () => {
                  }
              }
         }
-
         return acc;
     }, []).sort((a, b) => a.daysLeft - b.daysLeft);
   }, [contacts]);
@@ -281,7 +245,6 @@ const App: React.FC = () => {
 
   // --- Filtering Logic ---
   const uniqueSentras = useMemo(() => {
-    // Only show sentras that belong to selected CO if CO is selected
     let sourceContacts = contacts;
     if (selectedCo) {
         sourceContacts = contacts.filter(c => (c.co || 'Unassigned') === selectedCo);
@@ -296,24 +259,18 @@ const App: React.FC = () => {
   }, [contacts]);
 
   const filteredContacts = useMemo(() => {
-    // If user is typing, filtering is visually handled by loading state, 
-    // but actual data is filtered by DEBOUNCED term
     if (!debouncedSearchTerm && !selectedSentra && !selectedCo) return [];
-
     return contacts.filter(contact => {
       const matchesSearch = 
         !debouncedSearchTerm || 
         contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         contact.phone.includes(debouncedSearchTerm);
-      
       const matchesSentra = !selectedSentra || (contact.sentra || 'Unknown') === selectedSentra;
       const matchesCo = !selectedCo || (contact.co || 'Unassigned') === selectedCo;
-
       return matchesSearch && matchesSentra && matchesCo;
     });
   }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo]);
 
-  // Paginated Contacts
   const visibleContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
   }, [filteredContacts, visibleCount]);
@@ -322,9 +279,7 @@ const App: React.FC = () => {
   // --- Handlers ---
   const handleSyncSheet = async () => {
     setIsSyncing(true);
-    // Visual reset to imply fresh fetch
     setContacts([]); 
-    
     try {
         await loadData();
     } catch (e) {
@@ -345,7 +300,7 @@ const App: React.FC = () => {
   const handleAdminAuth = () => {
       const pin = prompt("Masukkan PIN Admin:");
       if (pin === '123456') {
-          setIsAdminModalOpen(true);
+          setActiveView('settings');
       } else if (pin !== null) {
           alert("PIN Salah");
       }
@@ -372,7 +327,7 @@ const App: React.FC = () => {
                 <Radio className="w-5 h-5 mb-0.5" />
                 <span className="text-[10px] font-medium">Siaran</span>
             </button>
-            <button onClick={handleAdminAuth} className="flex flex-col items-center p-2 text-slate-400 hover:text-orange-600 transition-colors">
+            <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Settings className="w-5 h-5 mb-0.5" />
                 <span className="text-[10px] font-medium">Setting</span>
             </button>
@@ -381,9 +336,27 @@ const App: React.FC = () => {
   );
 
 
-  // --- Render Helpers ---
+  // --- Render Views ---
 
-  // 1. Notification View
+  // 1. Settings View (Admin)
+  if (activeView === 'settings') {
+      return (
+          <>
+            <AdminModal
+                isOpen={true}
+                onClose={() => setActiveView('home')}
+                templates={templates}
+                onUpdateTemplates={setTemplates}
+                onResetData={async () => {
+                    await loadData();
+                    setActiveView('home');
+                }}
+            />
+          </>
+      );
+  }
+
+  // 2. Notification View
   if (activeView === 'notifications') {
       return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -391,14 +364,12 @@ const App: React.FC = () => {
                 items={upcomingEvents}
                 onBack={() => setActiveView('home')}
                 onRemind={(contact, type) => {
-                    // Logic: Select template based on type
                     const templateName = type === 'payment' ? 'Tawaran Lanjut (Cair)' : 'Pengingat PRS';
                     const found = templates.find(t => t.label.toLowerCase().includes(templateName.toLowerCase()));
                     setInitialTemplateId(found?.id || templates[0]?.id);
                     setSelectedContact(contact);
                 }}
             />
-            {/* Modal must be rendered here too if triggered from notif */}
             {selectedContact && (
                 <MessageGeneratorModal
                     contact={selectedContact}
@@ -414,7 +385,7 @@ const App: React.FC = () => {
       );
   }
 
-  // 2. Broadcast View
+  // 3. Broadcast View
   if (activeView === 'broadcast') {
       return (
           <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -429,7 +400,7 @@ const App: React.FC = () => {
       );
   }
 
-  // 3. Home View
+  // 4. Home View
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
       
@@ -607,7 +578,7 @@ const App: React.FC = () => {
                         onEditClick={setContactToEdit}
                         onGenerateClick={(c) => {
                             setSelectedContact(c);
-                            setInitialTemplateId(undefined); // Reset specific template
+                            setInitialTemplateId(undefined); 
                         }}
                     />
                     ))}
@@ -679,17 +650,6 @@ const App: React.FC = () => {
         onSave={handleUpdateContact}
         onDelete={handleDeleteContact}
         sheetConfig={activeConfig}
-      />
-
-      <AdminModal
-        isOpen={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
-        templates={templates}
-        onUpdateTemplates={setTemplates}
-        onResetData={async () => {
-             await loadData();
-             setIsAdminModalOpen(false);
-        }}
       />
 
       {renderBottomNav()}
