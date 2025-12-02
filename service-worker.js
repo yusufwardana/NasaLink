@@ -1,4 +1,4 @@
-const CACHE_NAME = 'b-connect-crm-v3';
+const CACHE_NAME = 'b-connect-crm-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
