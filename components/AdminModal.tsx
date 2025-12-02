@@ -3,7 +3,7 @@ import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface AdminModalProps {
   onResetData: () => void;
   onTestTemplate?: (templateId: string) => void;
   onBulkUpdateMode?: (mode: 'ai' | 'manual') => void;
+  defaultTemplates?: MessageTemplate[]; // New prop for reset capability
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({ 
@@ -22,7 +23,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onUpdateTemplates,
   onResetData,
   onTestTemplate,
-  onBulkUpdateMode
+  onBulkUpdateMode,
+  defaultTemplates
 }) => {
   const [activeTab, setActiveTab] = useState<'templates' | 'settings'>('templates');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -52,11 +54,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-      // Auto-select first template on desktop only, or logic adjustment
-      // For mobile, we want list view first.
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const handleSelectTemplate = (t: MessageTemplate) => {
@@ -78,7 +75,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setEditForm(newTemplate);
   };
 
-  // MAIN SAVE LOGIC
   const handleSaveCurrent = async () => {
     if (!editForm.label || !selectedTemplateId) return;
     
@@ -101,10 +97,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       updatedTemplates = [...templates, newTemplate];
     }
     
-    // 1. Optimistic Update Local
     onUpdateTemplates(updatedTemplates);
 
-    // 2. Sync to Supabase
     if (isSupabaseConfigured()) {
         setIsSavingTemplates(true);
         try {
@@ -124,10 +118,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (!selectedTemplateId) return;
     if (window.confirm('Hapus template ini secara Global?')) {
       const remaining = templates.filter(t => t.id !== selectedTemplateId);
-      
       onUpdateTemplates(remaining);
-      
-      // Reset view
       setSelectedTemplateId(null);
       setEditForm({});
 
@@ -144,6 +135,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleResetDefaults = async () => {
+      if (!defaultTemplates) return;
+      if (window.confirm("PERINGATAN: Ini akan menghapus semua template yang ada dan menggantinya dengan Template Standar (Termasuk Penagihan CTX). Lanjutkan?")) {
+          onUpdateTemplates(defaultTemplates);
+          if (isSupabaseConfigured()) {
+              setIsSavingTemplates(true);
+              try {
+                  await saveTemplatesToSupabase(defaultTemplates);
+                  alert("Template berhasil direset ke standar.");
+              } catch (e) {
+                  console.error(e);
+                  alert("Gagal reset database.");
+              } finally {
+                  setIsSavingTemplates(false);
+              }
+          }
+      }
+  };
+
   const handleInsertVariable = (variable: string) => {
       if (editForm.type !== 'manual' || !textAreaRef.current) return;
       
@@ -151,10 +161,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const text = editForm.content || '';
-      const before = text.substring(0, start);
-      const after = text.substring(end, text.length);
-      
-      const newText = before + variable + after;
+      const newText = text.substring(0, start) + variable + text.substring(end);
       setEditForm({ ...editForm, content: newText });
       
       setTimeout(() => {
@@ -171,35 +178,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const handleSaveSheetConfig = async () => {
       if (!isSupabaseConfigured()) {
-          alert("Supabase belum dikonfigurasi. Tidak bisa menyimpan pengaturan global.");
+          alert("Supabase belum dikonfigurasi.");
           return;
       }
       setIsLoadingConfig(true);
       try {
           await saveSettingsToSupabase(sheetConfig);
-          alert('Konfigurasi Global berhasil disimpan ke Supabase!');
+          alert('Konfigurasi Global berhasil disimpan!');
       } catch (e) {
           console.error(e);
           alert("Gagal menyimpan konfigurasi.");
       } finally {
           setIsLoadingConfig(false);
       }
-  };
-
-  const renderManualPreview = () => {
-      if (!editForm.content) return null;
-      let text = editForm.content;
-      text = text.replace(/{name}/g, "Ibu Ratna");
-      text = text.replace(/{sentra}/g, "Mawar Indah");
-      text = text.replace(/{flag}/g, "Gold");
-      return (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
-              <div className="flex items-center gap-2 mb-2 text-green-600 text-xs font-bold uppercase tracking-wider">
-                  <Eye className="w-3 h-3" /> Live Preview
-              </div>
-              <p className="text-sm text-green-800 whitespace-pre-wrap font-sans italic">"{text}"</p>
-          </div>
-      );
   };
 
   return (
@@ -240,7 +231,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Tabs */}
       <div className="bg-white border-b border-slate-200 px-4 sticky top-[73px] z-30 shadow-sm">
         <div className="flex">
             <button 
@@ -258,11 +249,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Content */}
       <div className="max-w-4xl mx-auto p-4">
         {activeTab === 'templates' && (
             <div className="space-y-4">
-                {/* Mobile Master-Detail Logic: If selectedTemplateId is set, show Form, else Show List */}
                 {selectedTemplateId ? (
                     // --- FORM EDIT TEMPLATE ---
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-fade-in-up">
@@ -302,9 +292,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))}
                                     disabled={isSavingTemplates}
                                     className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                                        editForm.type === 'ai' 
-                                        ? 'bg-orange-600 text-white shadow-md' 
-                                        : 'text-slate-400'
+                                        editForm.type === 'ai' ? 'bg-orange-600 text-white shadow-md' : 'text-slate-400'
                                     }`}
                                 >
                                     <Bot className="w-4 h-4" /> AI Generator
@@ -313,9 +301,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))}
                                     disabled={isSavingTemplates}
                                     className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                                        editForm.type === 'manual' 
-                                        ? 'bg-purple-600 text-white shadow-md' 
-                                        : 'text-slate-400'
+                                        editForm.type === 'manual' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400'
                                     }`}
                                 >
                                     <Type className="w-4 h-4" /> Manual Text
@@ -331,7 +317,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                         className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 text-sm leading-relaxed"
                                         value={editForm.promptContext || ''}
                                         onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
-                                        placeholder="Contoh: Ingatkan Ibu nasabah untuk hadir di kumpulan..."
+                                        placeholder="Contoh: Ingatkan Ibu nasabah..."
                                     />
                                 </div>
                             ) : (
@@ -355,9 +341,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                         className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed"
                                         value={editForm.content || ''}
                                         onChange={e => setEditForm({...editForm, content: e.target.value})}
-                                        placeholder="Assalamualaikum..."
                                     />
-                                    {renderManualPreview()}
                                 </div>
                             )}
 
@@ -416,19 +400,30 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             ))}
                         </div>
 
-                        {templates.length > 0 && (
-                             <div className="mt-8 p-4 bg-slate-100 rounded-xl border border-slate-200">
-                                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Bulk Actions</p>
+                        {/* Reset Actions */}
+                        <div className="mt-8 p-4 bg-slate-100 rounded-xl border border-slate-200">
+                            <p className="text-xs font-bold text-slate-500 uppercase mb-2">System Actions</p>
+                            <div className="flex flex-col gap-2">
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleBulkMode('ai')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
-                                        Reset All to AI
+                                    <button onClick={() => handleBulkMode('ai')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">
+                                        Set All to AI
                                     </button>
-                                     <button onClick={() => handleBulkMode('manual')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
-                                        Reset All to Manual
+                                     <button onClick={() => handleBulkMode('manual')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">
+                                        Set All to Manual
                                     </button>
                                 </div>
-                             </div>
-                        )}
+                                {defaultTemplates && (
+                                    <button 
+                                        onClick={handleResetDefaults} 
+                                        disabled={isSavingTemplates}
+                                        className="w-full py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-100 flex items-center justify-center gap-2"
+                                    >
+                                        <RefreshCw className="w-3 h-3" />
+                                        Reset ke Template Standar (Isi CTX)
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </>
                 )}
             </div>
@@ -437,23 +432,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {activeTab === 'settings' && (
             <div className="space-y-6 animate-fade-in-up">
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    {/* Settings Form */}
                     <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <Database className="w-5 h-5 text-blue-600" />
                         Database Configuration
                     </h3>
-                    
-                    {!isSupabaseConfigured() && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-start gap-3 text-sm mb-6">
-                            <AlertTriangle className="w-5 h-5 shrink-0" />
-                            <div>
-                                <p className="font-bold">Supabase Disconnected</p>
-                                <p className="text-xs opacity-90 mt-1">
-                                    Cek file config.ts
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Spreadsheet ID</label>
@@ -464,9 +447,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 onChange={e => setSheetConfig({...sheetConfig, spreadsheetId: e.target.value})}
                             />
                         </div>
-                        
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script (Update No HP)</label>
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">URL Apps Script</label>
                             <input 
                                 type="text" 
                                 className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
@@ -474,7 +456,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 onChange={e => setSheetConfig({...sheetConfig, googleScriptUrl: e.target.value})}
                             />
                         </div>
-
                         <div className="border-t border-slate-100 pt-4 mt-4">
                             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
                                 Gemini API Key <Key className="w-3 h-3" />
@@ -487,7 +468,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 placeholder="AIza..."
                             />
                         </div>
-
                         <div className="pt-4 flex justify-end">
                             <Button 
                                 onClick={handleSaveSheetConfig} 

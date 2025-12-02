@@ -352,6 +352,7 @@ const App: React.FC = () => {
                     await loadData();
                     setActiveView('home');
                 }}
+                defaultTemplates={INITIAL_TEMPLATES_FALLBACK}
             />
             {renderBottomNav()}
           </>
