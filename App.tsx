@@ -10,16 +10,82 @@ import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity } from 'lucide-react';
 
-// Fallback templates updated to reflect NEW logic (Refinancing focus) + CTX
+// REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
-  { id: '1', label: 'Pengingat PRS', type: 'ai', promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Sampaikan pentingnya kehadiran untuk tepat waktu.', icon: '👥' },
-  { id: '2', label: 'Tawaran Lanjut (Cair)', type: 'ai', promptContext: 'Ucapkan selamat karena angsuran nasabah akan segera lunas (Jatuh Tempo). Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' },
-  { id: '3', label: 'Undangan (Manual)', type: 'manual', content: 'Assalamualaikum Ibu {name}, besok ada kunjungan dari pusat di sentra {sentra}. Diharapkan kehadirannya ya Bu. Terima kasih.', icon: '📩' },
-  { id: '4', label: 'Penawaran Modal', type: 'ai', promptContext: 'Tawarkan penambahan modal usaha untuk nasabah dengan rekam jejak baik. Fokus pada pengembangan usaha Ibu.', icon: '📈' },
-  { id: '5', label: 'Sapaan Silaturahmi', type: 'manual', content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' },
-  { id: '6', label: 'Penagihan Menunggak (CTX)', type: 'ai', promptContext: 'Buat pesan penagihan yang tegas dan profesional untuk nasabah menunggak (CTX). Tekankan urgensi pembayaran SEGERA hari ini. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk). Minta nasabah segera konfirmasi pembayaran.', icon: '⚠️' },
+  // --- KATEGORI 1: OPERASIONAL RUTIN ---
+  { 
+    id: '1', 
+    label: 'Pengingat PRS (Besok)', 
+    type: 'ai', 
+    promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Tekankan pentingnya kehadiran tepat waktu, kekompakan kelompok, dan tanggung jawab bersama. Nada semangat dan ramah.', 
+    icon: '👥' 
+  },
+  { 
+    id: 'manual-1', 
+    label: 'Konfirmasi Hadir (Cek)', 
+    type: 'manual', 
+    content: 'Assalamualaikum Ibu {name}, besok hadir di kumpulan sentra {sentra} kan Bu? Ditunggu kehadirannya tepat waktu ya. Sehat selalu Bu.', 
+    icon: '🗓️' 
+  },
+  { 
+    id: 'manual-2', 
+    label: 'Reminder Angsuran H-1', 
+    type: 'manual', 
+    content: 'Assalamualaikum Bu {name}. Sekadar mengingatkan besok jadwal angsuran di sentra {sentra}. Semoga rezekinya lancar dan dimudahkan ya Bu.', 
+    icon: '⏰' 
+  },
+
+  // --- KATEGORI 2: BISNIS & PENCAIRAN (REFINANCING) ---
+  { 
+    id: '2', 
+    label: 'Tawaran Lanjut (Cair)', 
+    type: 'ai', 
+    promptContext: 'Nasabah ini sebentar lagi lunas (Jatuh Tempo). Berikan ucapan selamat atas kedisiplinannya. Tawarkan kesempatan pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha. Tanya rencana usaha ke depan.', 
+    icon: '💰' 
+  },
+  { 
+    id: 'ai-prospek', 
+    label: 'Sapaan Prospek Baru', 
+    type: 'ai', 
+    promptContext: 'Buat pesan sapaan hangat untuk calon nasabah (Prospek). Tanyakan kabar usaha ibunya. Jelaskan sedikit keuntungan bergabung dengan komunitas BTPN Syariah (modal usaha & pendampingan). Ajak untuk ikut melihat kegiatan sentra terdekat.', 
+    icon: '🤝' 
+  },
+
+  // --- KATEGORI 3: PENANGANAN MASALAH (COLLECTION) ---
+  { 
+    id: '6', 
+    label: 'Penagihan Menunggak (CTX)', 
+    type: 'ai', 
+    promptContext: 'Buat pesan penagihan yang TEGAS namun tetap PROFESIONAL untuk nasabah menunggak (CTX). Tekankan bahwa pembayaran harus diterima HARI INI juga. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk di bank). Minta konfirmasi transfer atau janji bayar jam berapa.', 
+    icon: '⚠️' 
+  },
+
+  // --- KATEGORI 4: HUBUNGAN & PERSONAL ---
+  { 
+    id: 'ai-doa', 
+    label: 'Doa & Motivasi Usaha', 
+    type: 'ai', 
+    promptContext: 'Buat pesan singkat yang berisi doa tulus untuk kelancaran usaha ibu nasabah dan kesehatan keluarganya. Jangan jualan, fokus pada menjalin hubungan emosional (bonding) yang baik.', 
+    icon: '🎂' 
+  },
+  { 
+    id: '5', 
+    label: 'Sapaan Silaturahmi', 
+    type: 'manual', 
+    content: 'Assalamualaikum Ibu {name}, apa kabar usahanya di sentra {sentra}? Semoga semakin laris dan berkah ya Bu. Kalau ada kendala, jangan sungkan cerita ke saya.', 
+    icon: '👋' 
+  },
+
+  // --- KATEGORI 5: INFORMASI ---
+  { 
+    id: '3', 
+    label: 'Undangan Resmi', 
+    type: 'manual', 
+    content: 'Assalamualaikum Ibu {name}, diinfokan besok akan ada kunjungan/audit dari pusat di sentra {sentra}. Mohon dipastikan hadir lengkap dan buku angsuran dibawa ya Bu. Terima kasih.', 
+    icon: '📩' 
+  },
 ];
 
 type AppView = 'home' | 'notifications' | 'broadcast' | 'settings';
@@ -38,6 +104,7 @@ const App: React.FC = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Optimasi: Debounce
   const [selectedSentra, setSelectedSentra] = useState<string>('');
   const [selectedCo, setSelectedCo] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All'); // New Status Filter
   
   // State: Modals
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -66,7 +133,7 @@ const App: React.FC = () => {
   // Reset pagination when filters change
   useEffect(() => {
       setVisibleCount(50);
-  }, [debouncedSearchTerm, selectedSentra, selectedCo]);
+  }, [debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
 
   // --- 0.1 PWA Install Prompt Listener ---
   useEffect(() => {
@@ -260,17 +327,23 @@ const App: React.FC = () => {
   }, [contacts]);
 
   const filteredContacts = useMemo(() => {
-    if (!debouncedSearchTerm && !selectedSentra && !selectedCo) return [];
+    if (!debouncedSearchTerm && !selectedSentra && !selectedCo && selectedStatus === 'All') return [];
+    
     return contacts.filter(contact => {
       const matchesSearch = 
         !debouncedSearchTerm || 
         contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         contact.phone.includes(debouncedSearchTerm);
+      
       const matchesSentra = !selectedSentra || (contact.sentra || 'Unknown') === selectedSentra;
       const matchesCo = !selectedCo || (contact.co || 'Unassigned') === selectedCo;
-      return matchesSearch && matchesSentra && matchesCo;
+      
+      const matchesStatus = selectedStatus === 'All' || 
+                            (contact.status || '').toLowerCase() === selectedStatus.toLowerCase();
+
+      return matchesSearch && matchesSentra && matchesCo && matchesStatus;
     });
-  }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo]);
+  }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
 
   const visibleContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
@@ -548,32 +621,46 @@ const App: React.FC = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
            </div>
 
-           <div className="flex gap-2">
-              <div className="relative flex-1">
-                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+           <div className="grid grid-cols-3 gap-2">
+              <div className="relative">
+                 <Briefcase className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
                  <select
-                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm"
+                    className="w-full pl-8 pr-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
                     value={selectedCo}
                     onChange={(e) => {
                         setSelectedCo(e.target.value);
                         setSelectedSentra(''); // Reset Sentra when CO changes
                     }}
                  >
-                    <option value="">Semua Petugas (CO)</option>
+                    <option value="">Semua CO</option>
                     {uniqueCos.map(c => <option key={c} value={c}>{c}</option>)}
                  </select>
                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
               </div>
 
-              <div className="relative flex-1">
-                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <div className="relative">
+                 <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
                  <select
-                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm"
+                    className="w-full pl-8 pr-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
                     value={selectedSentra}
                     onChange={(e) => setSelectedSentra(e.target.value)}
                  >
                     <option value="">Semua Sentra</option>
                     {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+              </div>
+
+              <div className="relative">
+                 <Activity className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                 <select
+                    className="w-full pl-8 pr-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                 >
+                    <option value="All">Semua Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                  </select>
                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
               </div>
@@ -644,7 +731,7 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Users className="w-8 h-8 text-slate-300" />
                     </div>
-                    {debouncedSearchTerm || selectedSentra || selectedCo ? (
+                    {debouncedSearchTerm || selectedSentra || selectedCo || selectedStatus !== 'All' ? (
                          <>
                             <h3 className="text-lg font-bold text-slate-600">Tidak ada nasabah ditemukan</h3>
                             <p className="text-slate-400 text-sm">Coba sesuaikan filter pencarian Anda.</p>
