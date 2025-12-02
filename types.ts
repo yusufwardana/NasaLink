@@ -33,7 +33,16 @@ export interface GeneratedMessage {
 export interface SheetConfig {
   spreadsheetId: string;
   sheetName: string;
-  templateSheetName?: string; // New field for Templates Tab
-  googleScriptUrl?: string; // New field for Apps Script URL
-  geminiApiKey?: string; // New field for Gemini API Key override
+  templateSheetName?: string;
+  googleScriptUrl?: string;
+  geminiApiKey?: string;
+  
+  // --- New Flexible Settings ---
+  // Follow Up Logic
+  prsThresholdDays?: number; // Default 1 (H-1)
+  refinancingLookaheadMonths?: number; // Default 1 (M+1)
+  
+  // UI Settings
+  showHeroSection?: boolean; // Toggle Welcome Banner
+  showStatsCards?: boolean; // Toggle Top Stats
 }

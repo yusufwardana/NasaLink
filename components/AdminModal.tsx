@@ -3,7 +3,7 @@ import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor } from 'lucide-react';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface AdminModalProps {
   onResetData: () => void;
   onTestTemplate?: (templateId: string) => void;
   onBulkUpdateMode?: (mode: 'ai' | 'manual') => void;
-  defaultTemplates?: MessageTemplate[]; // New prop for reset capability
+  defaultTemplates?: MessageTemplate[];
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({ 
@@ -26,10 +26,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onBulkUpdateMode,
   defaultTemplates
 }) => {
-  const [activeTab, setActiveTab] = useState<'templates' | 'settings'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'features' | 'database'>('templates');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MessageTemplate>>({});
-  const [sheetConfig, setSheetConfig] = useState<SheetConfig>({ spreadsheetId: '', sheetName: '', googleScriptUrl: '', geminiApiKey: '' });
+  
+  // Initialize with flexible defaults
+  const [sheetConfig, setSheetConfig] = useState<SheetConfig>(GLOBAL_CONFIG);
+  
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
   
@@ -38,11 +41,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   useEffect(() => {
     if (isOpen) {
         setIsLoadingConfig(true);
-        // Load Settings from Supabase if configured
         if (isSupabaseConfigured()) {
              fetchSettingsFromSupabase().then(sbConfig => {
                  if (sbConfig) {
-                     setSheetConfig(prev => ({ ...prev, ...sbConfig }));
+                     // Merge with defaults to ensure new fields exist
+                     setSheetConfig(prev => ({ ...GLOBAL_CONFIG, ...prev, ...sbConfig }));
                  } else {
                      setSheetConfig(GLOBAL_CONFIG);
                  }
@@ -56,6 +59,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   if (!isOpen) return null;
 
+  // ... (Template Handlers keep same logic as previous) ...
   const handleSelectTemplate = (t: MessageTemplate) => {
       setSelectedTemplateId(t.id);
       setEditForm({ ...t });
@@ -156,14 +160,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const handleInsertVariable = (variable: string) => {
       if (editForm.type !== 'manual' || !textAreaRef.current) return;
-      
       const textarea = textAreaRef.current;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const text = editForm.content || '';
       const newText = text.substring(0, start) + variable + text.substring(end);
       setEditForm({ ...editForm, content: newText });
-      
       setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start + variable.length, start + variable.length);
@@ -184,7 +186,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setIsLoadingConfig(true);
       try {
           await saveSettingsToSupabase(sheetConfig);
-          alert('Konfigurasi Global berhasil disimpan!');
+          if(window.confirm('Konfigurasi disimpan! Refresh aplikasi sekarang agar perubahan aktif?')) {
+              window.location.reload();
+          }
       } catch (e) {
           console.error(e);
           alert("Gagal menyimpan konfigurasi.");
@@ -195,231 +199,124 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24 animate-fade-in-up">
-      {/* Page Header */}
+      {/* Header */}
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-4 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
-             <button 
-                onClick={onClose}
-                className="p-2 rounded-xl bg-white/50 hover:bg-slate-100 text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
-            >
+             <button onClick={onClose} className="p-2 rounded-xl bg-white/50 hover:bg-slate-100 text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all">
                 <ArrowLeft className="w-5 h-5" />
             </button>
              <div>
                  <h2 className="text-lg font-bold text-slate-800 leading-none flex items-center gap-2">
                     <Database className="w-5 h-5 text-slate-400" />
-                    Pengaturan Admin
+                    Menu Admin
                  </h2>
-                 <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                     {isSavingTemplates ? (
-                         <span className="text-orange-600 animate-pulse font-bold flex items-center gap-1">
-                             <Loader2 className="w-3 h-3 animate-spin" />
-                             Menyimpan...
-                         </span>
-                     ) : isSupabaseConfigured() ? (
-                         <span className="text-green-600 flex items-center gap-1">
-                             <Check className="w-3 h-3" />
-                             Online (Supabase)
-                         </span>
-                     ) : (
-                         <span className="text-red-500 flex items-center gap-1">
-                             <AlertTriangle className="w-3 h-3" />
-                             Offline Mode
-                         </span>
-                     )}
-                 </p>
              </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-slate-200 px-4 sticky top-[73px] z-30 shadow-sm">
-        <div className="flex">
+      <div className="bg-white border-b border-slate-200 px-2 sticky top-[73px] z-30 shadow-sm overflow-x-auto">
+        <div className="flex min-w-full">
             <button 
                 onClick={() => setActiveTab('templates')}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'templates' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-400'}`}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all whitespace-nowrap px-4 ${activeTab === 'templates' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-400'}`}
             >
                 <LayoutTemplate className="w-4 h-4" /> Template
             </button>
             <button 
-                onClick={() => setActiveTab('settings')}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'settings' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-400'}`}
+                onClick={() => setActiveTab('features')}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all whitespace-nowrap px-4 ${activeTab === 'features' ? 'border-purple-500 text-purple-600' : 'border-transparent text-slate-400'}`}
             >
-                <Database className="w-4 h-4" /> Config
+                <Sliders className="w-4 h-4" /> Fitur
+            </button>
+            <button 
+                onClick={() => setActiveTab('database')}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all whitespace-nowrap px-4 ${activeTab === 'database' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400'}`}
+            >
+                <Database className="w-4 h-4" /> Database
             </button>
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-4xl mx-auto p-4">
+        
+        {/* --- TAB 1: TEMPLATES --- */}
         {activeTab === 'templates' && (
             <div className="space-y-4">
                 {selectedTemplateId ? (
-                    // --- FORM EDIT TEMPLATE ---
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-fade-in-up">
+                    // Edit Form
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
                         <div className="flex items-center gap-2 mb-4 pb-4 border-b border-slate-100">
                              <button onClick={() => setSelectedTemplateId(null)} className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
                                  <ArrowLeft className="w-5 h-5" />
                              </button>
                              <h3 className="font-bold text-slate-700">Edit Template</h3>
                         </div>
-
                         <div className="space-y-6">
                             <div className="flex gap-4">
                                 <div className="w-16">
-                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase text-center">Icon</label>
-                                    <input 
-                                        type="text" 
-                                        disabled={isSavingTemplates}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-2xl focus:ring-2 focus:ring-orange-500/50 outline-none"
-                                        value={editForm.icon || ''}
-                                        onChange={e => setEditForm({...editForm, icon: e.target.value})}
-                                    />
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 text-center">Icon</label>
+                                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-2xl" value={editForm.icon || ''} onChange={e => setEditForm({...editForm, icon: e.target.value})} />
                                 </div>
                                 <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Judul Template</label>
-                                    <input 
-                                        type="text" 
-                                        disabled={isSavingTemplates}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 focus:ring-2 focus:ring-orange-500/50 outline-none font-bold text-slate-800"
-                                        value={editForm.label || ''}
-                                        onChange={e => setEditForm({...editForm, label: e.target.value})}
-                                    />
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Judul</label>
+                                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold" value={editForm.label || ''} onChange={e => setEditForm({...editForm, label: e.target.value})} />
                                 </div>
                             </div>
-
                             <div className="bg-slate-50 p-1 rounded-xl flex border border-slate-200">
-                                <button 
-                                    onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))}
-                                    disabled={isSavingTemplates}
-                                    className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                                        editForm.type === 'ai' ? 'bg-orange-600 text-white shadow-md' : 'text-slate-400'
-                                    }`}
-                                >
-                                    <Bot className="w-4 h-4" /> AI Generator
+                                <button onClick={() => setEditForm(prev => ({ ...prev, type: 'ai' }))} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 ${editForm.type === 'ai' ? 'bg-orange-600 text-white shadow' : 'text-slate-400'}`}>
+                                    <Bot className="w-4 h-4" /> AI
                                 </button>
-                                <button 
-                                    onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))}
-                                    disabled={isSavingTemplates}
-                                    className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                                        editForm.type === 'manual' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400'
-                                    }`}
-                                >
-                                    <Type className="w-4 h-4" /> Manual Text
+                                <button onClick={() => setEditForm(prev => ({ ...prev, type: 'manual' }))} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 ${editForm.type === 'manual' ? 'bg-purple-600 text-white shadow' : 'text-slate-400'}`}>
+                                    <Type className="w-4 h-4" /> Manual
                                 </button>
                             </div>
-
                             {editForm.type === 'ai' ? (
-                                <div className="space-y-3">
-                                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
-                                        <Wand2 className="w-3 h-3" /> Instruksi untuk AI
-                                    </label>
-                                    <textarea 
-                                        className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-orange-500/50 outline-none text-slate-800 text-sm leading-relaxed"
-                                        value={editForm.promptContext || ''}
-                                        onChange={e => setEditForm({...editForm, promptContext: e.target.value})}
-                                        placeholder="Contoh: Ingatkan Ibu nasabah..."
-                                    />
-                                </div>
+                                <textarea className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 text-sm" value={editForm.promptContext || ''} onChange={e => setEditForm({...editForm, promptContext: e.target.value})} placeholder="Instruksi AI..." />
                             ) : (
-                                <div className="space-y-3">
-                                    <label className="text-xs font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2">
-                                        <Type className="w-3 h-3" /> Isi Pesan Baku
-                                    </label>
+                                <div>
                                     <div className="flex flex-wrap gap-2 mb-2">
                                         {[{ label: '+ Nama', code: '{name}' }, { label: '+ Sentra', code: '{sentra}' }, { label: '+ HP', code: '{phone}' }].map((chip) => (
-                                            <button
-                                                key={chip.code}
-                                                onClick={() => handleInsertVariable(chip.code)}
-                                                className="px-2 py-1 bg-purple-50 border border-purple-200 rounded text-[10px] font-bold text-purple-600"
-                                            >
-                                                {chip.label}
-                                            </button>
+                                            <button key={chip.code} onClick={() => handleInsertVariable(chip.code)} className="px-2 py-1 bg-purple-50 border border-purple-200 rounded text-[10px] font-bold text-purple-600">{chip.label}</button>
                                         ))}
                                     </div>
-                                    <textarea 
-                                        ref={textAreaRef}
-                                        className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-purple-500/50 outline-none text-slate-800 text-sm font-mono leading-relaxed"
-                                        value={editForm.content || ''}
-                                        onChange={e => setEditForm({...editForm, content: e.target.value})}
-                                    />
+                                    <textarea ref={textAreaRef} className="w-full h-48 bg-white border border-slate-200 rounded-2xl p-4 text-sm font-mono" value={editForm.content || ''} onChange={e => setEditForm({...editForm, content: e.target.value})} />
                                 </div>
                             )}
-
                             <div className="pt-6 border-t border-slate-100 flex gap-3">
-                                <button 
-                                    onClick={handleDeleteCurrent}
-                                    className="p-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                                <Button 
-                                    className="flex-1 shadow-lg shadow-orange-500/20"
-                                    onClick={handleSaveCurrent}
-                                    isLoading={isSavingTemplates}
-                                    icon={<Save className="w-4 h-4" />}
-                                >
-                                    Simpan Template
-                                </Button>
+                                <button onClick={handleDeleteCurrent} className="p-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50"><Trash2 className="w-5 h-5" /></button>
+                                <Button className="flex-1 shadow-lg shadow-orange-500/20" onClick={handleSaveCurrent} isLoading={isSavingTemplates} icon={<Save className="w-4 h-4" />}>Simpan</Button>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    // --- LIST TEMPLATE ---
+                    // List
                     <>
-                        <Button 
-                            onClick={handleStartAdd} 
-                            variant="outline" 
-                            className="w-full justify-center text-sm border-dashed border-slate-300 hover:border-orange-400 hover:text-orange-600 py-3 mb-4 bg-white" 
-                            icon={<Plus className="w-4 h-4" />}
-                        >
-                            Buat Template Baru
-                        </Button>
-
+                        <Button onClick={handleStartAdd} variant="outline" className="w-full justify-center py-3 mb-4 border-dashed" icon={<Plus className="w-4 h-4" />}>Buat Template Baru</Button>
                         <div className="space-y-3">
                             {templates.map(t => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => handleSelectTemplate(t)}
-                                    className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-between group active:scale-95 transition-all"
-                                >
+                                <button key={t.id} onClick={() => handleSelectTemplate(t)} className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-between group">
                                     <div className="flex items-center gap-4">
                                         <span className="text-2xl w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg">{t.icon}</span>
                                         <div>
                                             <div className="font-bold text-slate-800 text-sm">{t.label}</div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wide ${
-                                                    t.type === 'manual' ? 'text-purple-600 bg-purple-100' : 'text-orange-600 bg-orange-100'
-                                                }`}>
-                                                    {t.type === 'manual' ? 'MANUAL' : 'AI AUTO'}
-                                                </span>
-                                            </div>
+                                            <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${t.type === 'manual' ? 'text-purple-600 bg-purple-100' : 'text-orange-600 bg-orange-100'}`}>{t.type === 'manual' ? 'MANUAL' : 'AI AUTO'}</span>
                                         </div>
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-slate-300" />
                                 </button>
                             ))}
                         </div>
-
-                        {/* Reset Actions */}
                         <div className="mt-8 p-4 bg-slate-100 rounded-xl border border-slate-200">
-                            <p className="text-xs font-bold text-slate-500 uppercase mb-2">System Actions</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Actions</p>
                             <div className="flex flex-col gap-2">
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleBulkMode('ai')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">
-                                        Set All to AI
-                                    </button>
-                                     <button onClick={() => handleBulkMode('manual')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">
-                                        Set All to Manual
-                                    </button>
+                                    <button onClick={() => handleBulkMode('ai')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">AI All</button>
+                                    <button onClick={() => handleBulkMode('manual')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">Manual All</button>
                                 </div>
                                 {defaultTemplates && (
-                                    <button 
-                                        onClick={handleResetDefaults} 
-                                        disabled={isSavingTemplates}
-                                        className="w-full py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-100 flex items-center justify-center gap-2"
-                                    >
-                                        <RefreshCw className="w-3 h-3" />
-                                        Reset ke Template Standar (Isi CTX)
+                                    <button onClick={handleResetDefaults} disabled={isSavingTemplates} className="w-full py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-100 flex items-center justify-center gap-2">
+                                        <RefreshCw className="w-3 h-3" /> Reset ke Template Standar (Isi CTX)
                                     </button>
                                 )}
                             </div>
@@ -429,13 +326,93 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </div>
         )}
 
-        {activeTab === 'settings' && (
+        {/* --- TAB 2: FEATURES & LOGIC (NEW) --- */}
+        {activeTab === 'features' && (
+            <div className="space-y-6 animate-fade-in-up">
+                {/* 1. Pengaturan Tampilan */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Monitor className="w-5 h-5 text-purple-600" />
+                        Tampilan Beranda
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                            <div>
+                                <span className="block text-sm font-bold text-slate-700">Hero Section</span>
+                                <span className="text-xs text-slate-500">Banner sambutan & deskripsi di atas.</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" className="sr-only peer" checked={sheetConfig.showHeroSection !== false} onChange={e => setSheetConfig({...sheetConfig, showHeroSection: e.target.checked})} />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            </label>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                            <div>
+                                <span className="block text-sm font-bold text-slate-700">Kartu Statistik</span>
+                                <span className="text-xs text-slate-500">Ringkasan total nasabah, sentra, CO.</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" className="sr-only peer" checked={sheetConfig.showStatsCards !== false} onChange={e => setSheetConfig({...sheetConfig, showStatsCards: e.target.checked})} />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Pengaturan Logika Follow Up */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Sliders className="w-5 h-5 text-orange-600" />
+                        Logika Notifikasi
+                    </h3>
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Alert PRS (Kumpulan)</label>
+                            <div className="flex items-center gap-3">
+                                <input 
+                                    type="number" 
+                                    min="0" max="7"
+                                    className="w-20 p-3 text-center font-bold text-lg border border-slate-300 rounded-xl focus:ring-2 focus:ring-orange-500/50 outline-none"
+                                    value={sheetConfig.prsThresholdDays ?? 1}
+                                    onChange={e => setSheetConfig({...sheetConfig, prsThresholdDays: parseInt(e.target.value)})}
+                                />
+                                <span className="text-sm text-slate-600">Hari sebelum Tanggal PRS (H-X)</span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">Default: 1 (Muncul notifikasi besok kumpulan).</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Jangkauan Refinancing (Jatuh Tempo)</label>
+                            <div className="flex items-center gap-3">
+                                <input 
+                                    type="number" 
+                                    min="0" max="6"
+                                    className="w-20 p-3 text-center font-bold text-lg border border-slate-300 rounded-xl focus:ring-2 focus:ring-orange-500/50 outline-none"
+                                    value={sheetConfig.refinancingLookaheadMonths ?? 1}
+                                    onChange={e => setSheetConfig({...sheetConfig, refinancingLookaheadMonths: parseInt(e.target.value)})}
+                                />
+                                <span className="text-sm text-slate-600">Bulan ke depan (M+X)</span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">Default: 1 (Menampilkan jatuh tempo bulan ini & bulan depan).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                    <Button onClick={handleSaveSheetConfig} isLoading={isLoadingConfig} icon={<Save className="w-4 h-4" />}>
+                        Simpan Pengaturan
+                    </Button>
+                </div>
+            </div>
+        )}
+
+        {/* --- TAB 3: DATABASE (EXISTING) --- */}
+        {activeTab === 'database' && (
             <div className="space-y-6 animate-fade-in-up">
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                    {/* Settings Form */}
                     <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <Database className="w-5 h-5 text-blue-600" />
-                        Database Configuration
+                        Koneksi Database
                     </h3>
                     <div className="space-y-4">
                         <div>
@@ -469,12 +446,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             />
                         </div>
                         <div className="pt-4 flex justify-end">
-                            <Button 
-                                onClick={handleSaveSheetConfig} 
-                                isLoading={isLoadingConfig}
-                                disabled={!isSupabaseConfigured()}
-                                icon={<Save className="w-4 h-4" />}
-                            >
+                            <Button onClick={handleSaveSheetConfig} isLoading={isLoadingConfig} disabled={!isSupabaseConfigured()} icon={<Save className="w-4 h-4" />}>
                                 Simpan Konfigurasi
                             </Button>
                         </div>
