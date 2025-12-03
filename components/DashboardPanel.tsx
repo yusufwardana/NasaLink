@@ -11,26 +11,41 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
   
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
+    // Total Nasabah (All)
     const totalNasabah = contacts.length;
     const uniqueSentra = new Set(contacts.map(c => c.sentra)).size;
     
-    // Parse Plafon (Assuming format "3.000.000" or similar)
+    // Parse Plafon
     const totalPlafon = contacts.reduce((sum, c) => {
         const clean = (c.plafon || '0').replace(/[^0-9]/g, '');
         return sum + parseInt(clean || '0', 10);
     }, 0);
 
-    // Status Categorization
-    const active = contacts.filter(c => 
-        !c.flag.toLowerCase().includes('do') && 
-        !c.status?.toLowerCase().includes('macet') && 
-        !c.status?.toLowerCase().includes('tutup')
-    ).length;
+    // --- LOGIKA STATUS PORTOFOLIO ---
     
-    const trouble = contacts.filter(c => 
-        c.flag.toLowerCase().includes('do') || 
-        c.status?.toLowerCase().includes('macet')
-    ).length;
+    // 1. Nasabah Lancar
+    // Kriteria: Status mengandung 'lancar' ATAU Flag 'active' (tapi tidak macet/tutup)
+    const active = contacts.filter(c => {
+        const status = (c.status || '').toLowerCase();
+        const flag = (c.flag || '').toLowerCase();
+        
+        // Exclude DO from active calculation just in case
+        if (flag.includes('do')) return false;
+
+        return status.includes('lancar') || (flag.includes('active') && !status.includes('macet') && !status.includes('tutup'));
+    }).length;
+    
+    // 2. Nasabah Menunggak / Bermasalah (EXCLUDE DO)
+    // Kriteria: Status mengandung 'macet' atau 'menunggak'
+    // REVISI: Flag DO TIDAK masuk hitungan portfolio bermasalah (dianggap sudah lepas/write-off)
+    const trouble = contacts.filter(c => {
+        const status = (c.status || '').toLowerCase();
+        const flag = (c.flag || '').toLowerCase();
+        
+        if (flag.includes('do')) return false; // Skip DO
+
+        return status.includes('macet') || status.includes('menunggak');
+    }).length;
 
     // Refinancing Opportunity (Jatuh Tempo This Month & Next Month)
     const today = new Date();
@@ -42,8 +57,6 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
         const parts = c.tglJatuhTempo.split(/[-/]/);
         if (parts.length !== 3) return false;
         
-        // Assuming format dd/mm/yyyy
-        // parts[0] = day, parts[1] = month, parts[2] = year
         const m = parseInt(parts[1], 10) - 1;
         const y = parseInt(parts[2], 10);
         
@@ -69,8 +82,10 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
       return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
-  const activePercent = stats.totalNasabah > 0 ? (stats.active / stats.totalNasabah) * 100 : 0;
-  const troublePercent = stats.totalNasabah > 0 ? (stats.trouble / stats.totalNasabah) * 100 : 0;
+  // Calculate percentages based on (Active + Trouble) pool, ignoring DO/Others
+  const portfolioTotal = stats.active + stats.trouble;
+  const activePercent = portfolioTotal > 0 ? (stats.active / portfolioTotal) * 100 : 0;
+  const troublePercent = portfolioTotal > 0 ? (stats.trouble / portfolioTotal) * 100 : 0;
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-24 animate-fade-in-up">
@@ -110,7 +125,7 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
                   {formatIDR(stats.totalPlafon)}
               </h3>
               <p className="text-[10px] text-slate-400 mt-2">
-                  *Berdasarkan data plafon
+                  *Berdasarkan total plafon
               </p>
           </div>
       </div>
@@ -123,11 +138,14 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
               <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-blue-500" /> Kesehatan Portofolio
               </h4>
+              <p className="text-xs text-slate-400 mb-3 -mt-2">
+                  (Mengabaikan status DO / Drop Out)
+              </p>
               
               <div className="space-y-4">
                   <div>
                       <div className="flex justify-between text-xs mb-1">
-                          <span className="font-bold text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Lancar / Active</span>
+                          <span className="font-bold text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Nasabah Lancar</span>
                           <span className="font-bold text-slate-600">{stats.active} ({Math.round(activePercent)}%)</span>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
@@ -137,7 +155,7 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
 
                   <div>
                       <div className="flex justify-between text-xs mb-1">
-                          <span className="font-bold text-red-700 flex items-center gap-1"><XCircle className="w-3 h-3"/> Macet / DO</span>
+                          <span className="font-bold text-red-700 flex items-center gap-1"><XCircle className="w-3 h-3"/> Menunggak / Macet</span>
                           <span className="font-bold text-slate-600">{stats.trouble} ({Math.round(troublePercent)}%)</span>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
