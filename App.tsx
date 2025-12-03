@@ -6,11 +6,12 @@ import { EditContactModal } from './components/EditContactModal';
 import { AdminModal } from './components/AdminModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { BroadcastPanel } from './components/BroadcastPanel';
+import { DashboardPanel } from './components/DashboardPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -19,8 +20,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: '1', 
     label: 'Pengingat PRS (Besok)', 
     type: 'ai', 
-    promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Tekankan pentingnya kehadiran tepat waktu, kekompakan kelompok, dan tanggung jawab bersama. Nada semangat dan ramah.', 
-    icon: '👥' 
+    promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Sampaikan pentingnya kehadiran untuk tepat waktu.', icon: '👥' 
   },
   { 
     id: 'manual-1', 
@@ -42,8 +42,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: '2', 
     label: 'Tawaran Lanjut (Cair)', 
     type: 'ai', 
-    promptContext: 'Nasabah ini sebentar lagi lunas (Jatuh Tempo). Berikan ucapan selamat atas kedisiplinannya. Tawarkan kesempatan pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha. Tanya rencana usaha ke depan.', 
-    icon: '💰' 
+    promptContext: 'Ucapkan selamat karena angsuran nasabah akan segera lunas (Jatuh Tempo). Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' 
   },
   { 
     id: 'ai-prospek', 
@@ -58,8 +57,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: '6', 
     label: 'Penagihan Menunggak (CTX)', 
     type: 'ai', 
-    promptContext: 'Buat pesan penagihan yang TEGAS namun tetap PROFESIONAL untuk nasabah menunggak (CTX). Tekankan bahwa pembayaran harus diterima HARI INI juga. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk di bank). Minta konfirmasi transfer atau janji bayar jam berapa.', 
-    icon: '⚠️' 
+    promptContext: 'Buat pesan penagihan yang tegas dan profesional untuk nasabah menunggak (CTX). Tekankan urgensi pembayaran SEGERA hari ini. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk). Minta nasabah segera konfirmasi pembayaran.', icon: '⚠️' 
   },
 
   // --- KATEGORI 4: HUBUNGAN & PERSONAL ---
@@ -67,15 +65,14 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: 'ai-doa', 
     label: 'Doa & Motivasi Usaha', 
     type: 'ai', 
-    promptContext: 'Buat pesan singkat yang berisi doa tulus untuk kelancaran usaha ibu nasabah dan kesehatan keluarganya. Jangan jualan, fokus pada menjalin hubungan emosional (bonding) yang baik.', 
+    promptContext: 'Buat pesan singkat yang berisi doa tulus untuk kelancaran usaha ibu nasabah dan kesehatan keluarganya. Jangan jualan, fokus pada menjalin hubungan emosional (bonding).', 
     icon: '🎂' 
   },
   { 
     id: '5', 
     label: 'Sapaan Silaturahmi', 
     type: 'manual', 
-    content: 'Assalamualaikum Ibu {name}, apa kabar usahanya di sentra {sentra}? Semoga semakin laris dan berkah ya Bu. Kalau ada kendala, jangan sungkan cerita ke saya.', 
-    icon: '👋' 
+    content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' 
   },
 
   // --- KATEGORI 5: INFORMASI ---
@@ -83,12 +80,12 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: '3', 
     label: 'Undangan Resmi', 
     type: 'manual', 
-    content: 'Assalamualaikum Ibu {name}, diinfokan besok akan ada kunjungan/audit dari pusat di sentra {sentra}. Mohon dipastikan hadir lengkap dan buku angsuran dibawa ya Bu. Terima kasih.', 
+    content: 'Assalamualaikum Ibu {name}, diinfokan besok akan ada kunjungan dari pusat di sentra {sentra}. Mohon dipastikan hadir lengkap dan buku angsuran dibawa ya Bu. Terima kasih.', 
     icon: '📩' 
   },
 ];
 
-type AppView = 'home' | 'notifications' | 'broadcast' | 'settings';
+type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard';
 
 const App: React.FC = () => {
   // State: Data
@@ -114,10 +111,6 @@ const App: React.FC = () => {
   
   // State: Pagination / Lazy Load
   const [visibleCount, setVisibleCount] = useState(50); // Hanya tampilkan 50 awal
-
-  // State: PWA Install
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
   
   // Derived State for UI Feedback
   const isFiltering = searchTerm !== debouncedSearchTerm;
@@ -134,38 +127,6 @@ const App: React.FC = () => {
   useEffect(() => {
       setVisibleCount(50);
   }, [debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
-
-  // --- 0.1 PWA Install Prompt Listener ---
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
-      e.preventDefault();
-      // Stash the event so it can be triggered later.
-      setDeferredPrompt(e);
-      
-      // Check if not already in standalone mode
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      if (!isStandalone) {
-          setShowInstallBanner(true);
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setShowInstallBanner(false);
-    }
-    setDeferredPrompt(null);
-  };
 
 
   // --- 1. Load Data on Mount ---
@@ -388,6 +349,12 @@ const App: React.FC = () => {
                 <Home className="w-5 h-5 mb-0.5" />
                 <span className="text-[10px] font-medium">Beranda</span>
             </button>
+            
+            <button onClick={() => setActiveView('dashboard')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+                <TrendingUp className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-medium">Kinerja</span>
+            </button>
+
             <div className="relative">
                 <button onClick={() => setActiveView('notifications')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'notifications' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                     <Bell className="w-5 h-5 mb-0.5" />
@@ -397,10 +364,12 @@ const App: React.FC = () => {
                     <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
             </div>
+            
             <button onClick={() => setActiveView('broadcast')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'broadcast' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Radio className="w-5 h-5 mb-0.5" />
                 <span className="text-[10px] font-medium">Siaran</span>
             </button>
+            
             <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Settings className="w-5 h-5 mb-0.5" />
                 <span className="text-[10px] font-medium">Setting</span>
@@ -476,41 +445,23 @@ const App: React.FC = () => {
       );
   }
 
-  // 4. Home View
+  // 4. Dashboard View
+  if (activeView === 'dashboard') {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
+              <DashboardPanel 
+                contacts={contacts} 
+                onBack={() => setActiveView('home')} 
+              />
+              {renderBottomNav()}
+          </div>
+      );
+  }
+
+  // 5. Home View
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
       
-      {/* PWA INSTALL BANNER */}
-      {showInstallBanner && (
-        <div className="bg-orange-600 text-white p-3 shadow-md relative z-50 animate-fade-in-up">
-            <div className="max-w-4xl mx-auto flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="bg-white/20 p-2 rounded-lg">
-                        <Download className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="font-bold text-sm">Install B-Connect CRM</p>
-                        <p className="text-xs text-orange-100">Lebih cepat & hemat kuota</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button 
-                        onClick={handleInstallClick}
-                        className="px-3 py-1.5 bg-white text-orange-700 rounded-lg text-xs font-bold shadow-sm hover:bg-orange-50 transition-colors"
-                    >
-                        Install
-                    </button>
-                    <button 
-                        onClick={() => setShowInstallBanner(false)}
-                        className="p-1 hover:bg-white/20 rounded-full transition-colors"
-                    >
-                        <X className="w-5 h-5 text-white/80" />
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
-
       {/* HEADER */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
@@ -541,69 +492,56 @@ const App: React.FC = () => {
       </header>
 
       {/* HERO SECTION */}
-      <div className="bg-gradient-to-b from-white to-orange-50/80 border-b border-orange-100 relative overflow-hidden">
-          {/* Decorative Background Elements */}
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-orange-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+      {activeConfig?.showHeroSection !== false && (
+        <div className="bg-gradient-to-b from-white to-orange-50/80 border-b border-orange-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-orange-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
 
-          <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
-              <div className="mb-6">
-                <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest rounded-full mb-3 border border-orange-200">
-                    BTPN Syariah Digital Tool
-                </span>
-                <h2 className="text-3xl font-extrabold text-slate-800 mb-3 leading-tight">
-                    Bangun Interaksi, <br/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
-                        Tumbuh Bersama.
+            <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
+                <div className="mb-6">
+                    <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest rounded-full mb-3 border border-orange-200">
+                        BTPN Syariah Digital Tool
                     </span>
-                </h2>
-                <p className="text-slate-600 text-sm leading-relaxed max-w-lg mb-4">
-                    B-Connect CRM membantu Community Officer mengelola data nasabah sentra, memantau jadwal jatuh tempo, dan mengirim pesan personalisasi berbasis AI dalam satu genggaman.
-                </p>
-              </div>
-              
-              {/* Feature Highlights (Mini Chips) */}
-              <div className="flex flex-wrap gap-2 mb-8">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
-                      <Users className="w-3.5 h-3.5 text-orange-500" />
-                      <span className="text-xs font-semibold text-slate-600">Data Sentra</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
-                      <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-                      <span className="text-xs font-semibold text-slate-600">AI Messaging</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm">
-                      <Bell className="w-3.5 h-3.5 text-orange-500" />
-                      <span className="text-xs font-semibold text-slate-600">Smart Alert</span>
-                  </div>
-              </div>
-
-              {/* Stats Cards */}
-              <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
-                      <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <Users className="w-12 h-12 text-orange-600" />
-                      </div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Nasabah</p>
-                      <p className="text-2xl font-black text-slate-800 relative z-10">{contacts.length}</p>
-                  </div>
-                   <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
-                      <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <MapPin className="w-12 h-12 text-orange-600" />
-                      </div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Sentra</p>
-                      <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueSentras.length}</p>
-                  </div>
-                   <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
-                      <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <Briefcase className="w-12 h-12 text-orange-600" />
-                      </div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total CO</p>
-                      <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueCos.length}</p>
-                  </div>
-              </div>
-          </div>
-      </div>
+                    <h2 className="text-3xl font-extrabold text-slate-800 mb-3 leading-tight">
+                        Bangun Interaksi, <br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
+                            Tumbuh Bersama.
+                        </span>
+                    </h2>
+                    <p className="text-slate-600 text-sm leading-relaxed max-w-lg mb-4">
+                        B-Connect CRM membantu Community Officer mengelola data nasabah sentra, memantau jadwal jatuh tempo, dan mengirim pesan personalisasi berbasis AI dalam satu genggaman.
+                    </p>
+                </div>
+                
+                {/* Stats Cards */}
+                {activeConfig?.showStatsCards !== false && (
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
+                            <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Users className="w-12 h-12 text-orange-600" />
+                            </div>
+                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Nasabah</p>
+                            <p className="text-2xl font-black text-slate-800 relative z-10">{contacts.length}</p>
+                        </div>
+                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
+                            <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <MapPin className="w-12 h-12 text-orange-600" />
+                            </div>
+                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Sentra</p>
+                            <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueSentras.length}</p>
+                        </div>
+                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
+                            <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Briefcase className="w-12 h-12 text-orange-600" />
+                            </div>
+                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total CO</p>
+                            <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueCos.length}</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+      )}
 
       {/* MAIN CONTENT */}
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
