@@ -7,13 +7,15 @@ import { AdminModal } from './components/AdminModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { BroadcastPanel } from './components/BroadcastPanel';
 import { DashboardPanel } from './components/DashboardPanel';
+// NEW IMPORT
+import { ContactManagementPanel } from './components/ContactManagementPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon } from 'lucide-react';
 
-// REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
+// ... (INITIAL_TEMPLATES_FALLBACK remains the same) ...
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   // --- KATEGORI 1: OPERASIONAL RUTIN ---
   { 
@@ -42,7 +44,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: '2', 
     label: 'Tawaran Lanjut (Cair)', 
     type: 'ai', 
-    promptContext: 'Ucapkan selamat karena angsuran nasabah akan segera lunas (Jatuh Tempo). Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' 
+    promptContext: 'Nasabah ini sebentar lagi lunas (Jatuh Tempo). Berikan ucapan selamat atas kedisiplinannya. Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' 
   },
   { 
     id: 'ai-prospek', 
@@ -85,58 +87,50 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   },
 ];
 
-type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard';
+// Add 'contacts' to View Type
+type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts';
 
 const App: React.FC = () => {
-  // State: Data
+  // ... (State logic same as before) ...
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [configError, setConfigError] = useState<boolean>(false);
   const [activeConfig, setActiveConfig] = useState<SheetConfig | null>(null);
 
-  // State: UI & Navigation
   const [activeView, setActiveView] = useState<AppView>('home');
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Optimasi: Debounce
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedSentra, setSelectedSentra] = useState<string>('');
   const [selectedCo, setSelectedCo] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('All'); // New Status Filter
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
   
-  // State: Modals
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   
-  // State: Pagination / Lazy Load
-  const [visibleCount, setVisibleCount] = useState(50); // Hanya tampilkan 50 awal
+  const [visibleCount, setVisibleCount] = useState(50);
   
-  // Derived State for UI Feedback
   const isFiltering = searchTerm !== debouncedSearchTerm;
 
-  // --- 0. Debounce Logic for Search ---
+  // ... (Effects same as before) ...
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-    }, 500); // Wait 500ms after user stops typing to reduce lag
+    }, 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Reset pagination when filters change
   useEffect(() => {
       setVisibleCount(50);
   }, [debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
 
-
-  // --- 1. Load Data on Mount ---
   const loadData = async () => {
     setIsLoadingData(true);
     setConfigError(false);
     try {
-        // 1. Fetch Config from Supabase OR Fallback to config.ts
         let finalConfig: SheetConfig = { ...GLOBAL_CONFIG };
-        
         if (isSupabaseConfigured()) {
             try {
                 const supabaseSettings = await fetchSettingsFromSupabase();
@@ -151,7 +145,6 @@ const App: React.FC = () => {
         setActiveConfig(finalConfig);
 
         if (finalConfig.spreadsheetId) {
-            // Fetch LIVE Contacts from Google Sheet
             try {
                 const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
                 setContacts(liveContacts);
@@ -159,7 +152,6 @@ const App: React.FC = () => {
                 console.error("Error fetching live contacts from Sheet:", err);
             }
 
-            // Fetch LIVE Templates from SUPABASE
             try {
                 if (isSupabaseConfigured()) {
                     const sbTemplates = await fetchTemplatesFromSupabase();
@@ -190,20 +182,17 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // --- Notification Logic (Refinancing M+1 & PRS H-1) ---
+  // ... (Notification Logic & Filter Logic same as before) ...
   const upcomingEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
-
-    // Calculate Next Month Date
     const nextMonthDate = new Date(today);
     nextMonthDate.setMonth(currentMonth + 1);
     const nextMonth = nextMonthDate.getMonth();
     const nextMonthYear = nextMonthDate.getFullYear();
 
-    // Helper: Parse DD/MM/YYYY or YYYY-MM-DD
     const parseFullDate = (dateStr: string): Date | null => {
         if (!dateStr) return null;
         const clean = dateStr.trim();
@@ -213,9 +202,7 @@ const App: React.FC = () => {
             const month = parseInt(partsIndo[2], 10) - 1; 
             const year = parseInt(partsIndo[3], 10);
             const d = new Date(year, month, day);
-            if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) {
-                return d;
-            }
+            if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) return d;
         }
         const parsed = Date.parse(clean);
         if (!isNaN(parsed)) return new Date(parsed);
@@ -223,86 +210,54 @@ const App: React.FC = () => {
     };
 
     return contacts.reduce<NotificationItem[]>((acc, contact) => {
-        // 1. Check Jatuh Tempo (Payment/Refinancing)
         if (contact.tglJatuhTempo) {
             const dueDate = parseFullDate(contact.tglJatuhTempo);
-            
             if (dueDate) {
-                const dueMonth = dueDate.getMonth();
-                const dueYear = dueDate.getFullYear();
-                let status: 'today' | 'soon' | 'this_month' | 'next_month' | null = null;
-                
-                if (dueYear === currentYear && dueMonth === currentMonth) {
-                     if (dueDate.getDate() === today.getDate()) status = 'today';
-                     else if (dueDate > today) status = 'this_month';
-                } else if ((dueYear === nextMonthYear && dueMonth === nextMonth)) {
+                const dm = dueDate.getMonth();
+                const dy = dueDate.getFullYear();
+                let status: any = null;
+                if (dy === currentYear && dm === currentMonth) {
+                     status = (dueDate.getDate() === today.getDate()) ? 'today' : 'this_month';
+                } else if ((dy === nextMonthYear && dm === nextMonth)) {
                     status = 'next_month';
                 }
-
-                if (status) {
-                     const diffTime = dueDate.getTime() - today.getTime();
-                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                     acc.push({ contact, type: 'payment', status: status, daysLeft: diffDays });
-                }
+                if (status) acc.push({ contact, type: 'payment', status: status, daysLeft: 0 });
             }
         }
-
-        // 2. Check PRS (Meeting)
         if (contact.tglPrs) {
              let prsDate: Date | null = null;
              if (contact.tglPrs.match(/^\d{1,2}$/)) {
-                 const day = parseInt(contact.tglPrs);
-                 prsDate = new Date(today.getFullYear(), today.getMonth(), day);
+                 prsDate = new Date(today.getFullYear(), today.getMonth(), parseInt(contact.tglPrs));
              } else {
                  prsDate = parseFullDate(contact.tglPrs);
              }
-
              if (prsDate) {
-                 const diffTime = prsDate.getTime() - today.getTime();
-                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                 if (diffDays === 0) {
-                     acc.push({ contact, type: 'prs', status: 'today', daysLeft: 0 });
-                 } else if (diffDays === 1) {
-                     acc.push({ contact, type: 'prs', status: 'soon', daysLeft: 1 });
-                 }
+                 const diff = Math.ceil((prsDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                 if (diff === 0) acc.push({ contact, type: 'prs', status: 'today', daysLeft: 0 });
+                 else if (diff === 1) acc.push({ contact, type: 'prs', status: 'soon', daysLeft: 1 });
              }
         }
         return acc;
     }, []).sort((a, b) => a.daysLeft - b.daysLeft);
   }, [contacts]);
 
-
-  // --- Filtering Logic ---
   const uniqueSentras = useMemo(() => {
-    let sourceContacts = contacts;
-    if (selectedCo) {
-        sourceContacts = contacts.filter(c => (c.co || 'Unassigned') === selectedCo);
-    }
-    const sentras = new Set(sourceContacts.map(c => c.sentra || 'Unknown'));
-    return Array.from(sentras).sort();
+    let source = selectedCo ? contacts.filter(c => (c.co || 'Unassigned') === selectedCo) : contacts;
+    return Array.from(new Set(source.map(c => c.sentra || 'Unknown'))).sort();
   }, [contacts, selectedCo]);
 
   const uniqueCos = useMemo(() => {
-      const cos = new Set(contacts.map(c => c.co || 'Unassigned'));
-      return Array.from(cos).sort();
+      return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
   }, [contacts]);
 
   const filteredContacts = useMemo(() => {
     if (!debouncedSearchTerm && !selectedSentra && !selectedCo && selectedStatus === 'All') return [];
-    
     return contacts.filter(contact => {
-      const matchesSearch = 
-        !debouncedSearchTerm || 
-        contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        contact.phone.includes(debouncedSearchTerm);
-      
-      const matchesSentra = !selectedSentra || (contact.sentra || 'Unknown') === selectedSentra;
-      const matchesCo = !selectedCo || (contact.co || 'Unassigned') === selectedCo;
-      
-      const matchesStatus = selectedStatus === 'All' || 
-                            (contact.status || '').toLowerCase() === selectedStatus.toLowerCase();
-
-      return matchesSearch && matchesSentra && matchesCo && matchesStatus;
+      const matchSearch = !debouncedSearchTerm || contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || contact.phone.includes(debouncedSearchTerm);
+      const matchSentra = !selectedSentra || (contact.sentra || 'Unknown') === selectedSentra;
+      const matchCo = !selectedCo || (contact.co || 'Unassigned') === selectedCo;
+      const matchStatus = selectedStatus === 'All' || (contact.status || '').toLowerCase() === selectedStatus.toLowerCase();
+      return matchSearch && matchSentra && matchCo && matchStatus;
     });
   }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
 
@@ -310,8 +265,6 @@ const App: React.FC = () => {
       return filteredContacts.slice(0, visibleCount);
   }, [filteredContacts, visibleCount]);
 
-
-  // --- Handlers ---
   const handleSyncSheet = async () => {
     setIsSyncing(true);
     setContacts([]); 
@@ -344,35 +297,40 @@ const App: React.FC = () => {
   // --- Render Navigation ---
   const renderBottomNav = () => (
     <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
-        <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+        <div className="flex justify-between items-center px-4 py-2 max-w-md mx-auto">
             <button onClick={() => setActiveView('home')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'home' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Home className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-medium">Beranda</span>
+                <span className="text-[9px] font-medium">Beranda</span>
             </button>
             
             <button onClick={() => setActiveView('dashboard')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <TrendingUp className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-medium">Kinerja</span>
+                <span className="text-[9px] font-medium">Kinerja</span>
+            </button>
+
+            <button onClick={() => setActiveView('contacts')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'contacts' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+                <ContactIcon className="w-5 h-5 mb-0.5" />
+                <span className="text-[9px] font-medium">Kontak</span>
             </button>
 
             <div className="relative">
                 <button onClick={() => setActiveView('notifications')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'notifications' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                     <Bell className="w-5 h-5 mb-0.5" />
-                    <span className="text-[10px] font-medium">Follow Up</span>
+                    <span className="text-[9px] font-medium">Follow Up</span>
                 </button>
                 {upcomingEvents.length > 0 && (
-                    <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                 )}
             </div>
             
             <button onClick={() => setActiveView('broadcast')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'broadcast' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Radio className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-medium">Siaran</span>
+                <span className="text-[9px] font-medium">Siaran</span>
             </button>
             
             <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Settings className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-medium">Setting</span>
+                <span className="text-[9px] font-medium">Admin</span>
             </button>
         </div>
     </div>
@@ -381,7 +339,6 @@ const App: React.FC = () => {
 
   // --- Render Views ---
 
-  // 1. Settings View (Admin)
   if (activeView === 'settings') {
       return (
           <>
@@ -401,7 +358,6 @@ const App: React.FC = () => {
       );
   }
 
-  // 2. Notification View
   if (activeView === 'notifications') {
       return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -430,7 +386,6 @@ const App: React.FC = () => {
       );
   }
 
-  // 3. Broadcast View
   if (activeView === 'broadcast') {
       return (
           <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -445,7 +400,6 @@ const App: React.FC = () => {
       );
   }
 
-  // 4. Dashboard View
   if (activeView === 'dashboard') {
       return (
           <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -458,7 +412,30 @@ const App: React.FC = () => {
       );
   }
 
-  // 5. Home View
+  // NEW CONTACT MANAGEMENT VIEW
+  if (activeView === 'contacts') {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
+              <ContactManagementPanel 
+                contacts={contacts} 
+                onEdit={setContactToEdit}
+                onDelete={handleDeleteContact}
+                onBack={() => setActiveView('home')} 
+              />
+              <EditContactModal
+                contact={contactToEdit}
+                isOpen={!!contactToEdit}
+                onClose={() => setContactToEdit(null)}
+                onSave={handleUpdateContact}
+                onDelete={handleDeleteContact}
+                sheetConfig={activeConfig}
+              />
+              {renderBottomNav()}
+          </div>
+      );
+  }
+
+  // Home View
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
       
@@ -708,15 +685,6 @@ const App: React.FC = () => {
           apiKey={activeConfig?.geminiApiKey}
         />
       )}
-
-      <EditContactModal
-        contact={contactToEdit}
-        isOpen={!!contactToEdit}
-        onClose={() => setContactToEdit(null)}
-        onSave={handleUpdateContact}
-        onDelete={handleDeleteContact}
-        sheetConfig={activeConfig}
-      />
 
       {renderBottomNav()}
     </div>
