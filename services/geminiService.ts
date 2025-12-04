@@ -65,6 +65,46 @@ export const generateWhatsAppMessage = async (
   }
 };
 
+export const generateBroadcastMessage = async (
+  context: string,
+  targetAudience: string, // e.g. "Semua Nasabah Sentra Mawar"
+  tone: 'formal' | 'casual' | 'friendly' = 'friendly',
+  overrideApiKey?: string
+): Promise<string> => {
+  const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
+  if (!apiKey) return "Error: API Key missing.";
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+
+    const prompt = `
+      Bertindaklah sebagai Community Officer (CO) BTPN Syariah.
+      Buatkan SATU pesan WhatsApp broadcast (Bahasa Indonesia) yang bersifat umum untuk dikirimkan ke banyak nasabah sekaligus.
+      
+      TARGET AUDIENCE: ${targetAudience}
+      TUJUAN PESAN: ${context}
+      TONE: ${tone}
+
+      INSTRUKSI PENTING:
+      1. Ini adalah pesan Template (Master). JANGAN gunakan nama orang spesifik.
+      2. WAJIB gunakan teks "{name}" (persis seperti itu, tanpa tanda kutip) di posisi nama nasabah agar aplikasi saya bisa menggantinya otomatis.
+         Contoh Benar: "Assalamualaikum Ibu {name}, semoga sehat selalu..."
+      3. Gaya bahasa hangat, sopan, khas ibu-ibu pengajian/sentra.
+      4. Output hanya teks pesan saja. Jangan ada pembuka/penutup lain.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    return response.text || "";
+  } catch (error) {
+    console.error("Error generating broadcast:", error);
+    return "Maaf, gagal membuat draft broadcast.";
+  }
+};
+
 export const extractContactsFromText = async (rawText: string, overrideApiKey?: string): Promise<string> => {
   const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
   if (!apiKey) return "[]";

@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Contact, MessageTemplate } from '../types';
-import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, ChevronDown, Loader2, Wand2 } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, ChevronDown, Loader2, Wand2, Briefcase, Activity, Edit3, Copy, Users } from 'lucide-react';
 import { Button } from './Button';
-import { generateWhatsAppMessage } from '../services/geminiService';
+import { generateBroadcastMessage } from '../services/geminiService';
 
 interface BroadcastPanelProps {
   contacts: Contact[];
@@ -17,80 +17,110 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   onBack,
   apiKey
 }) => {
-  const [selectedSentra, setSelectedSentra] = useState<string>('');
-  const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
-  const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  // 1. Filter State
+  const [filterCo, setFilterCo] = useState<string>('All');
+  const [filterSentra, setFilterSentra] = useState<string>('All');
+  const [filterStatus, setFilterStatus] = useState<string>('All');
 
-  // Extract Sentras
-  const uniqueSentras = useMemo(() => {
-    const sentras = new Set(contacts.map(c => c.sentra || 'Unknown'));
-    return Array.from(sentras).sort();
+  // 2. Message State
+  const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // 3. Sending State
+  const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
+
+  // --- Derived Data ---
+
+  const uniqueCos = useMemo(() => {
+      return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
   }, [contacts]);
 
-  // Filter Contacts by Sentra
+  const uniqueSentras = useMemo(() => {
+    let source = contacts;
+    if (filterCo !== 'All') {
+        source = contacts.filter(c => (c.co || 'Unassigned') === filterCo);
+    }
+    const sentras = new Set(source.map(c => c.sentra || 'Unknown'));
+    return Array.from(sentras).sort();
+  }, [contacts, filterCo]);
+
+  // Fix: Target filtering logic
   const targetContacts = useMemo(() => {
-    if (!selectedSentra) return [];
-    return contacts.filter(c => (c.sentra || 'Unknown') === selectedSentra);
-  }, [contacts, selectedSentra]);
-
-  const handleSend = async (contact: Contact) => {
-    if (!selectedTemplate) {
-        alert("Pilih template pesan terlebih dahulu");
-        return;
-    }
-
-    let messageText = '';
-
-    // 1. GENERATE MESSAGE (Manual vs AI)
-    if (selectedTemplate.type === 'manual') {
-        let text = selectedTemplate.content || '';
-        // Replace variables
-        text = text.replace(/{name}/g, contact.name);
-        text = text.replace(/{sentra}/g, contact.sentra || 'Sentra');
-        text = text.replace(/{flag}/g, contact.flag);
-        text = text.replace(/{segment}/g, contact.flag);
-        text = text.replace(/{phone}/g, contact.phone);
-        text = text.replace(/{co}/g, contact.co || 'Petugas');
-        text = text.replace(/{plafon}/g, contact.plafon || '');
-        text = text.replace(/{tgl_jatuh_tempo}/g, contact.tglJatuhTempo || '');
-        text = text.replace(/{tgl_prs}/g, contact.tglPrs || '');
-        messageText = text;
-    } else {
-        // AI Logic
-        setGeneratingId(contact.id);
-        try {
-            // Enrich Context
-            let extendedContext = selectedTemplate.promptContext || 'Sapaan ramah';
-            if (contact.tglPrs) {
-                extendedContext += `\n[Info Tambahan]: Tanggal PRS/Kumpulan nasabah adalah ${contact.tglPrs}.`;
-            }
-
-            const generated = await generateWhatsAppMessage(
-                contact, 
-                extendedContext, 
-                'friendly', 
-                apiKey
-            );
-            messageText = generated;
-        } catch (e) {
-            console.error("AI Error:", e);
-            alert("Gagal membuat pesan AI. Cek koneksi atau API Key.");
-            setGeneratingId(null);
-            return;
+    return contacts.filter(contact => {
+        const cCo = (contact.co || 'Unassigned').trim();
+        const cSentra = (contact.sentra || 'Unknown').trim();
+        // IMPORTANT: Status filter should check 'flag' (Active/Prospect) OR 'status' (Lancar/Macet)
+        // Here we map the dropdown "Active" to check if flag contains it.
+        const cFlag = (contact.flag || '').toLowerCase();
+        
+        const matchCo = filterCo === 'All' || cCo === filterCo;
+        const matchSentra = filterSentra === 'All' || cSentra === filterSentra;
+        
+        let matchStatus = true;
+        if (filterStatus !== 'All') {
+            const f = filterStatus.toLowerCase();
+            // Check broadly in Flag (Active/Silver/Gold) or Status
+            matchStatus = cFlag.includes(f) || (contact.status || '').toLowerCase().includes(f);
         }
-        setGeneratingId(null);
-    }
+        
+        return matchCo && matchSentra && matchStatus;
+    });
+  }, [contacts, filterCo, filterSentra, filterStatus]);
 
-    // 2. OPEN WHATSAPP
-    const encodedMessage = encodeURIComponent(messageText);
-    const cleanPhone = contact.phone.replace(/\D/g, '');
-    const finalPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.substring(1) : cleanPhone;
+  // --- Handlers ---
 
-    window.open(`https://wa.me/${finalPhone}?text=${encodedMessage}`, '_blank');
+  const handleGenerateDraft = async () => {
+      if (!selectedTemplate) return;
+      
+      setBroadcastMessage('');
+      setIsGenerating(true);
 
-    // 3. MARK AS SENT
-    setSentStatus(prev => ({ ...prev, [contact.id]: true }));
+      try {
+          if (selectedTemplate.type === 'manual') {
+              // Manual: Just load content
+              setBroadcastMessage(selectedTemplate.content || '');
+          } else {
+              // AI: Generate generic message
+              const audience = filterSentra !== 'All' 
+                ? `Anggota Sentra ${filterSentra}` 
+                : `Nasabah BTPN Syariah (Total ${targetContacts.length} orang)`;
+              
+              const text = await generateBroadcastMessage(
+                  selectedTemplate.promptContext || 'Info Penting',
+                  audience,
+                  'friendly',
+                  apiKey
+              );
+              setBroadcastMessage(text);
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Gagal membuat draft pesan.");
+      } finally {
+          setIsGenerating(false);
+      }
+  };
+
+  const handleSendToContact = (contact: Contact) => {
+      if (!broadcastMessage) return;
+
+      // Local Replacement (Client-Side)
+      let finalMsg = broadcastMessage;
+      
+      // Replace placeholders
+      finalMsg = finalMsg.replace(/{name}/gi, contact.name);
+      finalMsg = finalMsg.replace(/{sentra}/gi, contact.sentra || '');
+      finalMsg = finalMsg.replace(/{co}/gi, contact.co || '');
+      finalMsg = finalMsg.replace(/{phone}/gi, contact.phone);
+
+      const encodedMessage = encodeURIComponent(finalMsg);
+      const cleanPhone = contact.phone.replace(/\D/g, '');
+      const finalPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.substring(1) : cleanPhone;
+
+      window.open(`https://wa.me/${finalPhone}?text=${encodedMessage}`, '_blank');
+      
+      setSentStatus(prev => ({ ...prev, [contact.id]: true }));
   };
 
   const sentCount = Object.keys(sentStatus).filter(k => targetContacts.find(c => c.id === k)).length;
@@ -108,148 +138,206 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
         </button>
         <div>
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                Siaran Sentra
+                Siaran Broadcast
                 <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full border border-orange-200">
-                    AI SUPPORT
+                    BULK MODE
                 </span>
             </h2>
-            <p className="text-sm text-slate-500">Kirim pesan massal personalisasi (AI/Manual).</p>
+            <p className="text-sm text-slate-500">Kirim 1 draft pesan ke banyak nasabah.</p>
         </div>
       </div>
 
-      {/* Step 1: Configuration */}
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 p-5 shadow-sm mb-6 space-y-4">
-         
-         {/* Select Sentra */}
-         <div>
-            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" /> Pilih Sentra Target
-            </label>
-            <div className="relative">
-                <select
-                    className="w-full p-3 pl-4 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none transition-all"
-                    value={selectedSentra}
-                    onChange={(e) => {
-                        setSelectedSentra(e.target.value);
-                        setSentStatus({}); // Reset status if sentra changes
-                    }}
-                >
-                    <option value="">-- Pilih Sentra --</option>
-                    {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-            </div>
-         </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {/* STEP 1: TARGETING */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-fit">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="bg-slate-100 w-5 h-5 flex items-center justify-center rounded-full text-slate-600">1</span>
+                Filter Penerima
+            </h3>
+            <div className="space-y-3">
+                {/* Filter CO */}
+                <div className="relative">
+                    <Briefcase className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <select
+                        className="w-full pl-9 pr-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
+                        value={filterCo}
+                        onChange={(e) => {
+                            setFilterCo(e.target.value);
+                            setFilterSentra('All'); // Reset Sentra
+                            setSentStatus({}); // Reset Progress
+                        }}
+                    >
+                        <option value="All">Semua Petugas (CO)</option>
+                        {uniqueCos.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+                </div>
 
-         {/* Select Template */}
-         <div>
-            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1">
-                <MessageSquare className="w-3.5 h-3.5" /> Pilih Template Pesan
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
-                {templates.length === 0 && (
-                    <div className="p-3 text-center text-xs text-slate-400 border border-dashed rounded-lg col-span-2">
-                        Belum ada template. Buat di menu Setting.
-                    </div>
-                )}
+                {/* Filter Sentra */}
+                <div className="relative">
+                    <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <select
+                        className="w-full pl-9 pr-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
+                        value={filterSentra}
+                        onChange={(e) => {
+                            setFilterSentra(e.target.value);
+                            setSentStatus({});
+                        }}
+                    >
+                        <option value="All">Semua Sentra</option>
+                        {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+                </div>
+
+                {/* Filter Status */}
+                <div className="relative">
+                    <Activity className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <select
+                        className="w-full pl-9 pr-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
+                        value={filterStatus}
+                        onChange={(e) => {
+                            setFilterStatus(e.target.value);
+                            setSentStatus({});
+                        }}
+                    >
+                        <option value="All">Semua Status (Active/Inactive)</option>
+                        <option value="Active">Active / Lancar</option>
+                        <option value="Inactive">Inactive / Macet</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+                </div>
+            </div>
+            
+            <div className={`mt-4 flex items-center gap-2 text-sm p-3 rounded-xl border ${targetContacts.length > 0 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                <Users className="w-4 h-4" />
+                <span className="font-bold">{targetContacts.length}</span> Nasabah terpilih
+            </div>
+        </div>
+
+        {/* STEP 2: TEMPLATE & GENERATE */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-fit">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="bg-slate-100 w-5 h-5 flex items-center justify-center rounded-full text-slate-600">2</span>
+                Template & Generate
+            </h3>
+            
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-4">
                 {templates.map(t => (
                     <button
                         key={t.id}
-                        onClick={() => setSelectedTemplate(t)}
-                        className={`text-left p-3 rounded-xl border text-sm transition-all flex items-center gap-3 ${
+                        onClick={() => {
+                            setSelectedTemplate(t);
+                            // Do not clear message immediately to allow template switching comparison
+                        }}
+                        className={`flex-shrink-0 p-3 rounded-xl border text-left min-w-[120px] max-w-[140px] transition-all flex flex-col gap-1 ${
                             selectedTemplate?.id === t.id 
-                            ? (t.type === 'manual' 
-                                ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm ring-1 ring-purple-500' 
-                                : 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm ring-1 ring-orange-500')
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
+                            ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500' 
+                            : 'bg-slate-50 border-slate-200 hover:bg-white hover:shadow-sm'
                         }`}
                     >
-                        <span className="text-lg">{t.icon}</span>
-                        <div className="overflow-hidden">
-                             <div className="font-medium truncate">{t.label}</div>
-                             <div className={`text-[9px] uppercase font-bold tracking-wider ${t.type === 'manual' ? 'text-purple-400' : 'text-orange-400'}`}>
-                                 {t.type === 'manual' ? 'Manual Text' : 'AI Generator'}
-                             </div>
-                        </div>
+                        <span className="text-xl">{t.icon}</span>
+                        <span className={`text-[10px] font-bold uppercase truncate w-full ${selectedTemplate?.id === t.id ? 'text-orange-700' : 'text-slate-500'}`}>
+                            {t.label}
+                        </span>
                     </button>
                 ))}
             </div>
-         </div>
 
+            <Button 
+                onClick={handleGenerateDraft} 
+                disabled={!selectedTemplate || targetContacts.length === 0} 
+                isLoading={isGenerating}
+                className="w-full"
+                icon={<Wand2 className="w-4 h-4" />}
+            >
+                {isGenerating ? 'Membuat Draft...' : 'Buat Draft Pesan (Generate)'}
+            </Button>
+            
+            <p className="text-[10px] text-slate-400 mt-2 text-center">
+                *Pesan akan dibuat sekali (generic) dengan placeholder {`{name}`}
+            </p>
+        </div>
       </div>
 
-      {/* Step 2: Execution List */}
-      {selectedSentra && (
-          <div className="space-y-4">
-              <div className="flex justify-between items-end px-1">
-                  <div>
-                      <h3 className="font-bold text-slate-700">Daftar Anggota {selectedSentra}</h3>
-                      <p className="text-xs text-slate-400">Total: {targetContacts.length} Nasabah</p>
-                  </div>
-                  <div className="text-right">
-                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Progress</p>
-                      <div className="flex items-center gap-2">
-                          <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                          </div>
-                          <span className="text-xs font-bold text-green-600">{sentCount}/{targetContacts.length}</span>
-                      </div>
-                  </div>
+      {/* STEP 3 & 4: PREVIEW & SEND LIST */}
+      <div className="animate-fade-in-up space-y-4">
+          
+          {/* Master Message */}
+          <div className={`bg-gradient-to-br from-orange-50 to-white rounded-2xl border p-5 shadow-sm relative group transition-all ${broadcastMessage ? 'border-orange-300 ring-2 ring-orange-200' : 'border-slate-200 opacity-70'}`}>
+              <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                    <span className="bg-orange-200 w-5 h-5 flex items-center justify-center rounded-full text-orange-700">3</span>
+                    Draft Pesan Master
+                  </h3>
+                  <span className="text-[10px] bg-white px-2 py-1 rounded border border-orange-100 text-orange-500 font-bold">
+                      {`{name}`} akan berubah otomatis
+                  </span>
               </div>
-
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  {targetContacts.map((contact, idx) => {
-                      const isSent = sentStatus[contact.id];
-                      const isGenerating = generatingId === contact.id;
-                      
-                      return (
-                          <div 
-                            key={contact.id} 
-                            className={`p-4 flex items-center justify-between border-b border-slate-100 last:border-0 transition-colors ${
-                                isSent ? 'bg-green-50/50' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                              <div className="flex items-center gap-3">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
-                                      isSent ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'
-                                  }`}>
-                                      {idx + 1}
-                                  </div>
-                                  <div>
-                                      <p className={`font-bold text-sm ${isSent ? 'text-green-800' : 'text-slate-800'}`}>{contact.name}</p>
-                                      <p className="text-xs text-slate-400 font-mono">{contact.phone}</p>
-                                  </div>
-                              </div>
-
-                              <Button
-                                size="sm"
-                                variant={isSent ? "outline" : "primary"}
-                                onClick={() => handleSend(contact)}
-                                disabled={!selectedTemplate || isGenerating}
-                                isLoading={isGenerating}
-                                className={isSent ? 'border-green-200 text-green-600 bg-white' : 'shadow-orange-200'}
-                                icon={isSent 
-                                    ? <CheckCircle2 className="w-3.5 h-3.5" /> 
-                                    : (selectedTemplate?.type === 'ai' ? <Wand2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />)
-                                }
-                              >
-                                  {isSent 
-                                    ? 'Terkirim' 
-                                    : (selectedTemplate?.type === 'ai' ? 'Generate & Kirim' : 'Kirim WA')
-                                  }
-                              </Button>
-                          </div>
-                      );
-                  })}
-                  
-                  {targetContacts.length === 0 && (
-                      <div className="p-8 text-center text-slate-400">
-                          Tidak ada data nasabah di sentra ini.
-                      </div>
-                  )}
-              </div>
+              
+              <textarea 
+                className="w-full h-24 bg-transparent border-none focus:ring-0 text-slate-800 text-sm leading-relaxed resize-none p-0 placeholder-slate-400"
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value)}
+                placeholder="Hasil generate AI akan muncul di sini. Silakan edit manual jika perlu sebelum mengirim."
+                disabled={isGenerating}
+              />
           </div>
-      )}
+
+          {/* Contact List Actions */}
+          {targetContacts.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center sticky top-0">
+                    <div className="flex items-center gap-2">
+                         <h3 className="font-bold text-slate-700">Daftar Kirim</h3>
+                         {sentCount > 0 && (
+                             <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                                 {Math.round(progress)}% Selesai
+                             </span>
+                         )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">{sentCount}/{targetContacts.length}</span>
+                    </div>
+                </div>
+
+                <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                    {targetContacts.map((contact, idx) => {
+                        const isSent = sentStatus[contact.id];
+                        const readyToSend = !!broadcastMessage;
+                        
+                        return (
+                        <div key={contact.id} className={`p-3 flex items-center justify-between hover:bg-slate-50 transition-colors ${isSent ? 'bg-green-50/30' : ''}`}>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs text-slate-400 font-mono w-6 text-center">{idx + 1}</span>
+                                <div>
+                                    <p className="font-bold text-sm text-slate-800">{contact.name}</p>
+                                    <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                                        {contact.phone} • <span className="px-1.5 py-0.5 rounded bg-slate-100">{contact.sentra}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <Button 
+                                size="sm" 
+                                variant={isSent ? 'outline' : 'primary'}
+                                className={`h-8 px-4 text-xs ${isSent ? 'border-green-200 text-green-600 bg-green-50' : ''}`}
+                                onClick={() => handleSendToContact(contact)}
+                                disabled={!readyToSend}
+                                icon={isSent ? <CheckCircle2 className="w-3 h-3"/> : <Send className="w-3 h-3"/>}
+                            >
+                                {isSent ? 'Terkirim' : 'Kirim WA'}
+                            </Button>
+                        </div>
+                        );
+                    })}
+                </div>
+            </div>
+          )}
+      </div>
+
     </div>
   );
 };
