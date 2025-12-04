@@ -483,7 +483,7 @@ const App: React.FC = () => {
                         BTPN Syariah
                     </span>
                     <h2 className="text-3xl font-extrabold text-slate-800 mb-3 leading-tight">
-                        Borobudur<br/>
+                        Borobudur
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
                             Berprestasi
                         </span>
