@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Contact, MessageTemplate } from '../types';
-import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, ChevronDown, Loader2, Wand2, Briefcase, Activity, Edit3, Copy, Users } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, ChevronDown, Loader2, Wand2, Briefcase, Activity, Edit3, Copy, Users, RefreshCw } from 'lucide-react';
 import { Button } from './Button';
 import { generateBroadcastMessage } from '../services/geminiService';
 
@@ -48,20 +48,30 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   // Fix: Target filtering logic
   const targetContacts = useMemo(() => {
     return contacts.filter(contact => {
+        // Normalize Filter Values
         const cCo = (contact.co || 'Unassigned').trim();
         const cSentra = (contact.sentra || 'Unknown').trim();
-        // IMPORTANT: Status filter should check 'flag' (Active/Prospect) OR 'status' (Lancar/Macet)
-        // Here we map the dropdown "Active" to check if flag contains it.
         const cFlag = (contact.flag || '').toLowerCase();
+        const cStatus = (contact.status || '').toLowerCase();
         
         const matchCo = filterCo === 'All' || cCo === filterCo;
         const matchSentra = filterSentra === 'All' || cSentra === filterSentra;
         
         let matchStatus = true;
         if (filterStatus !== 'All') {
-            const f = filterStatus.toLowerCase();
-            // Check broadly in Flag (Active/Silver/Gold) or Status
-            matchStatus = cFlag.includes(f) || (contact.status || '').toLowerCase().includes(f);
+            if (filterStatus === 'Active') {
+                // Logic: Active is anyone NOT Macet/DO/Prospect
+                // BTPN Logic: Gold, Silver, Platinum, Active -> Are Active
+                const inactiveKeywords = ['macet', 'do', 'drop', 'inactive', 'tutup'];
+                const isInactive = inactiveKeywords.some(k => cFlag.includes(k) || cStatus.includes(k));
+                const isProspect = cFlag.includes('prospect');
+                matchStatus = !isInactive && !isProspect;
+            } else if (filterStatus === 'Inactive') {
+                const inactiveKeywords = ['macet', 'do', 'drop', 'inactive', 'tutup'];
+                matchStatus = inactiveKeywords.some(k => cFlag.includes(k) || cStatus.includes(k));
+            } else if (filterStatus === 'Prospect') {
+                 matchStatus = cFlag.includes('prospect');
+            }
         }
         
         return matchCo && matchSentra && matchStatus;
@@ -201,9 +211,10 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                             setSentStatus({});
                         }}
                     >
-                        <option value="All">Semua Status (Active/Inactive)</option>
-                        <option value="Active">Active / Lancar</option>
-                        <option value="Inactive">Inactive / Macet</option>
+                        <option value="All">Semua Status</option>
+                        <option value="Active">Lancar / Active (Gold/Silver)</option>
+                        <option value="Inactive">Macet / Inactive</option>
+                        <option value="Prospect">Prospek</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
                 </div>
@@ -228,7 +239,6 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                         key={t.id}
                         onClick={() => {
                             setSelectedTemplate(t);
-                            // Do not clear message immediately to allow template switching comparison
                         }}
                         className={`flex-shrink-0 p-3 rounded-xl border text-left min-w-[120px] max-w-[140px] transition-all flex flex-col gap-1 ${
                             selectedTemplate?.id === t.id 
@@ -279,7 +289,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                 className="w-full h-24 bg-transparent border-none focus:ring-0 text-slate-800 text-sm leading-relaxed resize-none p-0 placeholder-slate-400"
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
-                placeholder="Hasil generate AI akan muncul di sini. Silakan edit manual jika perlu sebelum mengirim."
+                placeholder="Pilih template & generate dahulu. Hasil akan muncul di sini."
                 disabled={isGenerating}
               />
           </div>
@@ -289,7 +299,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center sticky top-0">
                     <div className="flex items-center gap-2">
-                         <h3 className="font-bold text-slate-700">Daftar Kirim</h3>
+                         <h3 className="font-bold text-slate-700">Daftar Kirim ({targetContacts.length})</h3>
                          {sentCount > 0 && (
                              <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
                                  {Math.round(progress)}% Selesai

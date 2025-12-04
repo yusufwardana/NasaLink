@@ -79,18 +79,19 @@ export const generateBroadcastMessage = async (
 
     const prompt = `
       Bertindaklah sebagai Community Officer (CO) BTPN Syariah.
-      Buatkan SATU pesan WhatsApp broadcast (Bahasa Indonesia) yang bersifat umum untuk dikirimkan ke banyak nasabah sekaligus.
+      Buatkan SATU template pesan WhatsApp broadcast (Bahasa Indonesia) yang bersifat umum untuk dikirimkan ke banyak nasabah sekaligus.
       
       TARGET AUDIENCE: ${targetAudience}
       TUJUAN PESAN: ${context}
       TONE: ${tone}
 
       INSTRUKSI PENTING:
-      1. Ini adalah pesan Template (Master). JANGAN gunakan nama orang spesifik.
-      2. WAJIB gunakan teks "{name}" (persis seperti itu, tanpa tanda kutip) di posisi nama nasabah agar aplikasi saya bisa menggantinya otomatis.
-         Contoh Benar: "Assalamualaikum Ibu {name}, semoga sehat selalu..."
-      3. Gaya bahasa hangat, sopan, khas ibu-ibu pengajian/sentra.
-      4. Output hanya teks pesan saja. Jangan ada pembuka/penutup lain.
+      1. Ini adalah pesan untuk Broadcast.
+      2. WAJIB gunakan placeholder "{name}" (persis, huruf kecil, kurung kurawal) di mana nama nasabah seharusnya berada. Aplikasi akan menggantinya otomatis.
+         Contoh: "Assalamualaikum Ibu {name}, semoga sehat selalu..."
+      3. Jangan gunakan nama spesifik, gunakan hanya "{name}".
+      4. Gaya bahasa hangat, sopan, khas ibu-ibu pengajian/sentra.
+      5. Output hanya teks pesan saja.
     `;
 
     const response = await ai.models.generateContent({
