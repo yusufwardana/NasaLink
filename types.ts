@@ -14,6 +14,13 @@ export interface Contact {
   tglJatuhTempo?: string;  // Map from 'TGL JATUH TEMPO'
   tglPrs?: string;         // Map from 'TGL PRS'
   status?: string;         // Map from 'STATUS'
+
+  // Additional Banking Data
+  appId?: string;          // Map from 'APPID'
+  cif?: string;            // Map from 'CIF'
+  os?: string;             // Map from 'OS' (Outstanding)
+  dpd?: string;            // Map from 'DPD'
+  saldoTabungan?: string;  // Map from 'SALDO TABUNGAN'
 }
 
 export interface MessageTemplate {

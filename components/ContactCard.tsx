@@ -1,6 +1,6 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, UserCircle, Users, CheckCircle2, CreditCard, Box } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, UserCircle, Users, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -19,16 +19,24 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
     return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
+  // Helper to check if DPD is serious (> 0)
+  const dpdValue = parseInt(contact.dpd || '0', 10);
+  const isDpdWarning = dpdValue > 0;
+
   return (
-    <div className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative">
+    <div className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative ${isDpdWarning ? 'border-red-200 ring-1 ring-red-100' : 'border-slate-200'}`}>
       {/* Decorative Top Border */}
-      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className={`absolute top-0 inset-x-0 h-1 transition-opacity ${isDpdWarning ? 'bg-red-500 opacity-100' : 'bg-gradient-to-r from-orange-500 to-amber-500 opacity-0 group-hover:opacity-100'}`} />
 
       {/* HEADER: Identity */}
       <div className="p-5 pb-3 flex justify-between items-start gap-3">
         <div className="flex gap-4 items-center">
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 font-bold text-lg shadow-sm group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-amber-600 group-hover:text-white transition-all duration-300">
+            <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 font-bold text-lg shadow-sm transition-all duration-300 ${
+                isDpdWarning 
+                ? 'bg-red-50 border-red-100 text-red-600'
+                : 'bg-slate-50 border-slate-100 text-slate-600 group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-amber-600 group-hover:text-white'
+            }`}>
                 {contact.name.charAt(0).toUpperCase()}
             </div>
             
@@ -54,6 +62,11 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
                      {contact.status}
                  </span>
              )}
+             {isDpdWarning && (
+                 <span className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100 animate-pulse">
+                     <AlertOctagon className="w-3 h-3" /> DPD: {contact.dpd}
+                 </span>
+             )}
         </div>
       </div>
 
@@ -61,7 +74,7 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
       <div className="px-5 py-3 border-t border-slate-50 bg-slate-50/30">
         <div className="grid grid-cols-2 gap-y-3 gap-x-6">
             
-            {/* Row 1 */}
+            {/* Row 1: Sentra & CO */}
             <div className="flex flex-col">
                 <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
                     <MapPin className="w-3 h-3" /> Sentra
@@ -80,27 +93,46 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
                 </span>
             </div>
 
-            {/* Row 2 (Optional Fields) */}
-            {(contact.produk || contact.plafon) && (
-                <>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                            <Box className="w-3 h-3" /> Produk
-                        </span>
-                        <span className="text-sm text-slate-600 truncate">
-                            {contact.produk || '-'}
-                        </span>
-                    </div>
-                    <div className="flex flex-col">
-                         <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                            <CreditCard className="w-3 h-3" /> Plafon
-                        </span>
-                        <span className="text-sm font-mono font-medium text-slate-600">
-                            {contact.plafon || '-'}
-                        </span>
-                    </div>
-                </>
-            )}
+            {/* Row 2: Financials (Updated) */}
+            <div className="flex flex-col col-span-2 grid grid-cols-2 gap-x-6 pt-2 border-t border-slate-100/50 mt-1">
+                <div className="flex flex-col">
+                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                        <Wallet className="w-3 h-3" /> Outstanding (OS)
+                    </span>
+                    <span className={`text-sm font-mono font-medium ${contact.os ? 'text-slate-800' : 'text-slate-400'}`}>
+                        {contact.os || '-'}
+                    </span>
+                </div>
+                <div className="flex flex-col">
+                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                        <CreditCard className="w-3 h-3" /> Plafon
+                    </span>
+                    <span className="text-sm font-mono font-medium text-slate-600">
+                        {contact.plafon || '-'}
+                    </span>
+                </div>
+            </div>
+
+             {/* Row 3: Savings & Product */}
+            <div className="flex flex-col col-span-2 grid grid-cols-2 gap-x-6">
+                 <div className="flex flex-col">
+                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                        <Landmark className="w-3 h-3" /> Tabungan
+                    </span>
+                    <span className="text-sm font-mono font-medium text-emerald-700">
+                        {contact.saldoTabungan || '-'}
+                    </span>
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
+                        <Box className="w-3 h-3" /> Produk
+                    </span>
+                    <span className="text-xs text-slate-600 truncate">
+                        {contact.produk || '-'}
+                    </span>
+                </div>
+            </div>
+
         </div>
         
         {contact.notes && (
@@ -116,30 +148,39 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
       <div className="px-5 py-3 bg-slate-50 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-t border-slate-100">
         
         {/* Dates Indicators */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {contact.tglJatuhTempo ? (
-                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg shadow-sm whitespace-nowrap">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[9px] text-slate-400 uppercase font-bold">Lunas</span>
-                        <span className="text-xs font-bold text-emerald-700">{contact.tglJatuhTempo}</span>
+        <div className="flex flex-col gap-1">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {contact.tglJatuhTempo ? (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg shadow-sm whitespace-nowrap">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        <div className="flex flex-col leading-none">
+                            <span className="text-[9px] text-slate-400 uppercase font-bold">Lunas</span>
+                            <span className="text-xs font-bold text-emerald-700">{contact.tglJatuhTempo}</span>
+                        </div>
                     </div>
-                 </div>
-            ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg opacity-50 whitespace-nowrap">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs text-slate-400">Belum ada info lunas</span>
-                </div>
-            )}
+                ) : (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg opacity-50 whitespace-nowrap">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-xs text-slate-400">Belum ada info lunas</span>
+                    </div>
+                )}
 
-            {contact.tglPrs && (
-                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg shadow-sm whitespace-nowrap">
-                    <Users className="w-3.5 h-3.5 text-blue-500" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[9px] text-slate-400 uppercase font-bold">PRS</span>
-                        <span className="text-xs font-bold text-blue-700">{contact.tglPrs}</span>
+                {contact.tglPrs && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg shadow-sm whitespace-nowrap">
+                        <Users className="w-3.5 h-3.5 text-blue-500" />
+                        <div className="flex flex-col leading-none">
+                            <span className="text-[9px] text-slate-400 uppercase font-bold">PRS</span>
+                            <span className="text-xs font-bold text-blue-700">{contact.tglPrs}</span>
+                        </div>
                     </div>
-                 </div>
+                )}
+            </div>
+            {/* Meta Data (APPID/CIF) */}
+            {(contact.appId || contact.cif) && (
+                <div className="flex gap-2 text-[9px] text-slate-300 font-mono mt-1 px-1">
+                    {contact.appId && <span>ID: {contact.appId}</span>}
+                    {contact.cif && <span>CIF: {contact.cif}</span>}
+                </div>
             )}
         </div>
 

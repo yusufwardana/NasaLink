@@ -29,8 +29,19 @@ export const generateWhatsAppMessage = async (
 
     if (contact.produk) details += `\n      Produk: ${contact.produk}`;
     if (contact.plafon) details += `\n      Plafon: ${contact.plafon}`;
+    if (contact.os) details += `\n      Sisa Hutang (Outstanding/OS): ${contact.os}`;
+    if (contact.saldoTabungan) details += `\n      Saldo Tabungan: ${contact.saldoTabungan}`;
+    if (contact.dpd) details += `\n      Hari Keterlambatan (DPD): ${contact.dpd} hari`;
     if (contact.tglJatuhTempo) details += `\n      Tanggal Selesai Angsuran (Jatuh Tempo): ${contact.tglJatuhTempo}`;
     if (contact.status) details += `\n      Status Rekening: ${contact.status}`;
+
+    // Add specific instruction based on Financial Data
+    let financialInstruction = "";
+    if (contact.dpd && parseInt(contact.dpd) > 0) {
+        financialInstruction = "PERHATIAN: Nasabah ini sedang MENUNGGAK (DPD > 0). Gunakan nada yang tegas namun tetap sopan untuk mengingatkan pembayaran segera agar tidak macet.";
+    } else if (contact.tglJatuhTempo) {
+        financialInstruction = "Jika konteksnya mengenai 'Jatuh Tempo', ITU ARTINYA nasabah sebentar lagi LUNAS/SELESAI angsurannya. Tujuannya adalah MENAWARKAN PENCAIRAN KEMBALI (Tambah Modal).";
+    }
 
     const prompt = `
       Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional, hangat, dan kekeluargaan.
@@ -46,8 +57,7 @@ export const generateWhatsAppMessage = async (
 
       Panduan Khusus BTPN Syariah:
       - Gunakan sapaan "Ibu" diikuti nama nasabah.
-      - PENTING: Jika konteksnya mengenai 'Jatuh Tempo', ITU ARTINYA nasabah sebentar lagi LUNAS/SELESAI angsurannya. 
-      - Tujuannya adalah MENAWARKAN PENCAIRAN KEMBALI (Tambah Modal) atau mengucapkan selamat karena sebentar lagi lunas. JANGAN menagih hutang/memberi peringatan bayar, tapi berikan kabar gembira peluang lanjut siklus berikutnya.
+      - ${financialInstruction}
       - Prinsip: Memberdayakan dan Tumbuh Bersama.
       - Pesan singkat, padat, personal, tanpa subject line.
       - Hanya berikan output teks pesan saja.
