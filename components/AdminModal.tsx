@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
+import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff } from 'lucide-react';
 
-interface AdminModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface AdminPanelProps {
+  // Removed isOpen since it's a page now
+  onBack: () => void; // Renamed from onClose for clarity
   templates: MessageTemplate[];
   onUpdateTemplates: (templates: MessageTemplate[]) => void;
   onResetData: () => void;
@@ -16,9 +17,9 @@ interface AdminModalProps {
   defaultTemplates?: MessageTemplate[];
 }
 
-export const AdminModal: React.FC<AdminModalProps> = ({ 
-  isOpen, 
-  onClose, 
+// Renamed to AdminPanel, but kept in AdminModal.tsx file to avoid file system errors
+export const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  onBack, 
   templates, 
   onUpdateTemplates,
   onResetData,
@@ -35,31 +36,38 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
   
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-        setIsLoadingConfig(true);
-        if (isSupabaseConfigured()) {
-             fetchSettingsFromSupabase().then(sbConfig => {
-                 if (sbConfig) {
-                     // Merge with defaults to ensure new fields exist
-                     setSheetConfig(prev => ({ ...GLOBAL_CONFIG, ...prev, ...sbConfig }));
-                 } else {
-                     setSheetConfig(GLOBAL_CONFIG);
-                 }
-             }).finally(() => setIsLoadingConfig(false));
-        } else {
-            setSheetConfig(GLOBAL_CONFIG);
-            setIsLoadingConfig(false);
+    // Load config on mount
+    setIsLoadingConfig(true);
+    setIsCloudConnected(isSupabaseConfigured());
+    
+    const initConfig = async () => {
+        let config = { ...GLOBAL_CONFIG };
+        
+        try {
+            // 1. Load Local
+            const local = await getSheetConfig();
+            if (local) config = { ...config, ...local };
+            
+            // 2. Load Supabase (if configured, override local)
+            if (isSupabaseConfigured()) {
+                    const remote = await fetchSettingsFromSupabase();
+                    if (remote) config = { ...config, ...remote };
+            }
+        } catch (e) {
+            console.warn("Error loading admin config:", e);
         }
-    }
-  }, [isOpen]);
+        
+        setSheetConfig(config);
+        setIsLoadingConfig(false);
+    };
+    initConfig();
+  }, []);
 
-  if (!isOpen) return null;
-
-  // ... (Template Handlers keep same logic as previous) ...
   const handleSelectTemplate = (t: MessageTemplate) => {
       setSelectedTemplateId(t.id);
       setEditForm({ ...t });
@@ -113,8 +121,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         } finally {
             setIsSavingTemplates(false);
         }
-    } else {
-        alert("Peringatan: Supabase belum dikonfigurasi. Template hanya tersimpan sementara.");
     }
   };
 
@@ -173,20 +179,32 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   const handleBulkMode = async (mode: 'ai' | 'manual') => {
-      if (onBulkUpdateMode && window.confirm(`Ubah SEMUA template menjadi mode ${mode.toUpperCase()}?`)) {
+      if (!onBulkUpdateMode) {
+          alert("Fitur Bulk Update tidak tersedia. Mohon refresh halaman.");
+          return;
+      }
+      
+      if (window.confirm(`Ubah SEMUA template menjadi mode ${mode.toUpperCase()}?`)) {
           onBulkUpdateMode(mode);
       }
   };
 
   const handleSaveSheetConfig = async () => {
-      if (!isSupabaseConfigured()) {
-          alert("Supabase belum dikonfigurasi.");
-          return;
-      }
       setIsLoadingConfig(true);
       try {
-          await saveSettingsToSupabase(sheetConfig);
-          if(window.confirm('Konfigurasi disimpan! Refresh aplikasi sekarang agar perubahan aktif?')) {
+          // 1. Save Locally (Browser Persistence)
+          await saveSheetConfig(sheetConfig);
+          let msg = 'Konfigurasi disimpan di perangkat ini.';
+
+          // 2. Save to Server (Supabase) if available
+          if (isSupabaseConfigured()) {
+              await saveSettingsToSupabase(sheetConfig);
+              msg = '✅ Sukses! Pengaturan disimpan ke Server (Supabase) & Lokal.';
+          } else {
+              msg = '⚠️ Disimpan di Lokal Saja (Supabase Tidak Terhubung).';
+          }
+          
+          if(window.confirm(`${msg}\n\nRefresh aplikasi sekarang agar perubahan aktif?`)) {
               window.location.reload();
           }
       } catch (e) {
@@ -197,25 +215,29 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       }
   };
 
+  // FULL PAGE LAYOUT (No Modal Overlays)
   return (
     <div className="min-h-screen bg-slate-50 pb-24 animate-fade-in-up">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-4 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-             <button onClick={onClose} className="p-2 rounded-xl bg-white/50 hover:bg-slate-100 text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all">
-                <ArrowLeft className="w-5 h-5" />
-            </button>
-             <div>
-                 <h2 className="text-lg font-bold text-slate-800 leading-none flex items-center gap-2">
-                    <Database className="w-5 h-5 text-slate-400" />
-                    Menu Admin
-                 </h2>
-             </div>
+      
+      {/* Header - Sticky */}
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm px-4 py-4 flex items-center gap-4">
+        <button 
+            onClick={onBack}
+            className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
+        >
+            <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Database className="w-5 h-5 text-slate-500" />
+                Menu Admin
+            </h2>
+            <p className="text-sm text-slate-500">Pengaturan Aplikasi & Template</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-slate-200 px-2 sticky top-[73px] z-30 shadow-sm overflow-x-auto">
+      {/* Tabs - Sticky below header */}
+      <div className="bg-white border-b border-slate-200 px-2 sticky top-[76px] z-30 shadow-sm overflow-x-auto">
         <div className="flex min-w-full">
             <button 
                 onClick={() => setActiveTab('templates')}
@@ -242,7 +264,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         
         {/* --- TAB 1: TEMPLATES --- */}
         {activeTab === 'templates' && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-fade-in-up">
                 {selectedTemplateId ? (
                     // Edit Form
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -295,27 +317,47 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <Button onClick={handleStartAdd} variant="outline" className="w-full justify-center py-3 mb-4 border-dashed" icon={<Plus className="w-4 h-4" />}>Buat Template Baru</Button>
                         <div className="space-y-3">
                             {templates.map(t => (
-                                <button key={t.id} onClick={() => handleSelectTemplate(t)} className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-between group">
+                                <button key={t.id} onClick={() => handleSelectTemplate(t)} className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-between group hover:border-orange-300 transition-colors">
                                     <div className="flex items-center gap-4">
                                         <span className="text-2xl w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg">{t.icon}</span>
                                         <div>
-                                            <div className="font-bold text-slate-800 text-sm">{t.label}</div>
+                                            <div className="font-bold text-slate-800 text-sm group-hover:text-orange-700">{t.label}</div>
                                             <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${t.type === 'manual' ? 'text-purple-600 bg-purple-100' : 'text-orange-600 bg-orange-100'}`}>{t.type === 'manual' ? 'MANUAL' : 'AI AUTO'}</span>
                                         </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-slate-300" />
+                                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-orange-500" />
                                 </button>
                             ))}
                         </div>
                         <div className="mt-8 p-4 bg-slate-100 rounded-xl border border-slate-200">
-                            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Actions</p>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Zap className="w-4 h-4 text-slate-500" />
+                                <p className="text-xs font-bold text-slate-500 uppercase">Aksi Massal (Bulk Actions)</p>
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleBulkMode('ai')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">AI All</button>
-                                    <button onClick={() => handleBulkMode('manual')} className="flex-1 py-2 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">Manual All</button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleBulkMode('ai')} 
+                                        className="flex-1 py-2.5 bg-white hover:bg-orange-50 active:bg-orange-100 rounded-lg border border-slate-200 hover:border-orange-300 text-xs font-bold text-slate-600 hover:text-orange-600 shadow-sm transition-all"
+                                    >
+                                        Ubah Semua ke AI
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleBulkMode('manual')} 
+                                        className="flex-1 py-2.5 bg-white hover:bg-purple-50 active:bg-purple-100 rounded-lg border border-slate-200 hover:border-purple-300 text-xs font-bold text-slate-600 hover:text-purple-600 shadow-sm transition-all"
+                                    >
+                                        Ubah Semua ke Manual
+                                    </button>
                                 </div>
                                 {defaultTemplates && (
-                                    <button onClick={handleResetDefaults} disabled={isSavingTemplates} className="w-full py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-100 flex items-center justify-center gap-2">
+                                    <button 
+                                        type="button"
+                                        onClick={handleResetDefaults} 
+                                        disabled={isSavingTemplates} 
+                                        className="w-full py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-100 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                                    >
                                         <RefreshCw className="w-3 h-3" /> Reset ke Template Standar (Isi CTX)
                                     </button>
                                 )}
@@ -409,10 +451,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {/* --- TAB 3: DATABASE (EXISTING) --- */}
         {activeTab === 'database' && (
             <div className="space-y-6 animate-fade-in-up">
+                
+                {/* Cloud Status Indicator */}
+                <div className={`p-4 rounded-xl border flex items-center gap-3 ${isCloudConnected ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                    {isCloudConnected ? <Cloud className="w-6 h-6" /> : <WifiOff className="w-6 h-6" />}
+                    <div>
+                        <p className="text-sm font-bold uppercase">{isCloudConnected ? 'Cloud Sync: Terhubung' : 'Cloud Sync: Tidak Aktif'}</p>
+                        <p className="text-xs opacity-80 mt-1">
+                            {isCloudConnected 
+                                ? 'Pengaturan akan disimpan otomatis ke Supabase (Server) & bisa diakses semua user.' 
+                                : 'Pengaturan hanya tersimpan di perangkat ini (Local Browser). Setup Supabase di config.ts untuk mengaktifkan.'}
+                        </p>
+                    </div>
+                </div>
+
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                     <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <Database className="w-5 h-5 text-blue-600" />
-                        Koneksi Database
+                        Koneksi Database Sheet
                     </h3>
                     <div className="space-y-4">
                         <div>
@@ -446,7 +502,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             />
                         </div>
                         <div className="pt-4 flex justify-end">
-                            <Button onClick={handleSaveSheetConfig} isLoading={isLoadingConfig} disabled={!isSupabaseConfigured()} icon={<Save className="w-4 h-4" />}>
+                            <Button onClick={handleSaveSheetConfig} isLoading={isLoadingConfig} icon={<Save className="w-4 h-4" />}>
                                 Simpan Konfigurasi
                             </Button>
                         </div>

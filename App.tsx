@@ -3,15 +3,17 @@ import { Contact, MessageTemplate, SheetConfig } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { EditContactModal } from './components/EditContactModal';
-import { AdminModal } from './components/AdminModal';
+// UPDATED IMPORT: Use AdminPanel logic (file name remains AdminModal.tsx for now to minimize file ops)
+import { AdminPanel } from './components/AdminModal';
+import { AdminLoginPanel } from './components/AdminLoginModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { BroadcastPanel } from './components/BroadcastPanel';
 import { DashboardPanel } from './components/DashboardPanel';
-// CORRECTED IMPORT PATH: No "@/components/..."
 import { ContactManagementPanel } from './components/ContactManagementPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
+import { getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon } from 'lucide-react';
 
@@ -87,8 +89,8 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   },
 ];
 
-// Add 'contacts' to View Type
-type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts';
+// Add 'contacts' and 'login' to View Type
+type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts' | 'login';
 
 const App: React.FC = () => {
   // ... (State logic same as before) ...
@@ -118,6 +120,7 @@ const App: React.FC = () => {
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
+  // Removed showLoginModal state
   
   const [visibleCount, setVisibleCount] = useState(50);
   
@@ -145,6 +148,18 @@ const App: React.FC = () => {
     setConfigError(false);
     try {
         let finalConfig: SheetConfig = { ...GLOBAL_CONFIG };
+        
+        // 1. Try to load Local Config (User overrides)
+        try {
+            const localConfig = await getSheetConfig();
+            if (localConfig) {
+                 finalConfig = { ...finalConfig, ...localConfig };
+            }
+        } catch (e) {
+            console.warn("Failed to load local config", e);
+        }
+
+        // 2. Try to load Supabase Config (Server overrides, if exists)
         if (isSupabaseConfigured()) {
             try {
                 const supabaseSettings = await fetchSettingsFromSupabase();
@@ -152,7 +167,7 @@ const App: React.FC = () => {
                     finalConfig = { ...finalConfig, ...supabaseSettings };
                 }
             } catch (err) {
-                console.warn("Failed to load settings from Supabase, using local config.", err);
+                console.warn("Failed to load settings from Supabase, using local/global config.", err);
             }
         }
         
@@ -336,12 +351,7 @@ const App: React.FC = () => {
   };
 
   const handleAdminAuth = () => {
-      const pin = prompt("Masukkan PIN Admin:");
-      if (pin === '123456') {
-          setActiveView('settings');
-      } else if (pin !== null) {
-          alert("PIN Salah");
-      }
+      setActiveView('login');
   };
 
   // --- BULK UPDATE LOGIC FOR ADMIN ---
@@ -393,7 +403,7 @@ const App: React.FC = () => {
                 <span className="text-[9px] font-medium">Siaran</span>
             </button>
             
-            <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' || activeView === 'login' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Settings className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Admin</span>
             </button>
@@ -404,12 +414,21 @@ const App: React.FC = () => {
 
   // --- Render Views ---
 
+  if (activeView === 'login') {
+      return (
+          <AdminLoginPanel 
+              onBack={() => setActiveView('home')}
+              onLogin={() => setActiveView('settings')}
+          />
+      );
+  }
+
   if (activeView === 'settings') {
       return (
           <>
-            <AdminModal
-                isOpen={true}
-                onClose={() => setActiveView('home')}
+            {/* Using AdminPanel as a full page now */}
+            <AdminPanel
+                onBack={() => setActiveView('home')}
                 templates={templates}
                 onUpdateTemplates={setTemplates}
                 onResetData={async () => {
