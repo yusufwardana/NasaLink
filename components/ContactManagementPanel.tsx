@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Contact } from '../types';
-import { Search, Edit2, Trash2, Filter, ChevronDown, User, MapPin } from 'lucide-react';
+import { Search, Edit2, Trash2, Filter, ChevronDown, User, MapPin, Briefcase } from 'lucide-react';
 import { Button } from './Button';
 
 interface ContactManagementPanelProps {
@@ -17,13 +17,23 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
   onBack
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCo, setFilterCo] = useState('All');
   const [filterSentra, setFilterSentra] = useState('All');
   const [visibleCount, setVisibleCount] = useState(20);
 
-  // Unique Sentras for Filter
-  const uniqueSentras = useMemo(() => {
-    return Array.from(new Set(contacts.map(c => c.sentra || 'Unknown'))).sort();
+  // Unique COs
+  const uniqueCos = useMemo(() => {
+    return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
   }, [contacts]);
+
+  // Unique Sentras (Dependent on CO selection)
+  const uniqueSentras = useMemo(() => {
+    let source = contacts;
+    if (filterCo !== 'All') {
+        source = contacts.filter(c => (c.co || 'Unassigned') === filterCo);
+    }
+    return Array.from(new Set(source.map(c => c.sentra || 'Unknown'))).sort();
+  }, [contacts, filterCo]);
 
   // Filter Logic
   const filteredContacts = useMemo(() => {
@@ -31,11 +41,13 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
       const matchSearch = !searchTerm || 
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         contact.phone.includes(searchTerm);
+      
+      const matchCo = filterCo === 'All' || (contact.co || 'Unassigned') === filterCo;
       const matchSentra = filterSentra === 'All' || (contact.sentra || 'Unknown') === filterSentra;
       
-      return matchSearch && matchSentra;
+      return matchSearch && matchCo && matchSentra;
     });
-  }, [contacts, searchTerm, filterSentra]);
+  }, [contacts, searchTerm, filterCo, filterSentra]);
 
   const displayedContacts = filteredContacts.slice(0, visibleCount);
 
@@ -54,8 +66,8 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
         </div>
 
         {/* Search & Filter Bar */}
-        <div className="flex gap-2">
-            <div className="relative flex-1">
+        <div className="space-y-2">
+            <div className="relative">
                 <input 
                     type="text" 
                     placeholder="Cari nama / HP..." 
@@ -66,16 +78,37 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             </div>
             
-            <div className="relative w-1/3 min-w-[120px]">
-                <select 
-                    className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none appearance-none truncate"
-                    value={filterSentra}
-                    onChange={e => setFilterSentra(e.target.value)}
-                >
-                    <option value="All">Semua Sentra</option>
-                    {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <div className="flex gap-2">
+                {/* CO Filter */}
+                <div className="relative flex-1">
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <select 
+                        className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none appearance-none truncate"
+                        value={filterCo}
+                        onChange={e => {
+                            setFilterCo(e.target.value);
+                            setFilterSentra('All'); // Reset sentra when CO changes
+                        }}
+                    >
+                        <option value="All">Semua CO</option>
+                        {uniqueCos.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Sentra Filter */}
+                <div className="relative flex-1">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <select 
+                        className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none appearance-none truncate"
+                        value={filterSentra}
+                        onChange={e => setFilterSentra(e.target.value)}
+                    >
+                        <option value="All">Semua Sentra</option>
+                        {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
             </div>
         </div>
       </div>
@@ -99,6 +132,9 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
                                   <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3"/> {contact.sentra}</span>
                                   <span>•</span>
                                   <span className="font-mono">{contact.phone}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                  CO: {contact.co || '-'}
                               </div>
                           </div>
                       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Contact, MessageTemplate } from '../types';
-import { ArrowLeft, Send, CheckCircle2, MessageSquare, MapPin, ChevronDown, Loader2, Wand2, Briefcase, Activity, Edit3, Copy, Users, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, MapPin, ChevronDown, Wand2, Briefcase, Activity, Users } from 'lucide-react';
 import { Button } from './Button';
 import { generateBroadcastMessage } from '../services/geminiService';
 
@@ -21,6 +21,9 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   const [filterCo, setFilterCo] = useState<string>('All');
   const [filterSentra, setFilterSentra] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
+  
+  // Pagination State (Prevents UI Hang)
+  const [visibleCount, setVisibleCount] = useState(50);
 
   // 2. Message State
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
@@ -45,12 +48,12 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
     return Array.from(sentras).sort();
   }, [contacts, filterCo]);
 
-  // Fix: Target filtering logic
+  // Target filtering logic
   const targetContacts = useMemo(() => {
     return contacts.filter(contact => {
         // Normalize Filter Values
-        const cCo = (contact.co || 'Unassigned').trim();
-        const cSentra = (contact.sentra || 'Unknown').trim();
+        const cCo = (contact.co || 'Unassigned');
+        const cSentra = (contact.sentra || 'Unknown');
         const cFlag = (contact.flag || '').toLowerCase();
         const cStatus = (contact.status || '').toLowerCase();
         
@@ -61,7 +64,6 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
         if (filterStatus !== 'All') {
             if (filterStatus === 'Active') {
                 // Logic: Active is anyone NOT Macet/DO/Prospect
-                // BTPN Logic: Gold, Silver, Platinum, Active -> Are Active
                 const inactiveKeywords = ['macet', 'do', 'drop', 'inactive', 'tutup'];
                 const isInactive = inactiveKeywords.some(k => cFlag.includes(k) || cStatus.includes(k));
                 const isProspect = cFlag.includes('prospect');
@@ -77,6 +79,11 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
         return matchCo && matchSentra && matchStatus;
     });
   }, [contacts, filterCo, filterSentra, filterStatus]);
+
+  // Sliced contacts for rendering to avoid UI freeze
+  const visibleContacts = useMemo(() => {
+      return targetContacts.slice(0, visibleCount);
+  }, [targetContacts, visibleCount]);
 
   // --- Handlers ---
 
@@ -175,6 +182,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                             setFilterCo(e.target.value);
                             setFilterSentra('All'); // Reset Sentra
                             setSentStatus({}); // Reset Progress
+                            setVisibleCount(50); // Reset Pagination
                         }}
                     >
                         <option value="All">Semua Petugas (CO)</option>
@@ -192,6 +200,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                         onChange={(e) => {
                             setFilterSentra(e.target.value);
                             setSentStatus({});
+                            setVisibleCount(50);
                         }}
                     >
                         <option value="All">Semua Sentra</option>
@@ -209,6 +218,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                         onChange={(e) => {
                             setFilterStatus(e.target.value);
                             setSentStatus({});
+                            setVisibleCount(50);
                         }}
                     >
                         <option value="All">Semua Status</option>
@@ -315,7 +325,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                 </div>
 
                 <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-                    {targetContacts.map((contact, idx) => {
+                    {visibleContacts.map((contact, idx) => {
                         const isSent = sentStatus[contact.id];
                         const readyToSend = !!broadcastMessage;
                         
@@ -343,6 +353,17 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                         </div>
                         );
                     })}
+                    
+                    {visibleCount < targetContacts.length && (
+                        <div className="p-3 text-center border-t border-slate-50">
+                             <span className="text-xs text-slate-400 block mb-2">
+                                 Menampilkan {visibleCount} dari {targetContacts.length}
+                             </span>
+                             <Button variant="secondary" size="sm" onClick={() => setVisibleCount(p => p + 50)}>
+                                Tampilkan Lebih Banyak
+                             </Button>
+                        </div>
+                    )}
                 </div>
             </div>
           )}

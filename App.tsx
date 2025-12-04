@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import { Contact, MessageTemplate, SheetConfig } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
@@ -14,9 +14,6 @@ import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon } from 'lucide-react';
-
-// ... (Rest of App.tsx remains the same, assuming imports were the only issue)
-// For brevity, I am including the full App.tsx logic again to ensure no code is lost
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -104,9 +101,18 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<AppView>('home');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  
+  // Filters
   const [selectedSentra, setSelectedSentra] = useState<string>('');
   const [selectedCo, setSelectedCo] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  
+  // --- PERFORMANCE OPTIMIZATION: Deferred Values ---
+  // This allows the UI (Dropdowns) to update instantly, while the filtering happens in background.
+  const deferredSentra = useDeferredValue(selectedSentra);
+  const deferredCo = useDeferredValue(selectedCo);
+  const deferredStatus = useDeferredValue(selectedStatus);
+  const deferredSearchTerm = useDeferredValue(debouncedSearchTerm);
   
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
@@ -115,7 +121,11 @@ const App: React.FC = () => {
   
   const [visibleCount, setVisibleCount] = useState(50);
   
-  const isFiltering = searchTerm !== debouncedSearchTerm;
+  // Update indicator to show loading when ANY deferred value is lagging behind
+  const isFiltering = (searchTerm !== debouncedSearchTerm) || 
+                      (selectedSentra !== deferredSentra) || 
+                      (selectedCo !== deferredCo) || 
+                      (selectedStatus !== deferredStatus);
 
   // ... (Effects same as before) ...
   useEffect(() => {
@@ -125,6 +135,7 @@ const App: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  // Reset pagination when filters change (using immediate values for responsiveness)
   useEffect(() => {
       setVisibleCount(50);
   }, [debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
@@ -253,16 +264,52 @@ const App: React.FC = () => {
       return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
   }, [contacts]);
 
+  // --- FILTER LOGIC (OPTIMIZED & FIXED) ---
   const filteredContacts = useMemo(() => {
-    if (!debouncedSearchTerm && !selectedSentra && !selectedCo && selectedStatus === 'All') return [];
+    // Privacy: Return empty if no filters are active
+    if (!deferredSearchTerm && !deferredSentra && !deferredCo && deferredStatus === 'All') return [];
+    
     return contacts.filter(contact => {
-      const matchSearch = !debouncedSearchTerm || contact.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || contact.phone.includes(debouncedSearchTerm);
-      const matchSentra = !selectedSentra || (contact.sentra || 'Unknown') === selectedSentra;
-      const matchCo = !selectedCo || (contact.co || 'Unassigned') === selectedCo;
-      const matchStatus = selectedStatus === 'All' || (contact.status || '').toLowerCase() === selectedStatus.toLowerCase();
-      return matchSearch && matchSentra && matchCo && matchStatus;
+      // 1. Search
+      if (deferredSearchTerm) {
+          const term = deferredSearchTerm.toLowerCase();
+          const matchName = contact.name.toLowerCase().includes(term);
+          const matchPhone = contact.phone.includes(term);
+          if (!matchName && !matchPhone) return false;
+      }
+      
+      // 2. Sentra
+      if (deferredSentra && (contact.sentra || 'Unknown') !== deferredSentra) return false;
+      
+      // 3. CO
+      if (deferredCo && (contact.co || 'Unassigned') !== deferredCo) return false;
+      
+      // 4. Status (FIXED)
+      // Original logic compared exact strings ("Active" vs "Lancar"), which failed.
+      // New logic checks keywords correctly.
+      if (deferredStatus !== 'All') {
+          const cStatus = (contact.status || '').toLowerCase();
+          const cFlag = (contact.flag || '').toLowerCase();
+          
+          // Defines "Trouble" / Inactive criteria
+          const isTrouble = cStatus.includes('macet') || 
+                            cStatus.includes('menunggak') || 
+                            cStatus.includes('tutup') || 
+                            cFlag.includes('do') || 
+                            cFlag.includes('drop');
+          
+          if (deferredStatus === 'Active') {
+             // Active = Not in trouble (Lancar, Kurang Lancar, Gold, Silver, etc.)
+             if (isTrouble) return false;
+          } else if (deferredStatus === 'Inactive') {
+             // Inactive = In trouble (Macet, DO)
+             if (!isTrouble) return false;
+          }
+      }
+
+      return true;
     });
-  }, [contacts, debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
+  }, [contacts, deferredSearchTerm, deferredSentra, deferredCo, deferredStatus]);
 
   const visibleContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
