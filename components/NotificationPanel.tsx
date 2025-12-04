@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Contact } from '../types';
-import { CalendarClock, MessageCircle, Banknote, Users, ArrowLeft, Filter, ChevronDown, MapPin, Briefcase, UserPlus, RefreshCcw, Sparkles, History } from 'lucide-react';
+import { CalendarClock, MessageCircle, Banknote, Users, ArrowLeft, Filter, ChevronDown, MapPin, Briefcase, UserPlus, RefreshCcw, Sparkles, History, AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 
 export interface NotificationItem {
   contact: Contact;
   type: 'payment' | 'prs'; 
-  status: 'today' | 'soon' | 'this_month' | 'next_month' | 'winback_recent' | 'winback_old';
+  status: 'today' | 'soon' | 'this_month' | 'next_month' | 'winback_recent' | 'winback_old' | 'collection';
   daysLeft: number;
 }
 
@@ -23,7 +23,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
 }) => {
   const [filterCo, setFilterCo] = useState<string>('All');
   const [filterSentra, setFilterSentra] = useState<string>('All');
-  // Updated filter types: 'refinancing' (active) vs 'winback_recent' vs 'winback_old' vs 'prs'
+  // Updated filter types: 'refinancing' (active) vs 'winback_recent' vs 'winback_old' vs 'prs' vs 'collection'
   const [filterType, setFilterType] = useState<string>('All'); 
   const [visibleCount, setVisibleCount] = useState(20);
 
@@ -52,12 +52,14 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
         // Complex Type Filtering
         let matchesType = true;
         if (filterType === 'refinancing') {
-            // Active Customers Only (Not Winback)
-            matchesType = item.type === 'payment' && !item.status.includes('winback');
+            // Active Customers Only (Not Winback and Not Collection)
+            matchesType = item.type === 'payment' && !item.status.includes('winback') && item.status !== 'collection';
         } else if (filterType === 'winback_recent') {
             matchesType = item.status === 'winback_recent';
         } else if (filterType === 'winback_old') {
             matchesType = item.status === 'winback_old';
+        } else if (filterType === 'collection') {
+            matchesType = item.status === 'collection';
         } else if (filterType === 'prs') {
             matchesType = item.type === 'prs';
         }
@@ -84,14 +86,16 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
           case 'next_month': return 'BULAN DEPAN';
           case 'winback_recent': return 'LUNAS < 3 BULAN';
           case 'winback_old': return 'LUNAS > 3 BULAN';
+          case 'collection': return 'MENUNGGAK';
           default: return '';
       }
   };
 
   // Calculate Counts for Chips
-  const countRefinancing = items.filter(i => i.type === 'payment' && !i.status.includes('winback')).length;
+  const countRefinancing = items.filter(i => i.type === 'payment' && !i.status.includes('winback') && i.status !== 'collection').length;
   const countWinbackRecent = items.filter(i => i.status === 'winback_recent').length;
   const countWinbackOld = items.filter(i => i.status === 'winback_old').length;
+  const countCollection = items.filter(i => i.status === 'collection').length;
   const countPrs = items.filter(i => i.type === 'prs').length;
 
   // Full Page Layout
@@ -167,6 +171,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                         onChange={(e) => setFilterType(e.target.value)}
                     >
                         <option value="All">Semua Tipe Agenda</option>
+                        <option value="collection">Menunggak / Macet (Collection)</option>
                         <option value="refinancing">Jatuh Tempo (Nasabah Lancar)</option>
                         <option value="winback_recent">Winback Baru (&lt; 3 Bulan)</option>
                         <option value="winback_old">Winback Lama (&gt; 3 Bulan)</option>
@@ -179,6 +184,22 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
         {/* Filter Summary Chips */}
         <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+             {/* CHIP 0: Collection (Trouble) */}
+            <button 
+                onClick={() => setFilterType('collection')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-sm min-w-max transition-all border ${
+                    filterType === 'collection' ? 'bg-red-100 border-red-300 ring-1 ring-red-300' : 'bg-red-50 border-red-100 hover:bg-red-100'
+                }`}
+            >
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+                <div className="flex flex-col items-start">
+                    <span className="text-[10px] uppercase font-bold text-red-500">Menunggak</span>
+                    <span className="text-lg font-bold text-red-700 leading-none">
+                        {countCollection}
+                    </span>
+                </div>
+            </button>
+
             {/* CHIP 1: Jatuh Tempo (Refinancing Active) */}
             <button 
                 onClick={() => setFilterType('refinancing')}
@@ -265,6 +286,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                 <>
                     {displayedItems.map(({ contact, type, status, daysLeft }, idx) => {
                         const isPayment = type === 'payment';
+                        const isCollection = status === 'collection';
                         const isWinbackRecent = status === 'winback_recent';
                         const isWinbackOld = status === 'winback_old';
                         const isWinback = isWinbackRecent || isWinbackOld;
@@ -275,7 +297,11 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                         let shadowColor = 'shadow-slate-100';
 
                         if (isPayment) {
-                            if (isWinbackRecent) {
+                            if (isCollection) {
+                                borderColor = 'border-red-200';
+                                bgColor = 'bg-gradient-to-br from-white to-red-50/50';
+                                shadowColor = 'hover:shadow-red-100';
+                            } else if (isWinbackRecent) {
                                 borderColor = 'border-pink-200';
                                 bgColor = 'bg-gradient-to-br from-white to-pink-50/50';
                                 shadowColor = 'hover:shadow-pink-100';
@@ -305,22 +331,22 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                                     <div className="flex items-start gap-4">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${
                                             isPayment 
-                                            ? (isWinbackRecent ? 'bg-pink-100 border-pink-200 text-pink-600' : (isWinbackOld ? 'bg-purple-100 border-purple-200 text-purple-600' : 'bg-emerald-100 border-emerald-200 text-emerald-600'))
+                                            ? (isCollection ? 'bg-red-100 border-red-200 text-red-600' : (isWinbackRecent ? 'bg-pink-100 border-pink-200 text-pink-600' : (isWinbackOld ? 'bg-purple-100 border-purple-200 text-purple-600' : 'bg-emerald-100 border-emerald-200 text-emerald-600')))
                                             : 'bg-blue-100 border-blue-200 text-blue-600'
                                         }`}>
-                                            {isWinback ? <UserPlus className="w-6 h-6" /> : (isPayment ? <Banknote className="w-6 h-6" /> : <Users className="w-6 h-6" />)}
+                                            {isCollection ? <AlertTriangle className="w-6 h-6"/> : (isWinback ? <UserPlus className="w-6 h-6" /> : (isPayment ? <Banknote className="w-6 h-6" /> : <Users className="w-6 h-6" />))}
                                         </div>
                                         
                                         <div>
                                             <div className="flex flex-wrap items-center gap-2 mb-1">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
                                                     isPayment 
-                                                    ? (isWinbackRecent ? 'bg-white text-pink-600 border-pink-200' : (isWinbackOld ? 'bg-white text-purple-600 border-purple-200' : 'bg-white text-emerald-600 border-emerald-200'))
+                                                    ? (isCollection ? 'bg-white text-red-600 border-red-200' : (isWinbackRecent ? 'bg-white text-pink-600 border-pink-200' : (isWinbackOld ? 'bg-white text-purple-600 border-purple-200' : 'bg-white text-emerald-600 border-emerald-200')))
                                                     : 'bg-white text-blue-600 border-blue-200'
                                                 }`}>
-                                                    {isWinback ? 'Winback' : (isPayment ? 'Jatuh Tempo (Lancar)' : 'Kumpulan PRS')}
+                                                    {isCollection ? 'Collection' : (isWinback ? 'Winback' : (isPayment ? 'Jatuh Tempo (Lancar)' : 'Kumpulan PRS'))}
                                                 </span>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-white uppercase ${status === 'today' || status === 'soon' ? 'bg-red-500 animate-pulse' : (isWinbackRecent ? 'bg-pink-400' : (isWinbackOld ? 'bg-purple-400' : 'bg-slate-400'))}`}>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-white uppercase ${status === 'today' || status === 'soon' || isCollection ? 'bg-red-500 animate-pulse' : (isWinbackRecent ? 'bg-pink-400' : (isWinbackOld ? 'bg-purple-400' : 'bg-slate-400'))}`}>
                                                     {getStatusLabel(status)}
                                                 </span>
                                                  <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
@@ -337,7 +363,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                                                 </span>
                                                 <span className="flex items-center gap-1">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                                                    {isPayment ? (isWinback ? `Lunas: ${contact.tglLunas || contact.tglJatuhTempo}` : `Jatuh Tempo: ${contact.tglJatuhTempo}`) : `Tgl PRS: ${contact.tglPrs}`}
+                                                    {isPayment ? (isCollection ? `DPD: ${daysLeft} Hari` : (isWinback ? `Lunas: ${contact.tglLunas || contact.tglJatuhTempo}` : `Jatuh Tempo: ${contact.tglJatuhTempo}`)) : `Tgl PRS: ${contact.tglPrs}`}
                                                 </span>
                                             </div>
                                              <div className="text-xs text-slate-400 mt-1">
@@ -350,17 +376,17 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                                     <div className="flex items-center gap-3 self-end sm:self-center w-full sm:w-auto mt-2 sm:mt-0">
                                         <div className={`hidden sm:block text-right mr-2`}>
                                             <p className="text-xs font-bold text-slate-400 uppercase">Status</p>
-                                            <p className={`text-base font-black ${status === 'today' || status === 'soon' ? 'text-red-500' : 'text-slate-700'}`}>
+                                            <p className={`text-base font-black ${status === 'today' || status === 'soon' || isCollection ? 'text-red-500' : 'text-slate-700'}`}>
                                                 {getStatusLabel(status)}
                                             </p>
                                         </div>
                                         <Button 
                                             className={`w-full sm:w-auto flex-1 ${isPayment ? 'shadow-emerald-200' : 'shadow-blue-200'}`}
-                                            variant={isPayment ? 'primary' : 'secondary'}
+                                            variant={isPayment ? (isCollection ? 'danger' : 'primary') : 'secondary'}
                                             onClick={() => onRemind(contact, type)}
                                             icon={<MessageCircle className="w-4 h-4" />}
                                         >
-                                            {isWinback ? 'Ajak Gabung' : (isPayment ? 'Tawarkan Modal' : 'Ingatkan Besok')}
+                                            {isCollection ? 'Tagih Bayar' : (isWinback ? 'Ajak Gabung' : (isPayment ? 'Tawarkan Modal' : 'Ingatkan Besok'))}
                                         </Button>
                                     </div>
                                 </div>

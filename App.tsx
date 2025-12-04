@@ -216,7 +216,7 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // --- LOGIC NOTIFIKASI BARU (PRS H-1 & REFINANCING) ---
+  // --- LOGIC NOTIFIKASI BARU (PRS H-1, REFINANCING & COLLECTION) ---
   const upcomingEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -247,14 +247,23 @@ const App: React.FC = () => {
     return contacts.reduce<NotificationItem[]>((acc, contact) => {
         const flag = (contact.flag || '').toLowerCase();
         const status = (contact.status || '').toLowerCase();
+        const dpd = parseInt(contact.dpd || '0', 10);
+        
         const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+        const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
         
         // Date parsing helper
         const dueDate = contact.tglJatuhTempo ? parseFullDate(contact.tglJatuhTempo) : null;
         const lunasDate = contact.tglLunas ? parseFullDate(contact.tglLunas) : null;
 
-        // 1. REFINANCING / PAYMENT LOGIC
-        if (dueDate || lunasDate) {
+        // 1. COLLECTION LOGIC (Priority High)
+        // Jika bermasalah dan bukan DO/Lunas (Status aktif tapi nunggak)
+        if (isTrouble && !isInactive) {
+             acc.push({ contact, type: 'payment', status: 'collection', daysLeft: dpd });
+        }
+        
+        // 2. REFINANCING / WINBACK LOGIC
+        else if (dueDate || lunasDate) {
             
             if (!isInactive && dueDate) {
                  // GROUP A: NASABAH LANCAR (Jatuh Tempo Bulan Ini & Bulan Depan)
@@ -289,8 +298,8 @@ const App: React.FC = () => {
             }
         }
 
-        // 2. PRS LOGIC (H-1)
-        if (contact.tglPrs && !isInactive) {
+        // 3. PRS LOGIC (H-1)
+        if (contact.tglPrs && !isInactive && !isTrouble) {
              let prsDate: Date | null = null;
              if (contact.tglPrs.match(/^\d{1,2}$/)) {
                  // Format tanggal tok (misal "15") -> Asumsi bulan ini
@@ -313,8 +322,9 @@ const App: React.FC = () => {
         }
         return acc;
     }, []).sort((a, b) => {
-        // Sort Priority: Today > Tomorrow > This Month > Next Month > Winback Recent > Winback Old
+        // Sort Priority: Collection > Today > Tomorrow > This Month > Next Month > Winback Recent > Winback Old
         const score = (s: string) => {
+            if (s === 'collection') return 0; // Highest Priority
             if (s === 'today') return 1;
             if (s === 'soon') return 2;
             if (s === 'this_month') return 3;
@@ -728,15 +738,15 @@ const App: React.FC = () => {
                           <div 
                             key={idx}
                             onClick={() => setActiveView('notifications')}
-                            className="min-w-[240px] bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-orange-300 transition-all cursor-pointer flex flex-col justify-between"
+                            className={`min-w-[240px] bg-white border p-4 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between ${item.status === 'collection' ? 'border-red-200 hover:border-red-300' : 'border-slate-200 hover:border-orange-300'}`}
                           >
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${item.type === 'prs' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                            {item.type === 'prs' ? 'Kumpulan' : 'Jatuh Tempo'}
+                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${item.status === 'collection' ? 'bg-red-100 text-red-600' : item.type === 'prs' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                            {item.status === 'collection' ? 'MENUNGGAK' : item.type === 'prs' ? 'Kumpulan' : 'Jatuh Tempo'}
                                         </span>
-                                        <span className={`text-[10px] font-bold ${item.status === 'today' || item.status === 'soon' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
-                                            {item.status === 'today' ? 'HARI INI' : item.status === 'soon' ? 'BESOK' : item.status}
+                                        <span className={`text-[10px] font-bold ${item.status === 'today' || item.status === 'soon' || item.status === 'collection' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
+                                            {item.status === 'collection' ? `DPD: ${item.daysLeft}` : item.status === 'today' ? 'HARI INI' : item.status === 'soon' ? 'BESOK' : item.status}
                                         </span>
                                     </div>
                                     <h4 className="font-bold text-slate-800 truncate">{item.contact.name}</h4>

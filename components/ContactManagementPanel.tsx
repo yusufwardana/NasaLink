@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Contact } from '../types';
-import { Search, Edit2, Trash2, Filter, ChevronDown, User, MapPin, Briefcase } from 'lucide-react';
+import { Search, Edit2, Trash2, Filter, ChevronDown, User, MapPin, Briefcase, Activity } from 'lucide-react';
 import { Button } from './Button';
 
 interface ContactManagementPanelProps {
@@ -19,6 +19,7 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCo, setFilterCo] = useState('All');
   const [filterSentra, setFilterSentra] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All'); // New status filter
   const [visibleCount, setVisibleCount] = useState(20);
 
   // Unique COs
@@ -45,9 +46,25 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
       const matchCo = filterCo === 'All' || (contact.co || 'Unassigned') === filterCo;
       const matchSentra = filterSentra === 'All' || (contact.sentra || 'Unknown') === filterSentra;
       
-      return matchSearch && matchCo && matchSentra;
+      // Status Filter Logic
+      let matchStatus = true;
+      const flag = (contact.flag || '').toLowerCase();
+      const status = (contact.status || '').toLowerCase();
+      const dpd = parseInt(contact.dpd || '0', 10);
+      const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+      const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+
+      if (filterStatus === 'Lancar') {
+          matchStatus = !isInactive && !isTrouble;
+      } else if (filterStatus === 'Menunggak') {
+          matchStatus = !isInactive && isTrouble;
+      } else if (filterStatus === 'Inactive') {
+          matchStatus = isInactive;
+      }
+
+      return matchSearch && matchCo && matchSentra && matchStatus;
     });
-  }, [contacts, searchTerm, filterCo, filterSentra]);
+  }, [contacts, searchTerm, filterCo, filterSentra, filterStatus]);
 
   const displayedContacts = filteredContacts.slice(0, visibleCount);
 
@@ -106,6 +123,22 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
                     >
                         <option value="All">Semua Sentra</option>
                         {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Status Filter */}
+                <div className="relative flex-1">
+                    <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <select 
+                        className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none appearance-none truncate"
+                        value={filterStatus}
+                        onChange={e => setFilterStatus(e.target.value)}
+                    >
+                        <option value="All">Semua Status</option>
+                        <option value="Lancar">Lancar</option>
+                        <option value="Menunggak">Menunggak</option>
+                        <option value="Inactive">Lunas / DO</option>
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>

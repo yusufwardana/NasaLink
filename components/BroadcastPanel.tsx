@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Contact, MessageTemplate } from '../types';
-import { ArrowLeft, Send, CheckCircle2, MapPin, ChevronDown, Wand2, Briefcase, CalendarClock, Banknote, Sparkles, History, Users } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, MapPin, ChevronDown, Wand2, Briefcase, CalendarClock, Banknote, Sparkles, History, Users, AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 import { generateBroadcastMessage } from '../services/geminiService';
 
@@ -21,7 +21,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   const [filterCo, setFilterCo] = useState<string>('All');
   const [filterSentra, setFilterSentra] = useState<string>('All');
   
-  // NEW: Filter Type specific logic (Refinancing, Winback, PRS, etc)
+  // NEW: Filter Type specific logic (Refinancing, Winback, PRS, Collection, etc)
   const [filterTargetType, setFilterTargetType] = useState<string>('All');
   
   // Pagination State (Prevents UI Hang)
@@ -84,15 +84,23 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
 
         const flag = (contact.flag || '').toLowerCase();
         const status = (contact.status || '').toLowerCase();
-        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+        const dpd = parseInt(contact.dpd || '0', 10);
         
+        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+        const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+
         // Date parsing
         const dueDate = parseDate(contact.tglJatuhTempo);
         const lunasDate = parseDate(contact.tglLunas);
 
-        // A. REFINANCING (Jatuh Tempo Lancar)
+        // A. COLLECTION (Menunggak)
+        if (filterTargetType === 'collection') {
+            return isTrouble && !isInactive;
+        }
+
+        // B. REFINANCING (Jatuh Tempo Lancar)
         if (filterTargetType === 'refinancing') {
-            if (isInactive) return false; // Must be active
+            if (isInactive || isTrouble) return false; // Must be active & clean
             if (!dueDate) return false;
             
             // Logic: Month is Current or Next
@@ -104,7 +112,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
             return isCurrentMonth || isNextMonth;
         }
 
-        // B. WINBACK (Recent < 3 Months)
+        // C. WINBACK (Recent < 3 Months)
         if (filterTargetType === 'winback_recent') {
             if (!isInactive) return false;
             
@@ -116,7 +124,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
             return monthsAgo >= 1 && monthsAgo < 3;
         }
 
-        // C. WINBACK (Old > 3 Months)
+        // D. WINBACK (Old > 3 Months)
         if (filterTargetType === 'winback_old') {
             if (!isInactive) return false;
 
@@ -127,7 +135,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
             return monthsAgo >= 3 && monthsAgo <= 12; // Cap at 1 year for relevance
         }
 
-        // D. PRS (Kumpulan Besok / Hari Ini)
+        // E. PRS (Kumpulan Besok / Hari Ini)
         if (filterTargetType === 'prs') {
              if (isInactive) return false;
              if (!contact.tglPrs) return false;
@@ -249,6 +257,17 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
 
              {/* Quick Filter Chips (Color Coded like NotificationPanel) */}
              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-3">
+                 <button 
+                    onClick={() => {
+                        setFilterTargetType('collection');
+                        setSentStatus({});
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
+                        filterTargetType === 'collection' ? 'bg-red-100 border-red-300 text-red-700 ring-1 ring-red-300' : 'bg-white border-slate-200 text-slate-500 hover:bg-red-50'
+                    }`}
+                >
+                    <AlertTriangle className="w-3.5 h-3.5" /> Menunggak
+                </button>
                 <button 
                     onClick={() => {
                         setFilterTargetType('refinancing');
@@ -346,6 +365,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                         }}
                     >
                         <option value="All">Semua Target (General)</option>
+                        <option value="collection">Menunggak (Collection)</option>
                         <option value="refinancing">Jatuh Tempo (Lancar)</option>
                         <option value="winback_recent">Winback Baru (&lt; 3 Bulan)</option>
                         <option value="winback_old">Winback Lama (&gt; 3 Bulan)</option>
