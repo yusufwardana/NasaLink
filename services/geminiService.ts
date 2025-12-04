@@ -3,7 +3,7 @@ import { Contact } from '../types';
 import { GEMINI_CONFIG } from '../config';
 
 export const generateWhatsAppMessage = async (
-  contact: Contact, // Changed to accept full Contact object cek
+  contact: Contact, 
   context: string,
   tone: 'formal' | 'casual' | 'friendly' = 'friendly',
   overrideApiKey?: string
