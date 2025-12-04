@@ -15,7 +15,7 @@ import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
 import { getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -328,7 +328,18 @@ const App: React.FC = () => {
   }, [contacts]);
 
   const uniqueSentras = useMemo(() => {
-    let source = selectedCo ? contacts.filter(c => (c.co || 'Unassigned') === selectedCo) : contacts;
+    // Only count active sentras if possible, but for general overview, all sentras is fine.
+    // However, to align with "Active Customers", let's leave this broad or filter active too.
+    // For now, let's keep it broad as user asked for "Total Nasabah" definition mainly.
+    // But logically, uniqueSentras should probably reflect the active portfolio.
+    
+    // Let's filter active contacts first for consistency
+    const activeContacts = contacts.filter(c => {
+         const flag = (c.flag || '').toLowerCase();
+         return !flag.includes('do') && !flag.includes('drop') && !flag.includes('lunas') && !flag.includes('tutup') && !flag.includes('inactive');
+    });
+
+    let source = selectedCo ? activeContacts.filter(c => (c.co || 'Unassigned') === selectedCo) : activeContacts;
     return Array.from(new Set(source.map(c => c.sentra || 'Unknown'))).sort();
   }, [contacts, selectedCo]);
 
@@ -382,6 +393,14 @@ const App: React.FC = () => {
   const visibleContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
   }, [filteredContacts, visibleCount]);
+
+  // --- STATS HELPER FOR HOME ---
+  const totalActiveContacts = useMemo(() => {
+      return contacts.filter(c => {
+        const flag = (c.flag || '').toLowerCase();
+        return !flag.includes('do') && !flag.includes('drop') && !flag.includes('lunas') && !flag.includes('tutup') && !flag.includes('inactive');
+      }).length;
+  }, [contacts]);
 
   const handleSyncSheet = async () => {
     setIsSyncing(true);
@@ -619,13 +638,13 @@ const App: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="bg-gradient-to-br from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg shadow-orange-500/20 text-white">
-              <HeartHandshake className="w-5 h-5" />
+              <Trophy className="w-5 h-5" />
             </div>
             <div>
                 <h1 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">
-                B-Connect <span className="text-orange-600">CRM</span>
+                Borobudur <span className="text-orange-600">Berprestasi</span>
                 </h1>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">V1.0 STABLE</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Mobile CRM System</p>
             </div>
           </div>
           
@@ -646,28 +665,39 @@ const App: React.FC = () => {
       {/* NEW: DASHBOARD CONTENT */}
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in-up">
           
-          {/* 1. Smart Greeting */}
-          <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
-              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-              <h2 className="text-2xl font-bold relative z-10">{getGreeting()}, CO!</h2>
-              <p className="text-orange-100 mt-1 relative z-10 text-sm">
-                  {upcomingEvents.length > 0 
-                    ? `Ada ${upcomingEvents.length} agenda penting menunggu Anda hari ini.` 
-                    : "Tidak ada agenda mendesak hari ini. Kerja bagus!"}
-              </p>
-              
-              {/* Daily Stats Row */}
-              <div className="flex gap-4 mt-6 relative z-10">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20">
-                      <p className="text-xs text-orange-100 uppercase font-bold mb-1">Total Nasabah</p>
-                      <p className="text-xl font-black">{contacts.length}</p>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20">
-                      <p className="text-xs text-orange-100 uppercase font-bold mb-1">Sentra</p>
-                      <p className="text-xl font-black">{uniqueSentras.length}</p>
-                  </div>
-              </div>
-          </div>
+          {/* 1. Smart Greeting (HERO UPDATED) */}
+          <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
+                {/* Decor */}
+                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-orange-500/30 rounded-full blur-3xl"></div>
+                
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-2 opacity-90">
+                        <Trophy className="w-5 h-5 text-yellow-300" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-yellow-100">Team Borobudur</span>
+                    </div>
+                    <h2 className="text-2xl font-black mb-1">{getGreeting()}, CO!</h2>
+                    <p className="text-orange-50 text-sm leading-relaxed max-w-[90%]">
+                         Aplikasi CRM Digital untuk memonitor nasabah, sentra, dan kinerja tim BTPN Syariah secara real-time & presisi.
+                    </p>
+                    
+                    {/* Stats Row */}
+                    <div className="flex gap-4 mt-6">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
+                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1">
+                                <Users className="w-3 h-3" /> Total Nasabah
+                            </p>
+                            <p className="text-2xl font-black">{totalActiveContacts}</p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
+                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> Sentra Aktif
+                            </p>
+                            <p className="text-2xl font-black">{uniqueSentras.length}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
           {/* 2. Priority Agenda (Horizontal Scroll) */}
           <div>

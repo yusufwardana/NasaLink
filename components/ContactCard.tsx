@@ -1,12 +1,24 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, UserCircle, Users, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, UserCircle, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck, Users } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
   onEditClick: (contact: Contact) => void;
   onGenerateClick: (contact: Contact) => void;
 }
+
+// Helper component for consistent info display
+const InfoItem = ({ label, value, icon: Icon, highlight, mono }: { label: string, value?: string, icon?: React.ElementType, highlight?: boolean, mono?: boolean }) => (
+  <div className="flex flex-col min-w-0">
+    <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1.5 whitespace-nowrap">
+      {Icon && <Icon className="w-3 h-3 text-slate-400/80" />} {label}
+    </span>
+    <span className={`text-sm ${highlight ? 'font-bold text-emerald-700' : 'font-semibold text-slate-700'} ${mono ? 'font-mono tracking-tight' : ''} truncate`} title={value || '-'}>
+      {value || '-'}
+    </span>
+  </div>
+);
 
 // React.memo optimizes performance by only re-rendering if props change
 export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, onEditClick, onGenerateClick }) => {
@@ -26,13 +38,13 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
   const isLunas = contact.tglLunas && contact.tglLunas.length > 0;
 
   return (
-    <div className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative ${isDpdWarning ? 'border-red-200 ring-1 ring-red-100' : 'border-slate-200'}`}>
+    <div className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative flex flex-col ${isDpdWarning ? 'border-red-200 ring-1 ring-red-100' : 'border-slate-200'}`}>
       {/* Decorative Top Border */}
       <div className={`absolute top-0 inset-x-0 h-1 transition-opacity ${isDpdWarning ? 'bg-red-500 opacity-100' : 'bg-gradient-to-r from-orange-500 to-amber-500 opacity-0 group-hover:opacity-100'}`} />
 
       {/* HEADER: Identity */}
       <div className="p-5 pb-3 flex justify-between items-start gap-3">
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center min-w-0">
             {/* Avatar */}
             <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 font-bold text-lg shadow-sm transition-all duration-300 ${
                 isDpdWarning 
@@ -43,19 +55,19 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
             </div>
             
             {/* Name & Phone */}
-            <div>
-                <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-orange-700 transition-colors">
+            <div className="min-w-0">
+                <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-orange-700 transition-colors truncate">
                     {contact.name}
                 </h3>
                 <div className="flex items-center gap-1.5 mt-1 text-slate-500">
-                    <Phone className="w-3.5 h-3.5" />
-                    <span className="text-sm font-medium font-mono">{contact.phone}</span>
+                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-sm font-medium font-mono truncate">{contact.phone}</span>
                 </div>
             </div>
         </div>
 
         {/* Status Badge */}
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1 shrink-0">
              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getFlagStyle(contact.flag)}`}>
                 {contact.flag}
              </span>
@@ -73,72 +85,18 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
       </div>
 
       {/* BODY: Info Grid */}
-      <div className="px-5 py-3 border-t border-slate-50 bg-slate-50/30">
-        <div className="grid grid-cols-2 gap-y-3 gap-x-6">
-            
-            {/* Row 1: Sentra & CO */}
-            <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> Sentra
-                </span>
-                <span className="text-sm font-semibold text-slate-700 truncate" title={contact.sentra}>
-                    {contact.sentra || '-'}
-                </span>
-            </div>
-            
-            <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                    <UserCircle className="w-3 h-3" /> Petugas (CO)
-                </span>
-                <span className="text-sm font-semibold text-slate-700 truncate" title={contact.co}>
-                    {contact.co || '-'}
-                </span>
-            </div>
-
-            {/* Row 2: Financials (Updated) */}
-            <div className="flex flex-col col-span-2 grid grid-cols-2 gap-x-6 pt-2 border-t border-slate-100/50 mt-1">
-                <div className="flex flex-col">
-                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                        <Wallet className="w-3 h-3" /> Outstanding (OS)
-                    </span>
-                    <span className={`text-sm font-mono font-medium ${contact.os ? 'text-slate-800' : 'text-slate-400'}`}>
-                        {contact.os || '-'}
-                    </span>
-                </div>
-                <div className="flex flex-col">
-                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                        <CreditCard className="w-3 h-3" /> Plafon
-                    </span>
-                    <span className="text-sm font-mono font-medium text-slate-600">
-                        {contact.plafon || '-'}
-                    </span>
-                </div>
-            </div>
-
-             {/* Row 3: Savings & Product */}
-            <div className="flex flex-col col-span-2 grid grid-cols-2 gap-x-6">
-                 <div className="flex flex-col">
-                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                        <Landmark className="w-3 h-3" /> Tabungan
-                    </span>
-                    <span className="text-sm font-mono font-medium text-emerald-700">
-                        {contact.saldoTabungan || '-'}
-                    </span>
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1">
-                        <Box className="w-3 h-3" /> Produk
-                    </span>
-                    <span className="text-xs text-slate-600 truncate">
-                        {contact.produk || '-'}
-                    </span>
-                </div>
-            </div>
-
+      <div className="px-5 py-4 border-t border-slate-50 bg-slate-50/30 grow">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4">
+            <InfoItem label="Sentra" value={contact.sentra} icon={MapPin} />
+            <InfoItem label="Petugas (CO)" value={contact.co} icon={UserCircle} />
+            <InfoItem label="Outstanding (OS)" value={contact.os} icon={Wallet} mono />
+            <InfoItem label="Plafon" value={contact.plafon} icon={CreditCard} mono />
+            <InfoItem label="Tabungan" value={contact.saldoTabungan} icon={Landmark} highlight mono />
+            <InfoItem label="Produk" value={contact.produk} icon={Box} />
         </div>
         
         {contact.notes && (
-             <div className="mt-3 pt-2 border-t border-slate-100">
+             <div className="mt-4 pt-3 border-t border-slate-100/60">
                 <p className="text-xs text-slate-400 italic line-clamp-1">
                   Catatan: "{contact.notes}"
                 </p>
@@ -150,11 +108,11 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
       <div className="px-5 py-3 bg-slate-50 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-t border-slate-100">
         
         {/* Dates Indicators */}
-        <div className="flex flex-col gap-1">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+        <div className="flex flex-col gap-1 overflow-hidden">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
                 {/* Priority Display: Tgl Lunas -> Tgl Jatuh Tempo */}
                 {isLunas ? (
-                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg shadow-sm whitespace-nowrap">
+                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg shadow-sm whitespace-nowrap shrink-0">
                         <CalendarCheck className="w-3.5 h-3.5 text-purple-500" />
                         <div className="flex flex-col leading-none">
                             <span className="text-[9px] text-slate-400 uppercase font-bold">Tgl Lunas</span>
@@ -162,7 +120,7 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
                         </div>
                     </div>
                 ) : contact.tglJatuhTempo ? (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg shadow-sm whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg shadow-sm whitespace-nowrap shrink-0">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                         <div className="flex flex-col leading-none">
                             <span className="text-[9px] text-slate-400 uppercase font-bold">Jatuh Tempo</span>
@@ -170,14 +128,14 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg opacity-50 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg opacity-50 whitespace-nowrap shrink-0">
                         <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
                         <span className="text-xs text-slate-400">No Jatuh Tempo</span>
                     </div>
                 )}
 
                 {contact.tglPrs && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg shadow-sm whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg shadow-sm whitespace-nowrap shrink-0">
                         <Users className="w-3.5 h-3.5 text-blue-500" />
                         <div className="flex flex-col leading-none">
                             <span className="text-[9px] text-slate-400 uppercase font-bold">PRS</span>
@@ -199,7 +157,7 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
         <div className="flex items-center gap-2 mt-1 sm:mt-0">
             <button
                 onClick={() => onGenerateClick(contact)}
-                className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-orange-50 text-orange-700 border border-slate-200 hover:border-orange-300 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none px-4 py-2 bg-white hover:bg-orange-50 text-orange-700 border border-slate-200 hover:border-orange-300 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 whitespace-nowrap"
                 title="Buat Pesan WA"
             >
                 <Wand2 className="w-3.5 h-3.5" />
