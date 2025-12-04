@@ -16,51 +16,97 @@ export const generateWhatsAppMessage = async (
   }
 
   try {
-    // Initialize AI client dynamically with the provided key
     const ai = new GoogleGenAI({ apiKey });
 
-    // Build rich context from contact details
+    // --- 1. ANALISIS KONDISI NASABAH (BUSINESS LOGIC) ---
+    const flag = (contact.flag || '').toLowerCase();
+    const status = (contact.status || '').toLowerCase();
+    const dpd = parseInt(contact.dpd || '0', 10);
+    
+    // Deteksi Status
+    const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+    const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+    const isJatuhTempo = !!contact.tglJatuhTempo;
+
+    // Tentukan Strategi Komunikasi untuk AI
+    let strategyGuide = "";
+
+    if (isTrouble) {
+        // KONDISI 1: NASABAH BERMASALAH
+        strategyGuide = `
+        STRATEGI: COLLECTION (PENAGIHAN)
+        - Nasabah ini sedang MENUNGGAK (DPD: ${dpd} hari).
+        - Fokus: Ingatkan kewajiban membayar dengan tegas namun tetap sopan (profesional).
+        - JANGAN menawarkan produk baru/tambah modal.
+        - Tekankan pentingnya menjaga nama baik dan riwayat kredit.
+        `;
+    } else if (isInactive) {
+        // KONDISI 2: WINBACK (MANTAN NASABAH)
+        const lunasInfo = contact.tglLunas ? `sejak tanggal ${contact.tglLunas}` : "beberapa waktu lalu";
+        strategyGuide = `
+        STRATEGI: WINBACK (AJAK GABUNG KEMBALI)
+        - Nasabah ini statusnya SUDAH LUNAS / KELUAR (${lunasInfo}).
+        - Fokus: SILATURAHMI & RE-AKUISISI.
+        - Sapa sebagai kawan lama, tanyakan kabar usaha dan keluarganya.
+        - Informasikan bahwa BTPN Syariah terbuka jika beliau ingin mengajukan pembiayaan lagi.
+        `;
+    } else if (isJatuhTempo) {
+        // KONDISI 3: REFINANCING (NASABAH LANCAR MAU LUNAS)
+        strategyGuide = `
+        STRATEGI: REFINANCING (TAWARAN TAMBAH MODAL)
+        - Nasabah ini LANCAR dan angsuran akan segera selesai (Jatuh Tempo: ${contact.tglJatuhTempo}).
+        - Fokus: APRESIASI & RETENSI.
+        - Ucapkan terima kasih karena angsurannya lancar.
+        - Tawarkan pencairan tahap berikutnya (Tambah Modal) untuk pengembangan usaha.
+        `;
+    } else {
+        // KONDISI 4: MAINTENANCE (UMUM)
+        strategyGuide = `
+        STRATEGI: RELATIONSHIP MAINTENANCE
+        - Fokus: Menjaga hubungan baik.
+        - Sapaan hangat, tanyakan kabar sentra/kelompok.
+        `;
+    }
+
+    // --- 2. PREPARE DATA DETAIL ---
     let details = `
       Nama Nasabah: ${contact.name}
-      Flag/Segmen: ${contact.flag}
+      Status/Flag: ${contact.flag}
       Sentra: ${contact.sentra || '-'}
       CO (Petugas): ${contact.co || 'Admin'}
     `;
 
     if (contact.produk) details += `\n      Produk: ${contact.produk}`;
-    if (contact.plafon) details += `\n      Plafon: ${contact.plafon}`;
-    if (contact.os) details += `\n      Sisa Hutang (Outstanding/OS): ${contact.os}`;
+    if (contact.plafon) details += `\n      Plafon Terakhir: ${contact.plafon}`;
+    if (contact.os) details += `\n      Sisa Hutang (OS): ${contact.os}`;
     if (contact.saldoTabungan) details += `\n      Saldo Tabungan: ${contact.saldoTabungan}`;
-    if (contact.dpd) details += `\n      Hari Keterlambatan (DPD): ${contact.dpd} hari`;
-    if (contact.tglJatuhTempo) details += `\n      Tanggal Selesai Angsuran (Jatuh Tempo): ${contact.tglJatuhTempo}`;
-    if (contact.status) details += `\n      Status Rekening: ${contact.status}`;
+    if (contact.dpd) details += `\n      Keterlambatan (DPD): ${contact.dpd} hari`;
+    if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
+    if (contact.tglLunas) details += `\n      Tanggal Pelunasan (Lunas): ${contact.tglLunas}`;
+    if (contact.tglPrs) details += `\n      Jadwal Kumpulan (PRS): ${contact.tglPrs}`;
 
-    // Add specific instruction based on Financial Data
-    let financialInstruction = "";
-    if (contact.dpd && parseInt(contact.dpd) > 0) {
-        financialInstruction = "PERHATIAN: Nasabah ini sedang MENUNGGAK (DPD > 0). Gunakan nada yang tegas namun tetap sopan untuk mengingatkan pembayaran segera agar tidak macet.";
-    } else if (contact.tglJatuhTempo) {
-        financialInstruction = "Jika konteksnya mengenai 'Jatuh Tempo', ITU ARTINYA nasabah sebentar lagi LUNAS/SELESAI angsurannya. Tujuannya adalah MENAWARKAN PENCAIRAN KEMBALI (Tambah Modal).";
-    }
-
+    // --- 3. CONSTRUCT PROMPT ---
     const prompt = `
       Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional, hangat, dan kekeluargaan.
-      Buatkan pesan WhatsApp (Bahasa Indonesia) untuk nasabah (Ibu-ibu di sentra) dengan detail berikut:
-      
+      Buatkan pesan WhatsApp (Bahasa Indonesia) yang personal.
+
       DATA NASABAH:
       ${details}
 
-      TUJUAN PESAN / KONTEKS: 
-      ${context}
+      PANDUAN STRATEGI AI (WAJIB DIIKUTI):
+      ${strategyGuide}
+
+      KONTEKS / TUJUAN PESAN DARI USER: 
+      "${context}"
       
       TONE: ${tone}
 
-      Panduan Khusus BTPN Syariah:
+      Panduan Gaya Bahasa BTPN Syariah:
       - Gunakan sapaan "Ibu" diikuti nama nasabah.
-      - ${financialInstruction}
+      - Bahasa percakapan yang luwes, tidak kaku seperti robot, khas ibu-ibu pengajian/sentra.
       - Prinsip: Memberdayakan dan Tumbuh Bersama.
       - Pesan singkat, padat, personal, tanpa subject line.
-      - Hanya berikan output teks pesan saja.
+      - Output hanya teks pesan saja.
     `;
 
     const response = await ai.models.generateContent({
@@ -96,10 +142,10 @@ export const generateBroadcastMessage = async (
       TONE: ${tone}
 
       INSTRUKSI PENTING:
-      1. Ini adalah pesan untuk Broadcast.
-      2. WAJIB gunakan placeholder "{name}" (persis, huruf kecil, kurung kurawal) di mana nama nasabah seharusnya berada. Aplikasi akan menggantinya otomatis.
+      1. Ini adalah pesan untuk Broadcast Massal.
+      2. WAJIB gunakan placeholder "{name}" (persis, huruf kecil, kurung kurawal) di mana nama nasabah seharusnya berada.
          Contoh: "Assalamualaikum Ibu {name}, semoga sehat selalu..."
-      3. Jangan gunakan nama spesifik, gunakan hanya "{name}".
+      3. JANGAN gunakan nama spesifik orang, JANGAN gunakan sapaan spesifik selain "{name}".
       4. Gaya bahasa hangat, sopan, khas ibu-ibu pengajian/sentra.
       5. Output hanya teks pesan saja.
     `;

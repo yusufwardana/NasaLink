@@ -21,6 +21,7 @@ export interface Contact {
   os?: string;             // Map from 'OS' (Outstanding)
   dpd?: string;            // Map from 'DPD'
   saldoTabungan?: string;  // Map from 'SALDO TABUNGAN'
+  tglLunas?: string;       // Map from 'TGL LUNAS'
 }
 
 export interface MessageTemplate {

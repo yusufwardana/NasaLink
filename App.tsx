@@ -24,7 +24,7 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: '1', 
     label: 'Pengingat PRS (Besok)', 
     type: 'ai', 
-    promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) besok. Sampaikan pentingnya kehadiran untuk tepat waktu.', icon: '👥' 
+    promptContext: 'Ingatkan Ibu nasabah untuk hadir di Pertemuan Rutin Sentra (PRS) BESOK. Sampaikan pentingnya kehadiran untuk tepat waktu dan bawa angsuran.', icon: '👥' 
   },
   { 
     id: 'manual-1', 
@@ -47,6 +47,12 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     label: 'Tawaran Lanjut (Cair)', 
     type: 'ai', 
     promptContext: 'Nasabah ini sebentar lagi lunas (Jatuh Tempo). Berikan ucapan selamat atas kedisiplinannya. Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' 
+  },
+  { 
+    id: 'ai-winback', 
+    label: 'Ajak Gabung Kembali (Winback)', 
+    type: 'ai', 
+    promptContext: 'Nasabah ini sudah pernah lunas/berhenti beberapa bulan hingga setahun yang lalu. Sapa dengan hangat, tanyakan kabar usahanya. Ajak untuk bergabung kembali dengan BTPN Syariah karena mungkin beliau butuh tambahan modal sekarang.', icon: '🔄' 
   },
   { 
     id: 'ai-prospek', 
@@ -110,7 +116,6 @@ const App: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   
   // --- PERFORMANCE OPTIMIZATION: Deferred Values ---
-  // This allows the UI (Dropdowns) to update instantly, while the filtering happens in background.
   const deferredSentra = useDeferredValue(selectedSentra);
   const deferredCo = useDeferredValue(selectedCo);
   const deferredStatus = useDeferredValue(selectedStatus);
@@ -211,7 +216,7 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // ... (Notification Logic & Filter Logic same as before) ...
+  // --- LOGIC NOTIFIKASI BARU (PRS H-1 & REFINANCING) ---
   const upcomingEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -225,6 +230,7 @@ const App: React.FC = () => {
     const parseFullDate = (dateStr: string): Date | null => {
         if (!dateStr) return null;
         const clean = dateStr.trim();
+        // Try parsing Indo format DD/MM/YYYY or DD-MM-YYYY
         const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
         if (partsIndo) {
             const day = parseInt(partsIndo[1], 10);
@@ -239,35 +245,86 @@ const App: React.FC = () => {
     };
 
     return contacts.reduce<NotificationItem[]>((acc, contact) => {
-        if (contact.tglJatuhTempo) {
-            const dueDate = parseFullDate(contact.tglJatuhTempo);
-            if (dueDate) {
-                const dm = dueDate.getMonth();
-                const dy = dueDate.getFullYear();
-                let status: any = null;
-                if (dy === currentYear && dm === currentMonth) {
-                     status = (dueDate.getDate() === today.getDate()) ? 'today' : 'this_month';
-                } else if ((dy === nextMonthYear && dm === nextMonth)) {
-                    status = 'next_month';
+        const flag = (contact.flag || '').toLowerCase();
+        const status = (contact.status || '').toLowerCase();
+        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+        
+        // Date parsing helper
+        const dueDate = contact.tglJatuhTempo ? parseFullDate(contact.tglJatuhTempo) : null;
+        const lunasDate = contact.tglLunas ? parseFullDate(contact.tglLunas) : null;
+
+        // 1. REFINANCING / PAYMENT LOGIC
+        if (dueDate || lunasDate) {
+            
+            if (!isInactive && dueDate) {
+                 // GROUP A: NASABAH LANCAR (Jatuh Tempo Bulan Ini & Bulan Depan)
+                 const dm = dueDate.getMonth();
+                 const dy = dueDate.getFullYear();
+                 let notifStatus: any = null;
+                 if (dy === currentYear && dm === currentMonth) {
+                        notifStatus = (dueDate.getDate() === today.getDate()) ? 'today' : 'this_month';
+                 } else if ((dy === nextMonthYear && dm === nextMonth)) {
+                    notifStatus = 'next_month';
+                 }
+                 if (notifStatus) acc.push({ contact, type: 'payment', status: notifStatus, daysLeft: 0 });
+            } 
+            else if (isInactive) {
+                // GROUP B: NASABAH DO/LUNAS (Winback 1-12 Bulan ke belakang)
+                // Criteria: Based on TGL LUNAS (Primary). Fallback to TGL JATUH TEMPO.
+                const referenceDate = lunasDate || dueDate;
+
+                if (referenceDate) {
+                    // Logic: referenceDate is in the past
+                    const monthsAgo = (today.getFullYear() - referenceDate.getFullYear()) * 12 + (today.getMonth() - referenceDate.getMonth());
+                    
+                    if (monthsAgo >= 1 && monthsAgo <= 12) {
+                        // Split Winback: < 3 months vs > 3 months
+                        if (monthsAgo < 3) {
+                             acc.push({ contact, type: 'payment', status: 'winback_recent', daysLeft: 0 });
+                        } else {
+                             acc.push({ contact, type: 'payment', status: 'winback_old', daysLeft: 0 });
+                        }
+                    }
                 }
-                if (status) acc.push({ contact, type: 'payment', status: status, daysLeft: 0 });
             }
         }
-        if (contact.tglPrs) {
+
+        // 2. PRS LOGIC (H-1)
+        if (contact.tglPrs && !isInactive) {
              let prsDate: Date | null = null;
              if (contact.tglPrs.match(/^\d{1,2}$/)) {
-                 prsDate = new Date(today.getFullYear(), today.getMonth(), parseInt(contact.tglPrs));
+                 // Format tanggal tok (misal "15") -> Asumsi bulan ini
+                 let targetDay = parseInt(contact.tglPrs);
+                 prsDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
+                 // Jika hari ini tgl 30 dan PRS tgl 1, berarti PRS bulan depan
+                 if (prsDate < today) {
+                     prsDate.setMonth(prsDate.getMonth() + 1);
+                 }
              } else {
                  prsDate = parseFullDate(contact.tglPrs);
              }
+
              if (prsDate) {
                  const diff = Math.ceil((prsDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                 // Hanya H-1 (Besok) atau Hari Ini
                  if (diff === 0) acc.push({ contact, type: 'prs', status: 'today', daysLeft: 0 });
-                 else if (diff === 1) acc.push({ contact, type: 'prs', status: 'soon', daysLeft: 1 });
+                 else if (diff === 1) acc.push({ contact, type: 'prs', status: 'soon', daysLeft: 1 }); // "BESOK"
              }
         }
         return acc;
-    }, []).sort((a, b) => a.daysLeft - b.daysLeft);
+    }, []).sort((a, b) => {
+        // Sort Priority: Today > Tomorrow > This Month > Next Month > Winback Recent > Winback Old
+        const score = (s: string) => {
+            if (s === 'today') return 1;
+            if (s === 'soon') return 2;
+            if (s === 'this_month') return 3;
+            if (s === 'next_month') return 4;
+            if (s === 'winback_recent') return 5;
+            if (s === 'winback_old') return 6;
+            return 99;
+        }
+        return score(a.status) - score(b.status);
+    });
   }, [contacts]);
 
   const uniqueSentras = useMemo(() => {
@@ -300,8 +357,6 @@ const App: React.FC = () => {
       if (deferredCo && (contact.co || 'Unassigned') !== deferredCo) return false;
       
       // 4. Status (FIXED)
-      // Original logic compared exact strings ("Active" vs "Lancar"), which failed.
-      // New logic checks keywords correctly.
       if (deferredStatus !== 'All') {
           const cStatus = (contact.status || '').toLowerCase();
           const cFlag = (contact.flag || '').toLowerCase();
@@ -314,10 +369,8 @@ const App: React.FC = () => {
                             cFlag.includes('drop');
           
           if (deferredStatus === 'Active') {
-             // Active = Not in trouble (Lancar, Kurang Lancar, Gold, Silver, etc.)
              if (isTrouble) return false;
           } else if (deferredStatus === 'Inactive') {
-             // Inactive = In trouble (Macet, DO)
              if (!isTrouble) return false;
           }
       }
@@ -426,7 +479,6 @@ const App: React.FC = () => {
   if (activeView === 'settings') {
       return (
           <>
-            {/* Using AdminPanel as a full page now */}
             <AdminPanel
                 onBack={() => setActiveView('home')}
                 templates={templates}
@@ -450,8 +502,35 @@ const App: React.FC = () => {
                 items={upcomingEvents}
                 onBack={() => setActiveView('home')}
                 onRemind={(contact, type) => {
-                    const templateName = type === 'payment' ? 'Tawaran Lanjut (Cair)' : 'Pengingat PRS';
-                    const found = templates.find(t => t.label.toLowerCase().includes(templateName.toLowerCase()));
+                    // Smart Template Selection Logic
+                    let keywords: string[] = [];
+
+                    if (type === 'prs') {
+                        keywords = ['prs', 'kumpulan', 'besok'];
+                    } else if (type === 'payment') {
+                        const flag = (contact.flag || '').toLowerCase();
+                        const status = (contact.status || '').toLowerCase();
+                        const dpd = parseInt(contact.dpd || '0', 10);
+                        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+                        const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+
+                        if (isTrouble) {
+                            // 1. Collection
+                            keywords = ['tagih', 'ctx', 'tunggak', 'bayar'];
+                        } else if (isInactive) {
+                            // 2. Winback
+                            keywords = ['winback', 'gabung', 'sapa'];
+                        } else {
+                            // 3. Refinancing / Lancar
+                            keywords = ['tawar', 'lanjut', 'cair', 'modal'];
+                        }
+                    }
+                    
+                    // Find matched template by keywords
+                    const found = templates.find(t => 
+                        keywords.some(k => t.label.toLowerCase().includes(k))
+                    );
+
                     setInitialTemplateId(found?.id || templates[0]?.id);
                     setSelectedContact(contact);
                 }}

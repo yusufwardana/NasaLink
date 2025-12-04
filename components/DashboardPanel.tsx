@@ -47,21 +47,45 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
         return status.includes('macet') || status.includes('menunggak');
     }).length;
 
-    // Refinancing Opportunity (Jatuh Tempo This Month & Next Month)
+    // 3. OPPORTUNITY: Refinancing (Jatuh Tempo This Month/Next Month) AND Winback (1-12 Months Ago)
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     
     const opportunity = contacts.filter(c => {
-        if (!c.tglJatuhTempo) return false;
-        // Simple regex split for dd/mm/yyyy or dd-mm-yyyy
-        const parts = c.tglJatuhTempo.split(/[-/]/);
-        if (parts.length !== 3) return false;
+        const flag = (c.flag || '').toLowerCase();
+        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
         
-        const m = parseInt(parts[1], 10) - 1;
-        const y = parseInt(parts[2], 10);
-        
-        return (m === today.getMonth() && y === today.getFullYear()) || 
-               (m === nextMonth.getMonth() && y === nextMonth.getFullYear());
+        const parseDate = (dateStr: string) => {
+            if (!dateStr) return null;
+            const clean = dateStr.trim();
+            const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (partsIndo) {
+                return new Date(parseInt(partsIndo[3]), parseInt(partsIndo[2]) - 1, parseInt(partsIndo[1]));
+            }
+            return new Date(clean);
+        };
+
+        if (!isInactive) {
+            // Logic A: Active Customer (Current/Next Month) based on Jatuh Tempo
+            if (!c.tglJatuhTempo) return false;
+            const jtDate = parseDate(c.tglJatuhTempo);
+            if (!jtDate || isNaN(jtDate.getTime())) return false;
+
+            const m = jtDate.getMonth();
+            const y = jtDate.getFullYear();
+            
+            return (m === today.getMonth() && y === today.getFullYear()) || 
+                   (m === nextMonth.getMonth() && y === nextMonth.getFullYear());
+        } else {
+            // Logic B: Winback (1-12 Months ago) based on TGL LUNAS (Fallback: Tgl Jatuh Tempo)
+            let refDate = c.tglLunas ? parseDate(c.tglLunas) : null;
+            if (!refDate && c.tglJatuhTempo) refDate = parseDate(c.tglJatuhTempo);
+            
+            if (!refDate || isNaN(refDate.getTime())) return false;
+
+            const monthsAgo = (today.getFullYear() - refDate.getFullYear()) * 12 + (today.getMonth() - refDate.getMonth());
+            return monthsAgo >= 1 && monthsAgo <= 12;
+        }
     }).length;
 
     // Sentra Leaderboard
@@ -171,7 +195,7 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
                   <Wallet className="w-4 h-4 text-emerald-600" /> Peluang Bisnis
               </h4>
               <p className="text-xs text-emerald-600 mb-4">
-                  Nasabah yang akan jatuh tempo (lunas) bulan ini & depan.
+                  Nasabah Jatuh Tempo (Lancar) & Winback (1-12 Bulan).
               </p>
               
               <div className="flex items-end gap-2">

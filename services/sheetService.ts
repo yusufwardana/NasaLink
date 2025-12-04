@@ -118,6 +118,9 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     const idxOs = findColIndex(headers, ['os', 'outstanding', 'sisa']);
     const idxDpd = findColIndex(headers, ['dpd', 'days past due']);
     const idxSaldo = findColIndex(headers, ['saldo', 'tabungan', 'simpanan']);
+    
+    // New: TGL LUNAS
+    const idxTglLunas = findColIndex(headers, ['tgl lunas', 'tanggal lunas', 'lunas']);
 
     // Map rows to Contact objects
     return rows.slice(1).map((row, index): Contact | null => {
@@ -154,6 +157,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             os: getVal(idxOs),
             dpd: getVal(idxDpd),
             saldoTabungan: getVal(idxSaldo),
+            tglLunas: getVal(idxTglLunas),
 
             notes: getVal(idxNotes),
             lastInteraction: ''

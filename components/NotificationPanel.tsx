@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Contact } from '../types';
-import { CalendarClock, MessageCircle, Banknote, Users, ArrowLeft, Filter, ChevronDown, MapPin, Briefcase } from 'lucide-react';
+import { CalendarClock, MessageCircle, Banknote, Users, ArrowLeft, Filter, ChevronDown, MapPin, Briefcase, UserPlus, RefreshCcw, Sparkles, History } from 'lucide-react';
 import { Button } from './Button';
 
 export interface NotificationItem {
   contact: Contact;
   type: 'payment' | 'prs'; 
-  status: 'today' | 'soon' | 'this_month' | 'next_month';
+  status: 'today' | 'soon' | 'this_month' | 'next_month' | 'winback_recent' | 'winback_old';
   daysLeft: number;
 }
 
@@ -23,7 +23,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
 }) => {
   const [filterCo, setFilterCo] = useState<string>('All');
   const [filterSentra, setFilterSentra] = useState<string>('All');
-  const [filterType, setFilterType] = useState<string>('All'); // 'All' | 'payment' | 'prs'
+  // Updated filter types: 'refinancing' (active) vs 'winback_recent' vs 'winback_old' vs 'prs'
+  const [filterType, setFilterType] = useState<string>('All'); 
   const [visibleCount, setVisibleCount] = useState(20);
 
   // Extract unique COs
@@ -47,7 +48,19 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
     return items.filter(item => {
         const matchesCo = filterCo === 'All' || (item.contact.co || 'Unassigned') === filterCo;
         const matchesSentra = filterSentra === 'All' || (item.contact.sentra || 'Unknown') === filterSentra;
-        const matchesType = filterType === 'All' || item.type === filterType;
+        
+        // Complex Type Filtering
+        let matchesType = true;
+        if (filterType === 'refinancing') {
+            // Active Customers Only (Not Winback)
+            matchesType = item.type === 'payment' && !item.status.includes('winback');
+        } else if (filterType === 'winback_recent') {
+            matchesType = item.status === 'winback_recent';
+        } else if (filterType === 'winback_old') {
+            matchesType = item.status === 'winback_old';
+        } else if (filterType === 'prs') {
+            matchesType = item.type === 'prs';
+        }
         
         return matchesCo && matchesSentra && matchesType;
     });
@@ -65,13 +78,21 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
   // Status Label Helper
   const getStatusLabel = (status: string) => {
       switch(status) {
-          case 'today': return 'HARI INI';
-          case 'soon': return 'BESOK / SEGERA';
+          case 'today': return 'HARI INI (H-0)';
+          case 'soon': return 'BESOK (H-1)';
           case 'this_month': return 'BULAN INI';
           case 'next_month': return 'BULAN DEPAN';
+          case 'winback_recent': return 'LUNAS < 3 BULAN';
+          case 'winback_old': return 'LUNAS > 3 BULAN';
           default: return '';
       }
   };
+
+  // Calculate Counts for Chips
+  const countRefinancing = items.filter(i => i.type === 'payment' && !i.status.includes('winback')).length;
+  const countWinbackRecent = items.filter(i => i.status === 'winback_recent').length;
+  const countWinbackOld = items.filter(i => i.status === 'winback_old').length;
+  const countPrs = items.filter(i => i.type === 'prs').length;
 
   // Full Page Layout
   return (
@@ -92,7 +113,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                         {filteredItems.length}
                     </span>
                 </h2>
-                <p className="text-sm text-slate-500">Monitoring Jatuh Tempo (Refinancing) & PRS</p>
+                <p className="text-sm text-slate-500">Monitoring Jatuh Tempo & PRS</p>
             </div>
         </div>
 
@@ -146,8 +167,10 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                         onChange={(e) => setFilterType(e.target.value)}
                     >
                         <option value="All">Semua Tipe Agenda</option>
-                        <option value="payment">Peluang Refinancing</option>
-                        <option value="prs">Kumpulan PRS</option>
+                        <option value="refinancing">Jatuh Tempo (Nasabah Lancar)</option>
+                        <option value="winback_recent">Winback Baru (&lt; 3 Bulan)</option>
+                        <option value="winback_old">Winback Lama (&gt; 3 Bulan)</option>
+                        <option value="prs">Kumpulan PRS (Besok)</option>
                     </select>
                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                 </div>
@@ -156,20 +179,55 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
         {/* Filter Summary Chips */}
         <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+            {/* CHIP 1: Jatuh Tempo (Refinancing Active) */}
             <button 
-                onClick={() => setFilterType('payment')}
+                onClick={() => setFilterType('refinancing')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-sm min-w-max transition-all border ${
-                    filterType === 'payment' ? 'bg-emerald-100 border-emerald-300 ring-1 ring-emerald-300' : 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100'
+                    filterType === 'refinancing' ? 'bg-emerald-100 border-emerald-300 ring-1 ring-emerald-300' : 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100'
                 }`}
             >
                 <Banknote className="w-4 h-4 text-emerald-600" />
                 <div className="flex flex-col items-start">
-                    <span className="text-[10px] uppercase font-bold text-emerald-500">Prospek Cair</span>
+                    <span className="text-[10px] uppercase font-bold text-emerald-500">Jatuh Tempo (Lancar)</span>
                     <span className="text-lg font-bold text-emerald-700 leading-none">
-                        {items.filter(i => i.type === 'payment').length}
+                        {countRefinancing}
                     </span>
                 </div>
             </button>
+
+             {/* CHIP 2: Winback Recent (< 3 Months) */}
+             <button 
+                onClick={() => setFilterType('winback_recent')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-sm min-w-max transition-all border ${
+                    filterType === 'winback_recent' ? 'bg-pink-100 border-pink-300 ring-1 ring-pink-300' : 'bg-pink-50 border-pink-100 hover:bg-pink-100'
+                }`}
+            >
+                <Sparkles className="w-4 h-4 text-pink-600" />
+                <div className="flex flex-col items-start">
+                    <span className="text-[10px] uppercase font-bold text-pink-500">Winback &lt; 3 Bln</span>
+                    <span className="text-lg font-bold text-pink-700 leading-none">
+                        {countWinbackRecent}
+                    </span>
+                </div>
+            </button>
+
+            {/* CHIP 3: Winback Old (> 3 Months) */}
+            <button 
+                onClick={() => setFilterType('winback_old')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-sm min-w-max transition-all border ${
+                    filterType === 'winback_old' ? 'bg-purple-100 border-purple-300 ring-1 ring-purple-300' : 'bg-purple-50 border-purple-100 hover:bg-purple-100'
+                }`}
+            >
+                <History className="w-4 h-4 text-purple-600" />
+                <div className="flex flex-col items-start">
+                    <span className="text-[10px] uppercase font-bold text-purple-500">Winback &gt; 3 Bln</span>
+                    <span className="text-lg font-bold text-purple-700 leading-none">
+                        {countWinbackOld}
+                    </span>
+                </div>
+            </button>
+
+            {/* CHIP 4: PRS */}
             <button 
                 onClick={() => setFilterType('prs')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl shadow-sm min-w-max transition-all border ${
@@ -178,9 +236,9 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
             >
                 <Users className="w-4 h-4 text-blue-600" />
                 <div className="flex flex-col items-start">
-                    <span className="text-[10px] uppercase font-bold text-blue-500">Jadwal PRS</span>
+                    <span className="text-[10px] uppercase font-bold text-blue-500">PRS Besok (H-1)</span>
                     <span className="text-lg font-bold text-blue-700 leading-none">
-                        {items.filter(i => i.type === 'prs').length}
+                        {countPrs}
                     </span>
                 </div>
             </button>
@@ -207,34 +265,62 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                 <>
                     {displayedItems.map(({ contact, type, status, daysLeft }, idx) => {
                         const isPayment = type === 'payment';
+                        const isWinbackRecent = status === 'winback_recent';
+                        const isWinbackOld = status === 'winback_old';
+                        const isWinback = isWinbackRecent || isWinbackOld;
                         
                         // Card Styling
-                        const borderColor = isPayment ? 'border-emerald-100' : 'border-blue-100';
-                        const bgColor = isPayment ? 'bg-gradient-to-br from-white to-emerald-50/30' : 'bg-gradient-to-br from-white to-blue-50/30';
-                        const hoverShadow = isPayment ? 'hover:shadow-emerald-100' : 'hover:shadow-blue-100';
+                        let borderColor = 'border-slate-100';
+                        let bgColor = 'bg-white';
+                        let shadowColor = 'shadow-slate-100';
+
+                        if (isPayment) {
+                            if (isWinbackRecent) {
+                                borderColor = 'border-pink-200';
+                                bgColor = 'bg-gradient-to-br from-white to-pink-50/50';
+                                shadowColor = 'hover:shadow-pink-100';
+                            } else if (isWinbackOld) {
+                                borderColor = 'border-purple-200';
+                                bgColor = 'bg-gradient-to-br from-white to-purple-50/50';
+                                shadowColor = 'hover:shadow-purple-100';
+                            } else {
+                                borderColor = 'border-emerald-100';
+                                bgColor = 'bg-gradient-to-br from-white to-emerald-50/30';
+                                shadowColor = 'hover:shadow-emerald-100';
+                            }
+                        } else {
+                            // PRS
+                            borderColor = 'border-blue-100';
+                            bgColor = 'bg-gradient-to-br from-white to-blue-50/30';
+                            shadowColor = 'hover:shadow-blue-100';
+                        }
 
                         return (
                             <div 
                                 key={`${contact.id}-${type}-${idx}`} 
-                                className={`p-5 rounded-2xl border ${borderColor} ${bgColor} shadow-sm hover:shadow-lg ${hoverShadow} transition-all duration-300 relative group`}
+                                className={`p-5 rounded-2xl border ${borderColor} ${bgColor} shadow-sm hover:shadow-lg ${shadowColor} transition-all duration-300 relative group`}
                             >
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     {/* Left Side: Info */}
                                     <div className="flex items-start gap-4">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${
-                                            isPayment ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-blue-100 border-blue-200 text-blue-600'
+                                            isPayment 
+                                            ? (isWinbackRecent ? 'bg-pink-100 border-pink-200 text-pink-600' : (isWinbackOld ? 'bg-purple-100 border-purple-200 text-purple-600' : 'bg-emerald-100 border-emerald-200 text-emerald-600'))
+                                            : 'bg-blue-100 border-blue-200 text-blue-600'
                                         }`}>
-                                            {isPayment ? <Banknote className="w-6 h-6" /> : <Users className="w-6 h-6" />}
+                                            {isWinback ? <UserPlus className="w-6 h-6" /> : (isPayment ? <Banknote className="w-6 h-6" /> : <Users className="w-6 h-6" />)}
                                         </div>
                                         
                                         <div>
                                             <div className="flex flex-wrap items-center gap-2 mb-1">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
-                                                    isPayment ? 'bg-white text-emerald-600 border-emerald-200' : 'bg-white text-blue-600 border-blue-200'
+                                                    isPayment 
+                                                    ? (isWinbackRecent ? 'bg-white text-pink-600 border-pink-200' : (isWinbackOld ? 'bg-white text-purple-600 border-purple-200' : 'bg-white text-emerald-600 border-emerald-200'))
+                                                    : 'bg-white text-blue-600 border-blue-200'
                                                 }`}>
-                                                    {isPayment ? 'Peluang Refinancing' : 'Kumpulan PRS'}
+                                                    {isWinback ? 'Winback' : (isPayment ? 'Jatuh Tempo (Lancar)' : 'Kumpulan PRS')}
                                                 </span>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-white uppercase ${status === 'today' ? 'bg-red-500 animate-pulse' : 'bg-slate-400'}`}>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-white uppercase ${status === 'today' || status === 'soon' ? 'bg-red-500 animate-pulse' : (isWinbackRecent ? 'bg-pink-400' : (isWinbackOld ? 'bg-purple-400' : 'bg-slate-400'))}`}>
                                                     {getStatusLabel(status)}
                                                 </span>
                                                  <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
@@ -251,7 +337,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                                                 </span>
                                                 <span className="flex items-center gap-1">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                                                    {isPayment ? `Jatuh Tempo: ${contact.tglJatuhTempo}` : `Tgl PRS: ${contact.tglPrs}`}
+                                                    {isPayment ? (isWinback ? `Lunas: ${contact.tglLunas || contact.tglJatuhTempo}` : `Jatuh Tempo: ${contact.tglJatuhTempo}`) : `Tgl PRS: ${contact.tglPrs}`}
                                                 </span>
                                             </div>
                                              <div className="text-xs text-slate-400 mt-1">
@@ -264,7 +350,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                                     <div className="flex items-center gap-3 self-end sm:self-center w-full sm:w-auto mt-2 sm:mt-0">
                                         <div className={`hidden sm:block text-right mr-2`}>
                                             <p className="text-xs font-bold text-slate-400 uppercase">Status</p>
-                                            <p className={`text-base font-black ${status === 'today' ? 'text-red-500' : 'text-slate-700'}`}>
+                                            <p className={`text-base font-black ${status === 'today' || status === 'soon' ? 'text-red-500' : 'text-slate-700'}`}>
                                                 {getStatusLabel(status)}
                                             </p>
                                         </div>
@@ -274,7 +360,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                                             onClick={() => onRemind(contact, type)}
                                             icon={<MessageCircle className="w-4 h-4" />}
                                         >
-                                            {isPayment ? 'Tawarkan Modal' : 'Ingatkan Hadir'}
+                                            {isWinback ? 'Ajak Gabung' : (isPayment ? 'Tawarkan Modal' : 'Ingatkan Besok')}
                                         </Button>
                                     </div>
                                 </div>

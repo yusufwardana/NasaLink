@@ -1,6 +1,6 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, UserCircle, Users, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, UserCircle, Users, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -15,13 +15,15 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
     if (f.includes('platinum')) return 'bg-purple-50 text-purple-700 border-purple-200';
     if (f.includes('gold') || f.includes('active')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (f.includes('silver')) return 'bg-blue-50 text-blue-700 border-blue-200';
-    if (f.includes('do') || f.includes('drop')) return 'bg-red-50 text-red-700 border-red-200';
+    if (f.includes('do') || f.includes('drop') || f.includes('lunas')) return 'bg-red-50 text-red-700 border-red-200';
     return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
   // Helper to check if DPD is serious (> 0)
   const dpdValue = parseInt(contact.dpd || '0', 10);
   const isDpdWarning = dpdValue > 0;
+  // Check if paid off
+  const isLunas = contact.tglLunas && contact.tglLunas.length > 0;
 
   return (
     <div className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative ${isDpdWarning ? 'border-red-200 ring-1 ring-red-100' : 'border-slate-200'}`}>
@@ -150,18 +152,27 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
         {/* Dates Indicators */}
         <div className="flex flex-col gap-1">
             <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                {contact.tglJatuhTempo ? (
+                {/* Priority Display: Tgl Lunas -> Tgl Jatuh Tempo */}
+                {isLunas ? (
+                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg shadow-sm whitespace-nowrap">
+                        <CalendarCheck className="w-3.5 h-3.5 text-purple-500" />
+                        <div className="flex flex-col leading-none">
+                            <span className="text-[9px] text-slate-400 uppercase font-bold">Tgl Lunas</span>
+                            <span className="text-xs font-bold text-purple-700">{contact.tglLunas}</span>
+                        </div>
+                    </div>
+                ) : contact.tglJatuhTempo ? (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg shadow-sm whitespace-nowrap">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                         <div className="flex flex-col leading-none">
-                            <span className="text-[9px] text-slate-400 uppercase font-bold">Lunas</span>
+                            <span className="text-[9px] text-slate-400 uppercase font-bold">Jatuh Tempo</span>
                             <span className="text-xs font-bold text-emerald-700">{contact.tglJatuhTempo}</span>
                         </div>
                     </div>
                 ) : (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg opacity-50 whitespace-nowrap">
                         <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-xs text-slate-400">Belum ada info lunas</span>
+                        <span className="text-xs text-slate-400">No Jatuh Tempo</span>
                     </div>
                 )}
 
