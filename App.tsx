@@ -7,7 +7,7 @@ import { AdminModal } from './components/AdminModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { BroadcastPanel } from './components/BroadcastPanel';
 import { DashboardPanel } from './components/DashboardPanel';
-// NEW IMPORT
+// CORRECTED IMPORT PATH: No "@/components/..."
 import { ContactManagementPanel } from './components/ContactManagementPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
@@ -15,7 +15,10 @@ import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfig
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon } from 'lucide-react';
 
-// ... (INITIAL_TEMPLATES_FALLBACK remains the same) ...
+// ... (Rest of App.tsx remains the same, assuming imports were the only issue)
+// For brevity, I am including the full App.tsx logic again to ensure no code is lost
+
+// REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   // --- KATEGORI 1: OPERASIONAL RUTIN ---
   { 
@@ -450,7 +453,7 @@ const App: React.FC = () => {
                 <h1 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">
                 B-Connect <span className="text-orange-600">CRM</span>
                 </h1>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Direktori Nasabah</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">V1.0 STABLE</p>
             </div>
           </div>
           
@@ -477,12 +480,12 @@ const App: React.FC = () => {
             <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
                 <div className="mb-6">
                     <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest rounded-full mb-3 border border-orange-200">
-                        BTPN Syariah Digital Tool
+                        BTPN Syariah
                     </span>
                     <h2 className="text-3xl font-extrabold text-slate-800 mb-3 leading-tight">
-                        Bangun Interaksi, <br/>
+                        Borobudur<br/>
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
-                            Tumbuh Bersama.
+                            Berprestasi
                         </span>
                     </h2>
                     <p className="text-slate-600 text-sm leading-relaxed max-w-lg mb-4">
@@ -685,6 +688,15 @@ const App: React.FC = () => {
           apiKey={activeConfig?.geminiApiKey}
         />
       )}
+
+      <EditContactModal
+        contact={contactToEdit}
+        isOpen={!!contactToEdit}
+        onClose={() => setContactToEdit(null)}
+        onSave={handleUpdateContact}
+        onDelete={handleDeleteContact}
+        sheetConfig={activeConfig}
+      />
 
       {renderBottomNav()}
     </div>
