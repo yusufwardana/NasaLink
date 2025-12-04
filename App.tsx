@@ -15,7 +15,7 @@ import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
 import { getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -519,7 +519,8 @@ const App: React.FC = () => {
                             keywords = ['tagih', 'ctx', 'tunggak', 'bayar'];
                         } else if (isInactive) {
                             // 2. Winback
-                            keywords = ['winback', 'gabung', 'sapa'];
+                            // Menambahkan 'tawar' dan 'cair' agar template refinancing juga bisa terpilih untuk nasabah lunas
+                            keywords = ['winback', 'gabung', 'tawar', 'cair'];
                         } else {
                             // 3. Refinancing / Lancar
                             keywords = ['tawar', 'lanjut', 'cair', 'modal'];
@@ -599,7 +600,17 @@ const App: React.FC = () => {
       );
   }
 
-  // Home View
+  // --- HOME VIEW: SMART DASHBOARD / DAILY HUB ---
+  
+  // Greeting Helper
+  const getGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 11) return "Selamat Pagi";
+      if (hour < 15) return "Selamat Siang";
+      if (hour < 18) return "Selamat Sore";
+      return "Selamat Malam";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
       
@@ -632,210 +643,175 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      {activeConfig?.showHeroSection !== false && (
-        <div className="bg-gradient-to-b from-white to-orange-50/80 border-b border-orange-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-orange-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+      {/* NEW: DASHBOARD CONTENT */}
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in-up">
+          
+          {/* 1. Smart Greeting */}
+          <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+              <h2 className="text-2xl font-bold relative z-10">{getGreeting()}, CO!</h2>
+              <p className="text-orange-100 mt-1 relative z-10 text-sm">
+                  {upcomingEvents.length > 0 
+                    ? `Ada ${upcomingEvents.length} agenda penting menunggu Anda hari ini.` 
+                    : "Tidak ada agenda mendesak hari ini. Kerja bagus!"}
+              </p>
+              
+              {/* Daily Stats Row */}
+              <div className="flex gap-4 mt-6 relative z-10">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20">
+                      <p className="text-xs text-orange-100 uppercase font-bold mb-1">Total Nasabah</p>
+                      <p className="text-xl font-black">{contacts.length}</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20">
+                      <p className="text-xs text-orange-100 uppercase font-bold mb-1">Sentra</p>
+                      <p className="text-xl font-black">{uniqueSentras.length}</p>
+                  </div>
+              </div>
+          </div>
 
-            <div className="max-w-4xl mx-auto px-6 py-8 relative z-10">
-                <div className="mb-6">
-                    <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest rounded-full mb-3 border border-orange-200">
-                        BTPN Syariah
-                    </span>
-                    <h2 className="text-3xl font-extrabold text-slate-800 mb-3 leading-tight">
-                        Borobudur
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
-                            Berprestasi
-                        </span>
-                    </h2>
-                    <p className="text-slate-600 text-sm leading-relaxed max-w-lg mb-4">
-                        B-Connect CRM membantu Community Officer mengelola data nasabah sentra, memantau jadwal jatuh tempo, dan mengirim pesan personalisasi berbasis AI dalam satu genggaman.
-                    </p>
-                </div>
-                
-                {/* Stats Cards */}
-                {activeConfig?.showStatsCards !== false && (
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
-                            <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <Users className="w-12 h-12 text-orange-600" />
-                            </div>
-                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Nasabah</p>
-                            <p className="text-2xl font-black text-slate-800 relative z-10">{contacts.length}</p>
-                        </div>
-                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
-                            <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <MapPin className="w-12 h-12 text-orange-600" />
-                            </div>
-                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total Sentra</p>
-                            <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueSentras.length}</p>
-                        </div>
-                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group">
-                            <div className="absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <Briefcase className="w-12 h-12 text-orange-600" />
-                            </div>
-                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 relative z-10">Total CO</p>
-                            <p className="text-xl font-black text-slate-800 relative z-10 truncate">{uniqueCos.length}</p>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-      )}
-
-      {/* MAIN CONTENT */}
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        
-        {/* Filters */}
-        <div className="sticky top-[68px] z-30 space-y-3 bg-white/50 backdrop-blur-xl p-3 rounded-2xl border border-white/40 shadow-sm">
-           <div className="relative">
-              <input
-                type="text"
-                placeholder="Cari nama nasabah atau no HP..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm text-sm"
-              />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-           </div>
-
-           <div className="grid grid-cols-3 gap-2">
-              <div className="relative">
-                 <Briefcase className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
-                 <select
-                    className="w-full pl-8 pr-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
-                    value={selectedCo}
-                    onChange={(e) => {
-                        setSelectedCo(e.target.value);
-                        setSelectedSentra(''); // Reset Sentra when CO changes
-                    }}
-                 >
-                    <option value="">Semua CO</option>
-                    {uniqueCos.map(c => <option key={c} value={c}>{c}</option>)}
-                 </select>
-                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
+          {/* 2. Priority Agenda (Horizontal Scroll) */}
+          <div>
+              <div className="flex justify-between items-end mb-3 px-1">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                    <AlertOctagon className="w-5 h-5 text-red-500" />
+                    Agenda Prioritas
+                </h3>
+                <button 
+                    onClick={() => setActiveView('notifications')}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+                >
+                    Lihat Semua <ChevronRight className="w-3 h-3" />
+                </button>
               </div>
 
-              <div className="relative">
-                 <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
-                 <select
-                    className="w-full pl-8 pr-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
-                    value={selectedSentra}
-                    onChange={(e) => setSelectedSentra(e.target.value)}
-                 >
-                    <option value="">Semua Sentra</option>
-                    {uniqueSentras.map(s => <option key={s} value={s}>{s}</option>)}
-                 </select>
-                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
-              </div>
+              {upcomingEvents.length === 0 ? (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-6 text-center shadow-sm">
+                      <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Sparkles className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-600">Jadwal Bersih!</p>
+                      <p className="text-xs text-slate-400">Tidak ada PRS H-1 atau Jatuh Tempo mendesak.</p>
+                  </div>
+              ) : (
+                  <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                      {upcomingEvents.slice(0, 5).map((item, idx) => (
+                          <div 
+                            key={idx}
+                            onClick={() => setActiveView('notifications')}
+                            className="min-w-[240px] bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-orange-300 transition-all cursor-pointer flex flex-col justify-between"
+                          >
+                                <div>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${item.type === 'prs' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                            {item.type === 'prs' ? 'Kumpulan' : 'Jatuh Tempo'}
+                                        </span>
+                                        <span className={`text-[10px] font-bold ${item.status === 'today' || item.status === 'soon' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
+                                            {item.status === 'today' ? 'HARI INI' : item.status === 'soon' ? 'BESOK' : item.status}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-slate-800 truncate">{item.contact.name}</h4>
+                                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                        <MapPin className="w-3 h-3" /> {item.contact.sentra}
+                                    </p>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-orange-600">
+                                    Lihat Detail <ChevronRight className="w-3 h-3" />
+                                </div>
+                          </div>
+                      ))}
+                  </div>
+              )}
+          </div>
 
-              <div className="relative">
-                 <Activity className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
-                 <select
-                    className="w-full pl-8 pr-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-600 focus:outline-none focus:border-orange-500 appearance-none shadow-sm truncate"
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                 >
-                    <option value="All">Semua Status</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                 </select>
-                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3 pointer-events-none" />
-              </div>
-           </div>
-        </div>
+          {/* 3. Quick Action Grid */}
+          <div>
+               <h3 className="font-bold text-slate-700 mb-3 px-1 flex items-center gap-2">
+                   <Sparkles className="w-5 h-5 text-amber-500" />
+                   Akses Cepat
+               </h3>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                   <button 
+                        onClick={() => setActiveView('contacts')}
+                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
+                    >
+                       <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                           <Search className="w-5 h-5" />
+                       </div>
+                       <span className="text-xs font-bold text-slate-700">Cari Nasabah</span>
+                   </button>
+                   
+                   <button 
+                        onClick={() => setActiveView('notifications')}
+                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
+                    >
+                       <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                           <Bell className="w-5 h-5" />
+                       </div>
+                       <span className="text-xs font-bold text-slate-700">Follow Up</span>
+                   </button>
 
-        {/* Content Area */}
-        <div className="min-h-[300px]">
-            {isLoadingData || isSyncing ? (
-                // Loading State
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-fade-in-up">
-                    <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-4" />
-                    <p className="font-medium text-slate-600">Sedang menyinkronkan data...</p>
-                    <p className="text-xs mt-1">Mengambil data terbaru dari BTPN Sheets</p>
-                </div>
-            ) : configError ? (
-                // Error State
-                <div className="text-center py-16 px-4 bg-white rounded-3xl border border-red-100 shadow-sm">
-                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle className="w-8 h-8 text-red-500" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">Konfigurasi Belum Sesuai</h3>
-                    <p className="text-slate-500 text-sm max-w-xs mx-auto mb-6">
-                        ID Spreadsheet belum diatur atau tidak valid. Silakan hubungi admin untuk melakukan setup awal.
-                    </p>
-                    <Button onClick={handleAdminAuth} variant="secondary">Buka Menu Admin</Button>
-                </div>
-            ) : filteredContacts.length > 0 ? (
-                // List State
-                <div className="space-y-4 animate-fade-in-up">
-                    {/* Visual Loading Indicator for Filter */}
-                    {isFiltering && (
-                        <div className="flex items-center justify-center py-4 bg-orange-50/50 rounded-xl border border-orange-100 mb-4">
-                            <Loader2 className="w-4 h-4 animate-spin text-orange-600 mr-2" />
-                            <span className="text-xs font-bold text-orange-700">Memproses pencarian...</span>
-                        </div>
-                    )}
+                   <button 
+                        onClick={() => setActiveView('broadcast')}
+                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
+                    >
+                       <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                           <Radio className="w-5 h-5" />
+                       </div>
+                       <span className="text-xs font-bold text-slate-700">Siaran WA</span>
+                   </button>
 
-                    {visibleContacts.map(contact => (
-                    <ContactCard
-                        key={contact.id}
-                        contact={contact}
-                        onEditClick={setContactToEdit}
-                        onGenerateClick={(c) => {
-                            setSelectedContact(c);
-                            setInitialTemplateId(undefined); // Reset specific template
-                        }}
-                    />
-                    ))}
+                   <button 
+                        onClick={() => setActiveView('dashboard')}
+                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
+                    >
+                       <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                           <Activity className="w-5 h-5" />
+                       </div>
+                       <span className="text-xs font-bold text-slate-700">Cek Kinerja</span>
+                   </button>
+               </div>
+          </div>
 
-                    {/* Pagination Button */}
-                    {visibleCount < filteredContacts.length && (
-                        <div className="flex justify-center pt-4 pb-12">
-                            <Button 
+          {/* 4. Sentra Overview List */}
+          <div>
+               <h3 className="font-bold text-slate-700 mb-3 px-1 flex items-center gap-2">
+                   <MapPin className="w-5 h-5 text-slate-500" />
+                   Daftar Sentra
+               </h3>
+               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+                   {uniqueSentras.slice(0, 5).map((sentra, idx) => (
+                       <div key={sentra} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                           <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-xs font-bold text-slate-500">
+                                   {idx + 1}
+                               </div>
+                               <span className="font-bold text-sm text-slate-700">{sentra}</span>
+                           </div>
+                           <Button 
+                                size="sm" 
                                 variant="secondary" 
-                                onClick={() => setVisibleCount(prev => prev + 50)}
-                                className="w-full shadow-sm"
-                                icon={<ChevronDown className="w-4 h-4" />}
+                                className="h-8 text-[10px]"
+                                onClick={() => {
+                                    // Hack: Set filters in contacts view
+                                    setSelectedSentra(sentra);
+                                    setActiveView('contacts');
+                                }}
                             >
-                                Tampilkan Lebih Banyak ({filteredContacts.length - visibleCount})
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                // Empty State with Filters
-                <div className="text-center py-20 bg-white/50 backdrop-blur-sm rounded-3xl border border-dashed border-slate-200">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Users className="w-8 h-8 text-slate-300" />
-                    </div>
-                    {debouncedSearchTerm || selectedSentra || selectedCo || selectedStatus !== 'All' ? (
-                         <>
-                            <h3 className="text-lg font-bold text-slate-600">Tidak ada nasabah ditemukan</h3>
-                            <p className="text-slate-400 text-sm">Coba sesuaikan filter pencarian Anda.</p>
-                         </>
-                    ) : (
-                         <>
-                            <h3 className="text-lg font-bold text-slate-600">Siap Mencari?</h3>
-                            <p className="text-slate-400 text-sm max-w-xs mx-auto">
-                                Ketik nama, pilih Sentra, atau pilih CO di atas untuk menampilkan data nasabah.
-                            </p>
-                         </>
-                    )}
-                     <div className="mt-6">
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleSyncSheet}
-                            icon={<RefreshCw className="w-3.5 h-3.5" />}
-                        >
-                            Coba Sinkron Ulang
-                        </Button>
-                    </div>
-                </div>
-            )}
-        </div>
+                               Lihat Anggota
+                           </Button>
+                       </div>
+                   ))}
+                   {uniqueSentras.length > 5 && (
+                       <button 
+                        onClick={() => setActiveView('contacts')}
+                        className="w-full p-3 text-center text-xs font-bold text-orange-600 hover:bg-orange-50 transition-colors"
+                       >
+                           Lihat Semua ({uniqueSentras.length} Sentra)
+                       </button>
+                   )}
+               </div>
+          </div>
+
       </main>
 
       {/* Modals */}
