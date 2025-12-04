@@ -11,7 +11,7 @@ import { DashboardPanel } from './components/DashboardPanel';
 import { ContactManagementPanel } from './components/ContactManagementPanel';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
-import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured } from './services/supabaseService';
+import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
 import { GLOBAL_CONFIG } from './config';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon } from 'lucide-react';
 
@@ -344,6 +344,21 @@ const App: React.FC = () => {
       }
   };
 
+  // --- BULK UPDATE LOGIC FOR ADMIN ---
+  const handleBulkUpdateMode = async (mode: 'ai' | 'manual') => {
+      const updatedTemplates = templates.map(t => ({ ...t, type: mode }));
+      setTemplates(updatedTemplates);
+      
+      if (isSupabaseConfigured()) {
+          try {
+              await saveTemplatesToSupabase(updatedTemplates);
+          } catch (e) {
+              console.error("Failed to bulk update templates", e);
+              alert("Gagal menyimpan perubahan ke server.");
+          }
+      }
+  };
+
   // --- Render Navigation ---
   const renderBottomNav = () => (
     <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
@@ -402,6 +417,7 @@ const App: React.FC = () => {
                     setActiveView('home');
                 }}
                 defaultTemplates={INITIAL_TEMPLATES_FALLBACK}
+                onBulkUpdateMode={handleBulkUpdateMode}
             />
             {renderBottomNav()}
           </>
