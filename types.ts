@@ -22,6 +22,11 @@ export interface Contact {
   dpd?: string;            // Map from 'DPD'
   saldoTabungan?: string;  // Map from 'SALDO TABUNGAN'
   tglLunas?: string;       // Map from 'TGL LUNAS'
+
+  // NEW FIELDS (Collection Update)
+  angsuran?: string;       // Map from 'ANGSURAN'
+  tunggakan?: string;      // Map from 'TUNGGAKAN'
+  flagMenunggak?: string;  // Map from 'FLAG MENUNGGAK' (Lancar, CTX, XDAY, SM, NPF)
 }
 
 export interface MessageTemplate {

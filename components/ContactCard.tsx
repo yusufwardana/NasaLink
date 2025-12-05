@@ -1,6 +1,6 @@
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, UserCircle, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck, Users } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, UserCircle, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck, Users, Banknote, AlertTriangle } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -9,16 +9,26 @@ interface ContactCardProps {
 }
 
 // Helper component for consistent info display
-const InfoItem = ({ label, value, icon: Icon, highlight, mono }: { label: string, value?: string, icon?: React.ElementType, highlight?: boolean, mono?: boolean }) => (
+const InfoItem = ({ label, value, icon: Icon, highlight, mono, color }: { label: string, value?: string, icon?: React.ElementType, highlight?: boolean, mono?: boolean, color?: string }) => (
   <div className="flex flex-col min-w-0">
     <span className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 flex items-center gap-1.5 whitespace-nowrap">
       {Icon && <Icon className="w-3 h-3 text-slate-400/80" />} {label}
     </span>
-    <span className={`text-sm ${highlight ? 'font-bold text-emerald-700' : 'font-semibold text-slate-700'} ${mono ? 'font-mono tracking-tight' : ''} truncate`} title={value || '-'}>
+    <span className={`text-sm ${highlight ? 'font-bold' : 'font-semibold text-slate-700'} ${color ? color : highlight ? 'text-emerald-700' : ''} ${mono ? 'font-mono tracking-tight' : ''} truncate`} title={value || '-'}>
       {value || '-'}
     </span>
   </div>
 );
+
+// Format Currency Helper
+const formatIDR = (val?: string) => {
+    if (!val) return '-';
+    // If it's already formatted, return as is
+    if (val.includes('Rp') || val.includes('.')) return val;
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return val;
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+}
 
 // React.memo optimizes performance by only re-rendering if props change
 export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, onEditClick, onGenerateClick }) => {
@@ -29,6 +39,14 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
     if (f.includes('silver')) return 'bg-blue-50 text-blue-700 border-blue-200';
     if (f.includes('do') || f.includes('drop') || f.includes('lunas')) return 'bg-red-50 text-red-700 border-red-200';
     return 'bg-slate-50 text-slate-700 border-slate-200';
+  };
+
+  const getMenunggakStyle = (flag: string) => {
+      const f = (flag || '').toLowerCase();
+      if (f.includes('lancar')) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      if (f.includes('xday') || f.includes('sm')) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      if (f.includes('ctx') || f.includes('npf') || f.includes('macet')) return 'bg-red-100 text-red-700 border-red-200';
+      return 'bg-slate-100 text-slate-500';
   };
 
   // Helper to check if DPD is serious (> 0)
@@ -71,7 +89,11 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getFlagStyle(contact.flag)}`}>
                 {contact.flag}
              </span>
-             {contact.status && (
+             {contact.flagMenunggak ? (
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getMenunggakStyle(contact.flagMenunggak)}`}>
+                      {contact.flagMenunggak}
+                  </span>
+             ) : contact.status && (
                  <span className="text-[10px] text-slate-400 font-medium">
                      {contact.status}
                  </span>
@@ -89,9 +111,20 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4">
             <InfoItem label="Sentra" value={contact.sentra} icon={MapPin} />
             <InfoItem label="Petugas (CO)" value={contact.co} icon={UserCircle} />
-            <InfoItem label="Outstanding (OS)" value={contact.os} icon={Wallet} mono />
-            <InfoItem label="Plafon" value={contact.plafon} icon={CreditCard} mono />
-            <InfoItem label="Tabungan" value={contact.saldoTabungan} icon={Landmark} highlight mono />
+            
+            {/* Financials */}
+            <InfoItem label="Outstanding (OS)" value={formatIDR(contact.os)} icon={Wallet} mono />
+            
+            {contact.angsuran && (
+                <InfoItem label="Angsuran" value={formatIDR(contact.angsuran)} icon={Banknote} mono />
+            )}
+            
+            {contact.tunggakan && parseInt(contact.tunggakan) > 0 ? (
+                <InfoItem label="Tunggakan" value={formatIDR(contact.tunggakan)} icon={AlertTriangle} mono highlight color="text-red-600" />
+            ) : (
+                <InfoItem label="Tabungan" value={formatIDR(contact.saldoTabungan)} icon={Landmark} highlight mono color="text-emerald-700" />
+            )}
+
             <InfoItem label="Produk" value={contact.produk} icon={Box} />
         </div>
         

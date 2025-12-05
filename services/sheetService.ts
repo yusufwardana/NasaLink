@@ -1,6 +1,6 @@
 import { Contact, MessageTemplate } from '../types';
 
-// Robust CSV Parser that handles quotes and commas inside quotekjmmpps
+// Robust CSV Parser that handles quotes and commas inside quotes
 const parseCSV = (text: string): string[][] => {
   const result: string[][] = [];
   let row: string[] = [];
@@ -118,9 +118,12 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     const idxOs = findColIndex(headers, ['os', 'outstanding', 'sisa']);
     const idxDpd = findColIndex(headers, ['dpd', 'days past due']);
     const idxSaldo = findColIndex(headers, ['saldo', 'tabungan', 'simpanan']);
-    
-    // New: TGL LUNAS
     const idxTglLunas = findColIndex(headers, ['tgl lunas', 'tanggal lunas', 'lunas']);
+
+    // COLLECTION UPDATE
+    const idxAngsuran = findColIndex(headers, ['angsuran', 'besar angsuran', 'cicilan']);
+    const idxTunggakan = findColIndex(headers, ['tunggakan', 'total tunggakan', 'amount due']);
+    const idxFlagMenunggak = findColIndex(headers, ['flag menunggak', 'kolektabilitas', 'kolek', 'bucket']);
 
     // Map rows to Contact objects
     return rows.slice(1).map((row, index): Contact | null => {
@@ -158,6 +161,11 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             dpd: getVal(idxDpd),
             saldoTabungan: getVal(idxSaldo),
             tglLunas: getVal(idxTglLunas),
+            
+            // Collection Fields
+            angsuran: getVal(idxAngsuran),
+            tunggakan: getVal(idxTunggakan),
+            flagMenunggak: getVal(idxFlagMenunggak),
 
             notes: getVal(idxNotes),
             lastInteraction: ''

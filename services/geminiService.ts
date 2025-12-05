@@ -21,38 +21,59 @@ export const generateWhatsAppMessage = async (
     // --- 1. ANALISIS KONDISI NASABAH (BUSINESS LOGIC) ---
     const flag = (contact.flag || '').toLowerCase();
     const status = (contact.status || '').toLowerCase();
-    // Ensure robust parsing
+    
+    // Parse Financials
     let dpd = parseInt(contact.dpd || '0', 10);
     if (isNaN(dpd)) dpd = 0;
+
+    let tunggakanRaw = parseInt((contact.tunggakan || '0').replace(/[^0-9]/g, ''), 10);
+    if (isNaN(tunggakanRaw)) tunggakanRaw = 0;
+
+    const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
     
     // Deteksi Status
     const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
-    const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+    
+    // Trouble Criteria: DPD > 0 OR Tunggakan > 0 OR Flag Menunggak indicates trouble
+    const isTrouble = dpd > 0 || tunggakanRaw > 0 || status.includes('macet') || status.includes('menunggak') || flagMenunggak.includes('ctx') || flagMenunggak.includes('npf') || flagMenunggak.includes('xday');
+    
     const isJatuhTempo = !!contact.tglJatuhTempo;
 
     // Tentukan Strategi Komunikasi untuk AI
     let strategyGuide = "";
 
     if (isTrouble) {
-        // KONDISI 1: NASABAH BERMASALAH
-        if (dpd <= 3) {
+        // KONDISI 1: NASABAH BERMASALAH (COLLECTION)
+        
+        // Cek tingkat keparahan berdasarkan DPD atau Flag Menunggak
+        if (dpd <= 3 && dpd > 0 && !flagMenunggak.includes('npf')) {
              // Sub-Kondisi: EARLY COLLECTION (Baru Telat)
              strategyGuide = `
              STRATEGI: EARLY COLLECTION (SOFT REMINDER)
              - Nasabah ini BARU TELAT ${dpd} hari.
              - Pendekatan: SANGAT SOPAN & POSITIF THINKING (Husnuzon).
              - Asumsikan nasabah LUPA atau sibuk.
-             - "Assalamualaikum Ibu, mohon maaf mengganggu. Sekadar mengingatkan untuk angsuran..."
+             - "Assalamualaikum Ibu, mohon maaf mengganggu. Sekadar mengingatkan angsuran..."
              - Hindari nada menagih yang keras/mengancam.
              `;
+        } else if (flagMenunggak.includes('npf') || dpd > 30) {
+            // Sub-Kondisi: NPF / MACET PARAH
+             strategyGuide = `
+             STRATEGI: HARD COLLECTION (PENAGIHAN SERIUS)
+             - Nasabah ini BERMASALAH BERAT (Flag: ${contact.flagMenunggak}, DPD: ${dpd}).
+             - Total Tunggakan: ${contact.tunggakan || 'Ada Tunggakan'}.
+             - Fokus: DESAK PEMBAYARAN SEGERA.
+             - Ingatkan risiko blacklist / catatan buruk.
+             - Minta kepastian waktu bayar hari ini.
+             `;
         } else {
-             // Sub-Kondisi: HARD COLLECTION (Sudah Lama)
+             // Sub-Kondisi: STANDARD COLLECTION (CTX / XDAY)
              strategyGuide = `
              STRATEGI: COLLECTION (PENAGIHAN TEGAS)
-             - Nasabah ini sudah MENUNGGAK ${dpd} hari.
+             - Nasabah ini statusnya ${contact.flagMenunggak || 'MENUNGGAK'}.
+             - DPD: ${dpd} Hari.
              - Fokus: Ingatkan kewajiban membayar dengan tegas namun tetap profesional.
-             - Tekankan pentingnya menjaga nama baik dan riwayat kredit (BI Checking).
-             - Minta kepastian waktu pembayaran hari ini.
+             - Sebutkan nominal tunggakan jika ada (${contact.tunggakan}).
              `;
         }
     } else if (isInactive) {
@@ -93,9 +114,12 @@ export const generateWhatsAppMessage = async (
 
     if (contact.produk) details += `\n      Produk: ${contact.produk}`;
     if (contact.plafon) details += `\n      Plafon Terakhir: ${contact.plafon}`;
+    if (contact.angsuran) details += `\n      Nominal Angsuran: ${contact.angsuran}`;
+    if (contact.tunggakan) details += `\n      Total Tunggakan: ${contact.tunggakan}`;
     if (contact.os) details += `\n      Sisa Hutang (OS): ${contact.os}`;
     if (contact.saldoTabungan) details += `\n      Saldo Tabungan: ${contact.saldoTabungan}`;
-    if (contact.dpd) details += `\n      Keterlambatan (DPD): ${dpd} hari`; // Use safe parsed DPD
+    if (contact.dpd) details += `\n      Keterlambatan (DPD): ${dpd} hari`; 
+    if (contact.flagMenunggak) details += `\n      Status Kolektabilitas: ${contact.flagMenunggak}`;
     if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
     if (contact.tglLunas) details += `\n      Tanggal Pelunasan (Lunas): ${contact.tglLunas}`;
     if (contact.tglPrs) details += `\n      Jadwal Kumpulan (PRS): ${contact.tglPrs}`;
