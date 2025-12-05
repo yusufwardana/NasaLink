@@ -247,7 +247,8 @@ const App: React.FC = () => {
     return contacts.reduce<NotificationItem[]>((acc, contact) => {
         const flag = (contact.flag || '').toLowerCase();
         const status = (contact.status || '').toLowerCase();
-        const dpd = parseInt(contact.dpd || '0', 10);
+        // Robust Parsing of DPD
+        const dpd = parseInt(contact.dpd || '0', 10) || 0;
         
         const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
         const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
@@ -343,9 +344,15 @@ const App: React.FC = () => {
 
         // --- SECONDARY SORT: PRIORITAS DPD TERKECIL UNTUK COLLECTION ---
         if (a.status === 'collection' && b.status === 'collection') {
-            const dpdA = parseInt(a.contact.dpd || '0', 10);
-            const dpdB = parseInt(b.contact.dpd || '0', 10);
-            return dpdA - dpdB; // Ascending (Smallest DPD first)
+            let dpdA = parseInt(a.contact.dpd || '0', 10);
+            let dpdB = parseInt(b.contact.dpd || '0', 10);
+            
+            // Handle NaN or 0: Push to bottom (Assume 0/Empty DPD is less urgent than DPD 1)
+            // Or prioritize explicit DPDs.
+            if (isNaN(dpdA) || dpdA <= 0) dpdA = 999999;
+            if (isNaN(dpdB) || dpdB <= 0) dpdB = 999999;
+
+            return dpdA - dpdB; // Ascending (1, 2, 3 ... 999999)
         }
         
         return 0;

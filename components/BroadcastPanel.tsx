@@ -84,7 +84,8 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
 
         const flag = (contact.flag || '').toLowerCase();
         const status = (contact.status || '').toLowerCase();
-        const dpd = parseInt(contact.dpd || '0', 10);
+        // Robust DPD Parsing
+        const dpd = parseInt(contact.dpd || '0', 10) || 0;
         
         const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
         const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
@@ -162,9 +163,14 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
     return filtered.sort((a, b) => {
         // Specifically for Collection: Sort by DPD Ascending (Smallest DPD first)
         if (filterTargetType === 'collection') {
-            const dpdA = parseInt(a.dpd || '0', 10);
-            const dpdB = parseInt(b.dpd || '0', 10);
-            return dpdA - dpdB;
+            let dpdA = parseInt(a.dpd || '0', 10);
+            let dpdB = parseInt(b.dpd || '0', 10);
+            
+            // Handle NaN or 0: Push to bottom (Assume 0/Empty DPD is less urgent than DPD 1)
+            if (isNaN(dpdA) || dpdA <= 0) dpdA = 999999;
+            if (isNaN(dpdB) || dpdB <= 0) dpdB = 999999;
+
+            return dpdA - dpdB; // Ascending (1, 2, 3 ... 999999)
         }
         // Default: Sort by Name
         return a.name.localeCompare(b.name);

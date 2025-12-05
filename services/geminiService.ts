@@ -21,7 +21,9 @@ export const generateWhatsAppMessage = async (
     // --- 1. ANALISIS KONDISI NASABAH (BUSINESS LOGIC) ---
     const flag = (contact.flag || '').toLowerCase();
     const status = (contact.status || '').toLowerCase();
-    const dpd = parseInt(contact.dpd || '0', 10);
+    // Ensure robust parsing
+    let dpd = parseInt(contact.dpd || '0', 10);
+    if (isNaN(dpd)) dpd = 0;
     
     // Deteksi Status
     const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
@@ -93,7 +95,7 @@ export const generateWhatsAppMessage = async (
     if (contact.plafon) details += `\n      Plafon Terakhir: ${contact.plafon}`;
     if (contact.os) details += `\n      Sisa Hutang (OS): ${contact.os}`;
     if (contact.saldoTabungan) details += `\n      Saldo Tabungan: ${contact.saldoTabungan}`;
-    if (contact.dpd) details += `\n      Keterlambatan (DPD): ${contact.dpd} hari`;
+    if (contact.dpd) details += `\n      Keterlambatan (DPD): ${dpd} hari`; // Use safe parsed DPD
     if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
     if (contact.tglLunas) details += `\n      Tanggal Pelunasan (Lunas): ${contact.tglLunas}`;
     if (contact.tglPrs) details += `\n      Jadwal Kumpulan (PRS): ${contact.tglPrs}`;
