@@ -333,7 +333,22 @@ const App: React.FC = () => {
             if (s === 'winback_old') return 6;
             return 99;
         }
-        return score(a.status) - score(b.status);
+
+        const scoreA = score(a.status);
+        const scoreB = score(b.status);
+        
+        if (scoreA !== scoreB) {
+            return scoreA - scoreB;
+        }
+
+        // --- SECONDARY SORT: PRIORITAS DPD TERKECIL UNTUK COLLECTION ---
+        if (a.status === 'collection' && b.status === 'collection') {
+            const dpdA = parseInt(a.contact.dpd || '0', 10);
+            const dpdB = parseInt(b.contact.dpd || '0', 10);
+            return dpdA - dpdB; // Ascending (Smallest DPD first)
+        }
+        
+        return 0;
     });
   }, [contacts]);
 

@@ -33,13 +33,26 @@ export const generateWhatsAppMessage = async (
 
     if (isTrouble) {
         // KONDISI 1: NASABAH BERMASALAH
-        strategyGuide = `
-        STRATEGI: COLLECTION (PENAGIHAN)
-        - Nasabah ini sedang MENUNGGAK (DPD: ${dpd} hari).
-        - Fokus: Ingatkan kewajiban membayar dengan tegas namun tetap sopan (profesional).
-        - JANGAN menawarkan produk baru/tambah modal.
-        - Tekankan pentingnya menjaga nama baik dan riwayat kredit.
-        `;
+        if (dpd <= 3) {
+             // Sub-Kondisi: EARLY COLLECTION (Baru Telat)
+             strategyGuide = `
+             STRATEGI: EARLY COLLECTION (SOFT REMINDER)
+             - Nasabah ini BARU TELAT ${dpd} hari.
+             - Pendekatan: SANGAT SOPAN & POSITIF THINKING (Husnuzon).
+             - Asumsikan nasabah LUPA atau sibuk.
+             - "Assalamualaikum Ibu, mohon maaf mengganggu. Sekadar mengingatkan untuk angsuran..."
+             - Hindari nada menagih yang keras/mengancam.
+             `;
+        } else {
+             // Sub-Kondisi: HARD COLLECTION (Sudah Lama)
+             strategyGuide = `
+             STRATEGI: COLLECTION (PENAGIHAN TEGAS)
+             - Nasabah ini sudah MENUNGGAK ${dpd} hari.
+             - Fokus: Ingatkan kewajiban membayar dengan tegas namun tetap profesional.
+             - Tekankan pentingnya menjaga nama baik dan riwayat kredit (BI Checking).
+             - Minta kepastian waktu pembayaran hari ini.
+             `;
+        }
     } else if (isInactive) {
         // KONDISI 2: WINBACK (MANTAN NASABAH)
         const lunasInfo = contact.tglLunas ? `sejak tanggal ${contact.tglLunas}` : "beberapa waktu lalu";

@@ -69,7 +69,7 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
 
   // Target filtering logic
   const targetContacts = useMemo(() => {
-    return contacts.filter(contact => {
+    const filtered = contacts.filter(contact => {
         // 1. Basic Filters
         const cCo = (contact.co || 'Unassigned');
         const cSentra = (contact.sentra || 'Unknown');
@@ -157,6 +157,19 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
         
         return true;
     });
+
+    // --- SORTING LOGIC ---
+    return filtered.sort((a, b) => {
+        // Specifically for Collection: Sort by DPD Ascending (Smallest DPD first)
+        if (filterTargetType === 'collection') {
+            const dpdA = parseInt(a.dpd || '0', 10);
+            const dpdB = parseInt(b.dpd || '0', 10);
+            return dpdA - dpdB;
+        }
+        // Default: Sort by Name
+        return a.name.localeCompare(b.name);
+    });
+
   }, [contacts, filterCo, filterSentra, filterTargetType]);
 
   // Sliced contacts for rendering to avoid UI freeze
@@ -482,6 +495,9 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                                     <p className="font-bold text-sm text-slate-800">{contact.name}</p>
                                     <p className="text-[10px] text-slate-500 flex items-center gap-1">
                                         {contact.phone} • <span className="px-1.5 py-0.5 rounded bg-slate-100">{contact.sentra}</span>
+                                        {filterTargetType === 'collection' && (
+                                            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-bold">DPD: {contact.dpd}</span>
+                                        )}
                                     </p>
                                 </div>
                             </div>
