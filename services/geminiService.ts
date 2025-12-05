@@ -28,6 +28,7 @@ export const generateWhatsAppMessage = async (
 
     let tunggakanRaw = parseInt((contact.tunggakan || '0').replace(/[^0-9]/g, ''), 10);
     if (isNaN(tunggakanRaw)) tunggakanRaw = 0;
+    const tunggakanStr = contact.tunggakan || 'Rp 0';
 
     const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
     
@@ -38,6 +39,9 @@ export const generateWhatsAppMessage = async (
     const isTrouble = dpd > 0 || tunggakanRaw > 0 || status.includes('macet') || status.includes('menunggak') || flagMenunggak.includes('ctx') || flagMenunggak.includes('npf') || flagMenunggak.includes('xday');
     
     const isJatuhTempo = !!contact.tglJatuhTempo;
+    
+    // Context Helper: Tanggal PRS
+    const prsContext = contact.tglPrs ? `pada jadwal kumpulan tanggal ${contact.tglPrs}` : 'pada jadwal kumpulan kemarin';
 
     // Tentukan Strategi Komunikasi untuk AI
     let strategyGuide = "";
@@ -51,9 +55,10 @@ export const generateWhatsAppMessage = async (
              strategyGuide = `
              STRATEGI: EARLY COLLECTION (SOFT REMINDER)
              - Nasabah ini BARU TELAT ${dpd} hari.
+             - MASALAH: Belum membayar angsuran sebesar ${tunggakanStr} yang seharusnya masuk ${prsContext}.
              - Pendekatan: SANGAT SOPAN & POSITIF THINKING (Husnuzon).
-             - Asumsikan nasabah LUPA atau sibuk.
-             - "Assalamualaikum Ibu, mohon maaf mengganggu. Sekadar mengingatkan angsuran..."
+             - Asumsikan nasabah LUPA hadir atau LUPA titip angsuran saat kumpulan tanggal ${contact.tglPrs || 'tersebut'}.
+             - "Assalamualaikum Ibu, mohon maaf mengganggu. Sekadar mengingatkan angsuran tanggal ${contact.tglPrs || 'kemarin'} sebesar ${tunggakanStr} belum masuk..."
              - Hindari nada menagih yang keras/mengancam.
              `;
         } else if (flagMenunggak.includes('npf') || dpd > 30) {
@@ -61,9 +66,10 @@ export const generateWhatsAppMessage = async (
              strategyGuide = `
              STRATEGI: HARD COLLECTION (PENAGIHAN SERIUS)
              - Nasabah ini BERMASALAH BERAT (Flag: ${contact.flagMenunggak}, DPD: ${dpd}).
-             - Total Tunggakan: ${contact.tunggakan || 'Ada Tunggakan'}.
+             - Total Tunggakan: ${tunggakanStr}.
+             - MASALAH UTAMA: Tidak ada pembayaran sejak jadwal PRS tanggal ${contact.tglPrs || 'lalu'}.
              - Fokus: DESAK PEMBAYARAN SEGERA.
-             - Ingatkan risiko blacklist / catatan buruk.
+             - Ingatkan kewajiban angsuran yang tertunggak dari jadwal PRS tersebut.
              - Minta kepastian waktu bayar hari ini.
              `;
         } else {
@@ -72,8 +78,9 @@ export const generateWhatsAppMessage = async (
              STRATEGI: COLLECTION (PENAGIHAN TEGAS)
              - Nasabah ini statusnya ${contact.flagMenunggak || 'MENUNGGAK'}.
              - DPD: ${dpd} Hari.
+             - POIN KUNCI: Tagih tunggakan sebesar ${tunggakanStr} yang belum terbayar dari jadwal kumpulan ${prsContext}.
              - Fokus: Ingatkan kewajiban membayar dengan tegas namun tetap profesional.
-             - Sebutkan nominal tunggakan jika ada (${contact.tunggakan}).
+             - Tanyakan kendala kenapa tidak setor saat kumpulan tanggal ${contact.tglPrs || 'tersebut'}.
              `;
         }
     } else if (isInactive) {
