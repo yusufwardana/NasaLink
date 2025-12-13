@@ -1,0 +1,293 @@
+import React, { useState, useMemo } from 'react';
+import { DailyPlan, Contact } from '../types';
+import { ArrowLeft, Calendar, Briefcase, Filter, ChevronDown, CheckCircle2, TrendingUp, AlertTriangle, PenTool, Save, X, BarChart3, PieChart } from 'lucide-react';
+import { Button } from './Button';
+
+interface PlanHistoryPanelProps {
+  plans: DailyPlan[];
+  onBack: () => void;
+  onUpdatePlan: (updatedPlan: DailyPlan) => void;
+  availableCos: string[];
+}
+
+export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({ 
+  plans, 
+  onBack, 
+  onUpdatePlan,
+  availableCos
+}) => {
+  const [filterCo, setFilterCo] = useState('All');
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<DailyPlan>>({});
+
+  // Sort by Date Descending
+  const sortedPlans = useMemo(() => {
+    let filtered = plans;
+    if (filterCo !== 'All') {
+        filtered = plans.filter(p => p.coName === filterCo);
+    }
+    
+    return [...filtered].sort((a, b) => {
+        // Parse DD/MM/YYYY
+        const parseDate = (dStr: string) => {
+            const [d, m, y] = dStr.split('/').map(Number);
+            return new Date(y, m - 1, d).getTime();
+        };
+        return parseDate(b.date) - parseDate(a.date);
+    });
+  }, [plans, filterCo]);
+
+  // Handle Edit Realisasi
+  const handleEditClick = (plan: DailyPlan) => {
+      setEditingPlanId(plan.id);
+      setEditForm({ ...plan });
+  };
+
+  const handleCancelEdit = () => {
+      setEditingPlanId(null);
+      setEditForm({});
+  };
+
+  const handleSaveEdit = () => {
+      if (!editingPlanId) return;
+      // Merge changes
+      const original = plans.find(p => p.id === editingPlanId);
+      if (original) {
+          onUpdatePlan({ ...original, ...editForm });
+      }
+      setEditingPlanId(null);
+  };
+
+  const handleChange = (field: keyof DailyPlan, value: string) => {
+      // Only numeric input
+      const numeric = value.replace(/[^0-9]/g, '');
+      setEditForm(prev => ({ ...prev, [field]: numeric }));
+  };
+
+  // Helper for Percentage Bar
+  const ProgressBar = ({ target, actual, colorClass }: { target: string, actual?: string, colorClass: string }) => {
+      const t = parseInt(target || '0', 10);
+      const a = parseInt(actual || '0', 10);
+      
+      if (t === 0) return <span className="text-xs text-slate-400">-</span>;
+      
+      const percent = Math.min((a / t) * 100, 100);
+      
+      return (
+          <div className="w-full">
+              <div className="flex justify-between text-[10px] mb-1 font-bold">
+                  <span className="text-slate-500">Target: {t}</span>
+                  <span className={a >= t ? 'text-green-600' : 'text-slate-700'}>Aktual: {a} ({Math.round((a/t)*100)}%)</span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: `${percent}%` }}></div>
+              </div>
+          </div>
+      );
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 pb-24 animate-fade-in-up">
+        {/* Header */}
+        <div className="sticky top-0 z-40 -mx-4 px-4 py-4 mb-6 bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm flex items-center gap-4">
+            <button 
+                onClick={onBack}
+                className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    Riwayat Rencana
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                </h2>
+                <p className="text-sm text-slate-500">Monitoring Target vs Realisasi Harian</p>
+            </div>
+        </div>
+
+        {/* Filter */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <Filter className="w-4 h-4" /> Filter Riwayat
+            </div>
+            <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <select 
+                    className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none"
+                    value={filterCo}
+                    onChange={(e) => setFilterCo(e.target.value)}
+                >
+                    <option value="All">Semua Petugas (CO)</option>
+                    {availableCos.map(co => (
+                        <option key={co} value={co}>{co}</option>
+                    ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+            </div>
+        </div>
+
+        {/* List */}
+        <div className="space-y-4">
+            {sortedPlans.length === 0 ? (
+                 <div className="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
+                    Belum ada riwayat rencana.
+                </div>
+            ) : (
+                sortedPlans.map(plan => {
+                    const isEditing = editingPlanId === plan.id;
+
+                    return (
+                        <div key={plan.id} className={`bg-white rounded-2xl border transition-all duration-300 ${isEditing ? 'border-orange-400 ring-2 ring-orange-100 shadow-lg' : 'border-slate-200 shadow-sm hover:shadow-md'}`}>
+                            
+                            {/* Card Header */}
+                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+                                        <Calendar className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800">{plan.date}</h3>
+                                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                                            <Briefcase className="w-3 h-3" /> {plan.coName}
+                                        </p>
+                                    </div>
+                                </div>
+                                {!isEditing && (
+                                    <button 
+                                        onClick={() => handleEditClick(plan)}
+                                        className="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors flex items-center gap-1"
+                                    >
+                                        <PenTool className="w-3 h-3" /> Input Realisasi
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="p-5">
+                                {isEditing ? (
+                                    <div className="space-y-4 animate-fade-in-up">
+                                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 text-xs text-orange-800 mb-2">
+                                            <p className="font-bold">Mode Edit Realisasi:</p>
+                                            Masukkan angka pencapaian aktual (Realisasi) untuk tanggal ini.
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Aktual SW (NOA)</label>
+                                                <input 
+                                                    type="tel"
+                                                    className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-700"
+                                                    value={editForm.actualSwNoa || ''}
+                                                    onChange={e => handleChange('actualSwNoa', e.target.value)}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Target SW</label>
+                                                <div className="p-2 bg-slate-100 rounded-lg text-sm text-slate-500 font-medium">
+                                                    {plan.swCurrentNoa} NOA
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Aktual CTX (NOA)</label>
+                                                <input 
+                                                    type="tel"
+                                                    className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-700"
+                                                    value={editForm.actualCtxNoa || ''}
+                                                    onChange={e => handleChange('actualCtxNoa', e.target.value)}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Target CTX</label>
+                                                <div className="p-2 bg-slate-100 rounded-lg text-sm text-slate-500 font-medium">
+                                                    {plan.colCtxNoa} NOA
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Aktual Lantakur</label>
+                                                <input 
+                                                    type="tel"
+                                                    className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-700"
+                                                    value={editForm.actualLantakurNoa || ''}
+                                                    onChange={e => handleChange('actualLantakurNoa', e.target.value)}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Target Lantakur</label>
+                                                <div className="p-2 bg-slate-100 rounded-lg text-sm text-slate-500 font-medium">
+                                                    {plan.colLantakurNoa} NOA
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
+                                            <Button variant="secondary" size="sm" onClick={handleCancelEdit}>Batal</Button>
+                                            <Button size="sm" onClick={handleSaveEdit} icon={<Save className="w-3 h-3" />}>Simpan Realisasi</Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Survey Section */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                                <h4 className="font-bold text-slate-700 text-sm">Survey (SW)</h4>
+                                            </div>
+                                            
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">NOA Survey</p>
+                                                <ProgressBar 
+                                                    target={plan.swCurrentNoa} 
+                                                    actual={plan.actualSwNoa} 
+                                                    colorClass="bg-emerald-500" 
+                                                />
+                                            </div>
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Disbursement (Cair)</p>
+                                                 <div className="flex justify-between text-xs">
+                                                    <span className="text-slate-500">Target: <span className="font-mono">{plan.swCurrentDisb || '0'}</span></span>
+                                                    <span className="font-bold text-slate-700">Real: <span className="font-mono">{plan.actualSwDisb || '-'}</span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Collection Section */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                                                <h4 className="font-bold text-slate-700 text-sm">Collection (Menunggak)</h4>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">CTX (Nasabah Bayar)</p>
+                                                <ProgressBar 
+                                                    target={plan.colCtxNoa} 
+                                                    actual={plan.actualCtxNoa} 
+                                                    colorClass="bg-red-500" 
+                                                />
+                                            </div>
+
+                                             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Lantakur (Menabung)</p>
+                                                <ProgressBar 
+                                                    target={plan.colLantakurNoa} 
+                                                    actual={plan.actualLantakurNoa} 
+                                                    colorClass="bg-amber-500" 
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })
+            )}
+        </div>
+    </div>
+  );
+};

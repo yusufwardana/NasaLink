@@ -1,3 +1,4 @@
+
 export interface Contact {
   id: string;
   name: string;       // Map from 'NASABAH'
@@ -84,4 +85,12 @@ export interface DailyPlan {
   biometrikNoa: string;
   
   notes?: string;
+
+  // --- NEW: ACTUAL / REALISASI ---
+  actualSwNoa?: string;
+  actualSwDisb?: string;
+  actualCtxNoa?: string;
+  actualCtxOs?: string;
+  actualLantakurNoa?: string;
+  actualLantakurOs?: string;
 }
