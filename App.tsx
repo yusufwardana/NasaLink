@@ -754,7 +754,7 @@ const App: React.FC = () => {
                         </div>
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
                             <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> Sentra Aktif
+                                <MapPin className="w-3 h-3" /> Total Sentra
                             </p>
                             <p className="text-2xl font-black">{uniqueSentras.length}</p>
                         </div>
@@ -762,231 +762,67 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* 2. DAILY PLAN / TODOLIST CARD (NEW) */}
-            <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-sm shadow-blue-100/50">
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <ClipboardList className="w-5 h-5 text-blue-500" />
-                            Rencana Harian CO
-                        </h3>
-                        <p className="text-xs text-slate-500">Target SW, Collection & Admin.</p>
-                    </div>
-                    <button 
-                        onClick={() => setIsTodoModalOpen(true)}
-                        className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100 shadow-sm flex items-center gap-1.5"
-                    >
-                        <PenTool className="w-3.5 h-3.5" />
-                        <span className="text-xs font-bold">Input Plan</span>
-                    </button>
-                </div>
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-2 gap-3">
+                 <button 
+                    onClick={() => setIsTodoModalOpen(true)}
+                    className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-orange-300 transition-all text-left group"
+                 >
+                     <div className="bg-orange-50 w-10 h-10 rounded-full flex items-center justify-center mb-3 group-hover:bg-orange-100 transition-colors">
+                         <ClipboardList className="w-5 h-5 text-orange-600" />
+                     </div>
+                     <h3 className="font-bold text-slate-700 text-sm">Input Rencana</h3>
+                     <p className="text-[10px] text-slate-400 mt-1">Target Harian CO</p>
+                 </button>
 
-                {todaysPlan ? (
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center pb-2 border-b border-slate-50">
-                            <span className="text-xs font-bold text-slate-400 uppercase">{todaysPlan.coName} • {todaysPlan.date}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Target SW (Noa)</p>
-                                <p className="text-sm font-black text-slate-700">{todaysPlan.swCurrentNoa} <span className="text-[9px] font-normal text-slate-400">Cur</span> / {todaysPlan.swNextNoa} <span className="text-[9px] font-normal text-slate-400">Nxt</span></p>
-                            </div>
-                             <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-                                <p className="text-[9px] font-bold text-red-400 uppercase mb-1">Collect CTX</p>
-                                <p className="text-sm font-black text-red-700">{todaysPlan.colCtxNoa} <span className="text-[9px] font-normal text-red-400">NOA</span></p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                             <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded border border-yellow-100">Lantakur: {todaysPlan.colLantakurNoa}</span>
-                             <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">FPPB: {todaysPlan.fppbNoa}</span>
-                             <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">Bio: {todaysPlan.biometrikNoa}</span>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/50">
-                        <p className="text-sm font-bold text-slate-400">Belum ada rencana hari ini</p>
-                        <button 
-                            onClick={() => setIsTodoModalOpen(true)} 
-                            className="text-xs text-blue-500 font-bold hover:underline mt-1"
-                        >
-                            + Buat Rencana Baru
-                        </button>
-                    </div>
-                )}
+                 <button 
+                    onClick={() => setActiveView('notifications')}
+                    className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all text-left group"
+                 >
+                     <div className="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
+                         <Calendar className="w-5 h-5 text-blue-600" />
+                     </div>
+                     <h3 className="font-bold text-slate-700 text-sm">Jadwal Harian</h3>
+                     <p className="text-[10px] text-slate-400 mt-1">Cek Reminder</p>
+                 </button>
             </div>
 
-          {/* 3. Priority Agenda (Horizontal Scroll) */}
-          <div>
-              <div className="flex justify-between items-end mb-3 px-1">
-                <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                    <AlertOctagon className="w-5 h-5 text-red-500" />
-                    Agenda Prioritas
-                </h3>
-                <button 
-                    onClick={() => setActiveView('notifications')}
-                    className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
-                >
-                    Lihat Semua <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              {upcomingEvents.length === 0 ? (
-                  <div className="bg-white border border-slate-100 rounded-2xl p-6 text-center shadow-sm">
-                      <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <Sparkles className="w-6 h-6" />
-                      </div>
-                      <p className="text-sm font-bold text-slate-600">Jadwal Bersih!</p>
-                      <p className="text-xs text-slate-400">Tidak ada PRS H-1 atau Jatuh Tempo mendesak.</p>
-                  </div>
-              ) : (
-                  <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                      {upcomingEvents.slice(0, 5).map((item, idx) => (
-                          <div 
-                            key={idx}
-                            onClick={() => setActiveView('notifications')}
-                            className={`min-w-[240px] bg-white border p-4 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between ${item.status === 'collection' ? 'border-red-200 hover:border-red-300' : 'border-slate-200 hover:border-orange-300'}`}
-                          >
-                                <div>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${item.status === 'collection' ? 'bg-red-100 text-red-600' : item.type === 'prs' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                            {item.status === 'collection' ? 'MENUNGGAK' : item.type === 'prs' ? 'Kumpulan' : 'Jatuh Tempo'}
-                                        </span>
-                                        <span className={`text-[10px] font-bold ${item.status === 'today' || item.status === 'soon' || item.status === 'collection' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
-                                            {item.status === 'collection' ? `DPD: ${item.daysLeft}` : item.status === 'today' ? 'HARI INI' : item.status === 'soon' ? 'BESOK' : item.status}
-                                        </span>
-                                    </div>
-                                    <h4 className="font-bold text-slate-800 truncate">{item.contact.name}</h4>
-                                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                                        <MapPin className="w-3 h-3" /> {item.contact.sentra}
-                                    </p>
-                                </div>
-                                <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2 text-xs font-bold text-orange-600">
-                                    Lihat Detail <ChevronRight className="w-3 h-3" />
-                                </div>
-                          </div>
-                      ))}
-                  </div>
-              )}
-          </div>
-
-          {/* 4. Quick Action Grid */}
-          <div>
-               <h3 className="font-bold text-slate-700 mb-3 px-1 flex items-center gap-2">
-                   <Sparkles className="w-5 h-5 text-amber-500" />
-                   Akses Cepat
-               </h3>
-               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                   <button 
-                        onClick={() => setActiveView('contacts')}
-                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
-                    >
-                       <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                           <Search className="w-5 h-5" />
-                       </div>
-                       <span className="text-xs font-bold text-slate-700">Cari Nasabah</span>
-                   </button>
-                   
-                   <button 
-                        onClick={() => setActiveView('notifications')}
-                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
-                    >
-                       <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                           <Bell className="w-5 h-5" />
-                       </div>
-                       <span className="text-xs font-bold text-slate-700">Follow Up</span>
-                   </button>
-
-                   <button 
-                        onClick={() => setActiveView('broadcast')}
-                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
-                    >
-                       <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
-                           <Radio className="w-5 h-5" />
-                       </div>
-                       <span className="text-xs font-bold text-slate-700">Siaran WA</span>
-                   </button>
-
-                   <button 
-                        onClick={() => setActiveView('dashboard')}
-                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:bg-orange-50 transition-all flex flex-col items-center gap-2 text-center"
-                    >
-                       <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                           <Activity className="w-5 h-5" />
-                       </div>
-                       <span className="text-xs font-bold text-slate-700">Cek Kinerja</span>
-                   </button>
-               </div>
-          </div>
-
-          {/* 5. Sentra Overview List */}
-          <div>
-               <h3 className="font-bold text-slate-700 mb-3 px-1 flex items-center gap-2">
-                   <MapPin className="w-5 h-5 text-slate-500" />
-                   Daftar Sentra
-               </h3>
-               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-                   {uniqueSentras.slice(0, 5).map((sentra, idx) => (
-                       <div key={sentra} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                           <div className="flex items-center gap-3">
-                               <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-xs font-bold text-slate-500">
-                                   {idx + 1}
-                               </div>
-                               <span className="font-bold text-sm text-slate-700">{sentra}</span>
-                           </div>
-                           <Button 
-                                size="sm" 
-                                variant="secondary" 
-                                className="h-8 text-[10px]"
-                                onClick={() => {
-                                    // Hack: Set filters in contacts view
-                                    setSelectedSentra(sentra);
-                                    setActiveView('contacts');
-                                }}
-                            >
-                               Lihat Anggota
-                           </Button>
-                       </div>
-                   ))}
-                   {uniqueSentras.length > 5 && (
-                       <button 
-                        onClick={() => setActiveView('contacts')}
-                        className="w-full p-3 text-center text-xs font-bold text-orange-600 hover:bg-orange-50 transition-colors"
-                       >
-                           Lihat Semua ({uniqueSentras.length} Sentra)
-                       </button>
-                   )}
-               </div>
-          </div>
+            {/* Todays Plan Summary */}
+            {todaysPlan && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            <Briefcase className="w-4 h-4 text-slate-500" />
+                            Rencana Hari Ini
+                        </h3>
+                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-mono text-slate-500">{todaysPlan.date}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2 bg-slate-50 rounded-lg">
+                            <p className="text-[9px] text-slate-400 uppercase font-bold">SW</p>
+                            <p className="font-black text-slate-700">{todaysPlan.swCurrentNoa}</p>
+                        </div>
+                        <div className="p-2 bg-slate-50 rounded-lg">
+                            <p className="text-[9px] text-slate-400 uppercase font-bold">CTX</p>
+                            <p className="font-black text-slate-700">{todaysPlan.colCtxNoa}</p>
+                        </div>
+                        <div className="p-2 bg-slate-50 rounded-lg">
+                            <p className="text-[9px] text-slate-400 uppercase font-bold">Par</p>
+                            <p className="font-black text-slate-700">{todaysPlan.colLantakurNoa}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
       </main>
 
-      {/* Modals */}
-      {selectedContact && (
-        <MessageGeneratorModal
-          contact={selectedContact}
-          isOpen={!!selectedContact}
-          onClose={() => setSelectedContact(null)}
-          templates={templates}
-          initialTemplateId={initialTemplateId}
-          apiKey={activeConfig?.geminiApiKey}
-        />
-      )}
-
-      <EditContactModal
-        contact={contactToEdit}
-        isOpen={!!contactToEdit}
-        onClose={() => setContactToEdit(null)}
-        onSave={handleUpdateContact}
-        onDelete={handleDeleteContact}
-        sheetConfig={activeConfig}
-      />
-      
-      {/* Todo Input Modal */}
+      {/* MODALS */}
       <TodoInputModal 
         isOpen={isTodoModalOpen}
         onClose={() => setIsTodoModalOpen(false)}
         onSave={handleSavePlan}
         availableCos={uniqueCos}
+        dailyPlans={dailyPlans}
       />
 
       {renderBottomNav()}

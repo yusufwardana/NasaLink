@@ -1,25 +1,29 @@
 import React, { useState } from 'react';
 import { DailyPlan } from '../types';
 import { Button } from './Button';
-import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText } from 'lucide-react';
+import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText, History, Sparkles } from 'lucide-react';
 
 interface TodoInputModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (plan: DailyPlan) => Promise<void>;
   availableCos: string[];
+  dailyPlans: DailyPlan[]; // Added to access history
 }
 
 export const TodoInputModal: React.FC<TodoInputModalProps> = ({ 
   isOpen, 
   onClose, 
   onSave,
-  availableCos 
+  availableCos,
+  dailyPlans
 }) => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autofillSource, setAutofillSource] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState<Partial<DailyPlan>>({
-      date: new Date().toLocaleDateString('id-ID'), // Simple default
+      date: new Date().toLocaleDateString('id-ID'), 
       coName: '',
       swCurrentNoa: '', swCurrentDisb: '',
       swNextNoa: '', swNextDisb: '',
@@ -37,6 +41,37 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           setFormData(prev => ({ ...prev, [field]: numeric }));
       } else {
           setFormData(prev => ({ ...prev, [field]: value }));
+      }
+  };
+
+  const handleCoChange = (coName: string) => {
+      setFormData(prev => ({ ...prev, coName }));
+      setAutofillSource(null);
+
+      if (!coName) return;
+
+      // SMART DETECT: Find latest plan for this CO
+      const history = dailyPlans
+        .filter(p => p.coName === coName)
+        // Sort by ID descending (Assuming ID contains timestamp as implemented: Date.now())
+        .sort((a, b) => (b.id > a.id ? 1 : -1));
+
+      if (history.length > 0) {
+          const latest = history[0];
+          setFormData(prev => ({
+              ...prev,
+              swCurrentNoa: latest.swCurrentNoa,
+              swCurrentDisb: latest.swCurrentDisb,
+              swNextNoa: latest.swNextNoa,
+              swNextDisb: latest.swNextDisb,
+              colCtxNoa: latest.colCtxNoa,
+              colCtxOs: latest.colCtxOs,
+              colLantakurNoa: latest.colLantakurNoa,
+              colLantakurOs: latest.colLantakurOs,
+              fppbNoa: latest.fppbNoa,
+              biometrikNoa: latest.biometrikNoa
+          }));
+          setAutofillSource(latest.date);
       }
   };
 
@@ -69,7 +104,8 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           onClose();
           // Reset
           setStep(1);
-          setFormData({ ...formData, coName: '' }); // Keep date, reset others if needed
+          setFormData({ ...formData, coName: '' }); 
+          setAutofillSource(null);
       } catch (e) {
           alert("Gagal menyimpan rencana.");
       } finally {
@@ -117,11 +153,17 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                         <select 
                             className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/50 outline-none"
                             value={formData.coName}
-                            onChange={e => handleChange('coName', e.target.value)}
+                            onChange={e => handleCoChange(e.target.value)}
                         >
                             <option value="">-- Pilih Nama Anda --</option>
                             {availableCos.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
+                        {autofillSource && (
+                            <div className="flex items-center gap-1.5 mt-2 text-[10px] text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded-lg border border-emerald-100 animate-fade-in-up">
+                                <Sparkles className="w-3 h-3" />
+                                Data otomatis diisi dari history tgl {autofillSource}
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-t border-slate-100 pt-4">
