@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DailyPlan, Contact } from '../types';
 import { Button } from './Button';
-import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText, History, Sparkles, CheckCircle2, Circle } from 'lucide-react';
+import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText, History, Sparkles, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
 
 interface TodoInputModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autofillSource, setAutofillSource] = useState<string | null>(null);
   const [selectedCtxIds, setSelectedCtxIds] = useState<Set<string>>(new Set());
+  const [selectedLantakurIds, setSelectedLantakurIds] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState<Partial<DailyPlan>>({
       date: new Date().toLocaleDateString('id-ID'), 
@@ -59,14 +60,54 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
           if (isInactive) return false;
 
-          // 3. Must be specifically CTX (Requested Update)
+          // 3. Must be specifically CTX
           const flagMenunggak = (c.flagMenunggak || '').toLowerCase();
           return flagMenunggak.includes('ctx');
           
       }).sort((a, b) => parseInt(a.dpd || '0') - parseInt(b.dpd || '0')); // Sort by DPD desc
   }, [contacts, formData.coName]);
 
-  // --- RE-CALCULATE WHEN CHECKLIST CHANGES ---
+  // --- FILTER LOGIC FOR LANTAKUR ---
+  const relevantLantakurContacts = useMemo(() => {
+    if (!formData.coName) return [];
+    
+    return contacts.filter(c => {
+        // 1. Must match CO
+        if (c.co !== formData.coName) return false;
+        
+        // 2. Must be Active
+        const flag = (c.flag || '').toLowerCase();
+        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+        if (isInactive) return false;
+
+        // 3. Must be Lantakur
+        const flagLantakur = (c.flagLantakur || '').toLowerCase();
+        return flagLantakur.includes('lantakur');
+    }).sort((a, b) => {
+        // Sort by PRS Date (Closest to Today)
+        const todayDay = new Date().getDate();
+        
+        const getPrsScore = (dateStr?: string) => {
+             if (!dateStr) return 999;
+             // Handle "15" format
+             if (dateStr.match(/^\d{1,2}$/)) {
+                 const d = parseInt(dateStr, 10);
+                 // Calculate distance (handling month wrap roughly)
+                 let dist = d - todayDay;
+                 if (dist < 0) dist += 30; // Assume next month
+                 return dist;
+             }
+             return 999;
+        };
+
+        return getPrsScore(a.tglPrs) - getPrsScore(b.tglPrs);
+    });
+  }, [contacts, formData.coName]);
+
+
+  // --- AUTO CALCULATION EFFECTS ---
+  
+  // 1. CTX
   useEffect(() => {
       if (selectedCtxIds.size > 0) {
           const selectedContacts = relevantCtxContacts.filter(c => selectedCtxIds.has(c.id));
@@ -80,6 +121,22 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           }));
       }
   }, [selectedCtxIds, relevantCtxContacts]);
+
+  // 2. Lantakur
+  useEffect(() => {
+      if (selectedLantakurIds.size > 0) {
+          const selectedContacts = relevantLantakurContacts.filter(c => selectedLantakurIds.has(c.id));
+          const totalNoa = selectedContacts.length;
+          const totalOs = selectedContacts.reduce((sum, c) => sum + parseMoney(c.os), 0);
+          
+          setFormData(prev => ({
+              ...prev,
+              colLantakurNoa: totalNoa.toString(),
+              colLantakurOs: totalOs.toString()
+          }));
+      }
+  }, [selectedLantakurIds, relevantLantakurContacts]);
+
 
   if (!isOpen) return null;
 
@@ -97,6 +154,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
       setFormData(prev => ({ ...prev, coName }));
       setAutofillSource(null);
       setSelectedCtxIds(new Set()); // Reset checklist
+      setSelectedLantakurIds(new Set()); // Reset checklist
 
       if (!coName) return;
 
@@ -128,12 +186,16 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
 
   const toggleCtxContact = (id: string) => {
       const newSet = new Set(selectedCtxIds);
-      if (newSet.has(id)) {
-          newSet.delete(id);
-      } else {
-          newSet.add(id);
-      }
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
       setSelectedCtxIds(newSet);
+  };
+
+  const toggleLantakurContact = (id: string) => {
+      const newSet = new Set(selectedLantakurIds);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedLantakurIds(newSet);
   };
 
   const handleSubmit = async () => {
@@ -168,6 +230,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           setFormData({ ...formData, coName: '' }); 
           setAutofillSource(null);
           setSelectedCtxIds(new Set());
+          setSelectedLantakurIds(new Set());
       } catch (e) {
           alert("Gagal menyimpan rencana.");
       } finally {
@@ -287,21 +350,23 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
 
             {/* Step 2: Collection & Lainnya */}
             {step === 2 && (
-                <div className="space-y-5 animate-fade-in-up">
+                <div className="space-y-6 animate-fade-in-up">
+                    
+                    {/* --- CTX SECTION --- */}
                     <div>
                         <div className="flex items-center gap-2 mb-3">
                             <AlertTriangle className="w-4 h-4 text-red-500" />
-                            <h3 className="font-bold text-slate-700">Target Collection</h3>
+                            <h3 className="font-bold text-slate-700">Target CTX (Menunggak)</h3>
                         </div>
                         
-                        {/* === CHECKLIST SECTION FOR CTX === */}
-                        {relevantCtxContacts.length > 0 && (
+                        {/* CTX CHECKLIST */}
+                        {relevantCtxContacts.length > 0 ? (
                             <div className="mb-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                                 <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Pilih Nasabah Target (Checklist)</p>
-                                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{relevantCtxContacts.length} Nasabah CTX</span>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Checklist Nasabah CTX</p>
+                                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{relevantCtxContacts.length} Org</span>
                                 </div>
-                                <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                                <div className="max-h-32 overflow-y-auto divide-y divide-slate-100">
                                     {relevantCtxContacts.map(c => {
                                         const isSelected = selectedCtxIds.has(c.id);
                                         return (
@@ -311,33 +376,25 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                                                 className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    {isSelected ? (
-                                                        <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                                                    ) : (
-                                                        <Circle className="w-5 h-5 text-slate-300 shrink-0" />
-                                                    )}
+                                                    {isSelected ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> : <Circle className="w-4 h-4 text-slate-300 shrink-0" />}
                                                     <div>
                                                         <p className={`text-xs font-bold ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>{c.name}</p>
-                                                        <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                                                            {c.sentra} • <span className="text-red-500 font-bold">DPD: {c.dpd}</span>
-                                                        </p>
+                                                        <p className="text-[10px] text-slate-500">{c.sentra} • <span className="text-red-500 font-bold">DPD: {c.dpd}</span></p>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-xs font-bold text-slate-700">{formatShortIDR(parseMoney(c.os))}</p>
-                                                    <p className="text-[9px] text-slate-400">OS</p>
-                                                </div>
+                                                <p className="text-xs font-bold text-slate-700">{formatShortIDR(parseMoney(c.os))}</p>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
+                        ) : (
+                            <p className="text-xs text-slate-400 italic mb-3 ml-1">Tidak ada nasabah CTX untuk CO ini.</p>
                         )}
 
-                        {/* CTX Summary Inputs */}
                         <div className="grid grid-cols-2 gap-3 mb-3">
                             <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (NOA) {selectedCtxIds.size > 0 && '(Auto)'}</p>
+                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (NOA)</p>
                                 <input 
                                     type="tel"
                                     className="w-full bg-transparent font-bold text-red-800 outline-none text-lg"
@@ -347,7 +404,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                                 />
                             </div>
                             <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (OS) {selectedCtxIds.size > 0 && '(Auto)'}</p>
+                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (OS)</p>
                                 <input 
                                     type="tel"
                                     className="w-full bg-transparent font-bold text-red-800 outline-none text-lg"
@@ -357,24 +414,64 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                                 />
                             </div>
                         </div>
+                    </div>
 
-                         {/* Lantakur */}
+                    {/* --- LANTAKUR SECTION --- */}
+                    <div className="border-t border-slate-100 pt-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertCircle className="w-4 h-4 text-amber-500" />
+                            <h3 className="font-bold text-slate-700">Target Lantakur</h3>
+                        </div>
+
+                         {/* LANTAKUR CHECKLIST */}
+                         {relevantLantakurContacts.length > 0 ? (
+                            <div className="mb-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Checklist Nasabah Lantakur</p>
+                                    <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-bold">{relevantLantakurContacts.length} Org</span>
+                                </div>
+                                <div className="max-h-32 overflow-y-auto divide-y divide-slate-100">
+                                    {relevantLantakurContacts.map(c => {
+                                        const isSelected = selectedLantakurIds.has(c.id);
+                                        return (
+                                            <div 
+                                                key={c.id} 
+                                                onClick={() => toggleLantakurContact(c.id)}
+                                                className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {isSelected ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> : <Circle className="w-4 h-4 text-slate-300 shrink-0" />}
+                                                    <div>
+                                                        <p className={`text-xs font-bold ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>{c.name}</p>
+                                                        <p className="text-[10px] text-slate-500">{c.sentra} • <span className="text-blue-500 font-bold">PRS: {c.tglPrs}</span></p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs font-bold text-slate-700">{formatShortIDR(parseMoney(c.os))}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                             <p className="text-xs text-slate-400 italic mb-3 ml-1">Tidak ada nasabah Lantakur.</p>
+                        )}
+
                          <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-yellow-50 p-3 rounded-xl border border-yellow-100">
-                                <p className="text-[10px] font-bold text-yellow-600 mb-1">Lantakur (NOA)</p>
+                            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
+                                <p className="text-[10px] font-bold text-amber-600 mb-1">Lantakur (NOA)</p>
                                 <input 
                                     type="tel"
-                                    className="w-full bg-transparent font-bold text-yellow-800 outline-none text-lg"
+                                    className="w-full bg-transparent font-bold text-amber-800 outline-none text-lg"
                                     placeholder="0"
                                     value={formData.colLantakurNoa}
                                     onChange={e => handleChange('colLantakurNoa', e.target.value)}
                                 />
                             </div>
-                            <div className="bg-yellow-50 p-3 rounded-xl border border-yellow-100">
-                                <p className="text-[10px] font-bold text-yellow-600 mb-1">Lantakur (OS)</p>
+                            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
+                                <p className="text-[10px] font-bold text-amber-600 mb-1">Lantakur (OS)</p>
                                 <input 
                                     type="tel"
-                                    className="w-full bg-transparent font-bold text-yellow-800 outline-none text-lg"
+                                    className="w-full bg-transparent font-bold text-amber-800 outline-none text-lg"
                                     placeholder="Rp 0"
                                     value={formData.colLantakurOs}
                                     onChange={e => handleChange('colLantakurOs', e.target.value)}
