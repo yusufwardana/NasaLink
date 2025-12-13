@@ -235,26 +235,35 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
             const actRows = parseCSV(actualText);
             if (actRows.length >= 2) {
                 const actHeaders = actRows[0].map(h => h.toLowerCase());
+                
+                // Identify Columns (Look for common Plan headers too)
                 const aIdxDate = findColIndex(actHeaders, ['tanggal', 'date']);
                 const aIdxCo = findColIndex(actHeaders, ['co', 'petugas']);
                 
-                // Map Actual Columns - SUPPORT IDENTICAL NAMES AS PLAN
+                // --- MAPPING HEADER AKTUAL (SUPPORTS PLAN HEADERS) ---
+                // SW
                 const aIdxSwNoa = findColIndex(actHeaders, ['sw noa', 'sw (noa)', 'sw cur noa', 'sw bulan ini noa']);
                 const aIdxSwDisb = findColIndex(actHeaders, ['sw disb', 'sw (disb)', 'sw cur disb', 'sw bulan ini disb']);
+                
+                // CTX
                 const aIdxCtxNoa = findColIndex(actHeaders, ['ctx noa', 'ctx (noa)', 'col ctx noa']);
                 const aIdxCtxOs = findColIndex(actHeaders, ['ctx os', 'ctx (os)', 'col ctx os']);
-                const aIdxLantakurNoa = findColIndex(actHeaders, ['lantakur noa', 'lantakur (noa)']);
-                const aIdxLantakurOs = findColIndex(actHeaders, ['lantakur os', 'lantakur (os)']);
                 
-                // NEW: FPPB & BIOMETRIK ACTUALS (Identical to Plan names support)
-                const aIdxFppb = findColIndex(actHeaders, ['fppb', 'fppb noa']);
+                // Lantakur
+                const aIdxLantakurNoa = findColIndex(actHeaders, ['lantakur noa', 'lantakur (noa)', 'col lantakur noa']);
+                const aIdxLantakurOs = findColIndex(actHeaders, ['lantakur os', 'lantakur (os)', 'col lantakur os']);
+                
+                // Admin (FPPB & Biometrik)
+                const aIdxFppb = findColIndex(actHeaders, ['fppb', 'fppb noa', 'input fppb']);
                 const aIdxBiometrik = findColIndex(actHeaders, ['biometrik', 'bio', 'biometrik noa']);
 
                 actRows.slice(1).forEach(row => {
                      const date = row[aIdxDate];
                      const co = row[aIdxCo];
                      if (date && co) {
-                         const key = `${date.trim()}_${co.trim()}`;
+                         // CREATE KEY: Case Insensitive for safer matching
+                         const key = `${date.trim()}_${co.trim().toLowerCase()}`;
+                         
                          actualsMap.set(key, {
                              swNoa: row[aIdxSwNoa] || '0',
                              swDisb: row[aIdxSwDisb] || '0',
@@ -301,7 +310,9 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
 
             const date = row[idxDate].trim();
             const co = row[idxCo].trim();
-            const lookupKey = `${date}_${co}`;
+            
+            // Lookup Key: Case Insensitive on CO
+            const lookupKey = `${date}_${co.toLowerCase()}`;
             const actualData = actualsMap.get(lookupKey) || {};
 
             return {
