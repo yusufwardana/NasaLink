@@ -32,10 +32,13 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
     });
   }, [plans, filterCo]);
 
-  // Helper for Percentage Bar
+  // Helper for Percentage Bar (Robust parsing)
   const ProgressBar = ({ target, actual, colorClass }: { target: string, actual?: string, colorClass: string }) => {
-      const t = parseInt(target || '0', 10);
-      const a = parseInt(actual || '0', 10);
+      // Remove non-numeric chars except . or , if needed, but for now strict numeric
+      const parse = (val?: string) => parseInt(val?.replace(/[^0-9]/g, '') || '0', 10);
+      
+      const t = parse(target);
+      const a = parse(actual);
       
       if (t === 0) return <span className="text-xs text-slate-400">-</span>;
       
@@ -135,56 +138,80 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                             <h4 className="font-bold text-slate-700 text-sm">Survey (SW)</h4>
                                         </div>
                                         
-                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">NOA Survey</p>
-                                            <ProgressBar 
-                                                target={plan.swCurrentNoa} 
-                                                actual={plan.actualSwNoa} 
-                                                colorClass="bg-emerald-500" 
-                                            />
+                                        {/* SW Bulan Ini */}
+                                        <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+                                            <p className="text-[10px] font-bold text-emerald-600 mb-2 uppercase flex items-center gap-1">
+                                                 <Calendar className="w-3 h-3"/> Bulan Ini
+                                            </p>
+                                            <div className="space-y-3">
+                                                <div>
+                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">NOA</p>
+                                                     <ProgressBar target={plan.swCurrentNoa} actual={plan.actualSwNoa} colorClass="bg-emerald-500" />
+                                                </div>
+                                                <div>
+                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Pencairan</p>
+                                                     <div className="flex justify-between text-xs">
+                                                        <span className="text-slate-500">T: {plan.swCurrentDisb}</span>
+                                                        <span className="font-bold text-slate-700">R: {plan.actualSwDisb || '-'}</span>
+                                                     </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Disbursement (Cair)</p>
-                                                <div className="flex justify-between text-xs">
-                                                <span className="text-slate-500">Target: <span className="font-mono">{plan.swCurrentDisb || '0'}</span></span>
-                                                <span className="font-bold text-slate-700">Real: <span className="font-mono">{plan.actualSwDisb || '-'}</span></span>
+
+                                        {/* SW Bulan Depan */}
+                                        <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                                            <p className="text-[10px] font-bold text-blue-600 mb-2 uppercase flex items-center gap-1">
+                                                 <Calendar className="w-3 h-3"/> Bulan Depan
+                                            </p>
+                                            <div className="space-y-3">
+                                                 <div>
+                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">NOA</p>
+                                                     <ProgressBar target={plan.swNextNoa} actual={plan.actualSwNextNoa} colorClass="bg-blue-500" />
+                                                </div>
+                                                 <div>
+                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Pencairan</p>
+                                                     <div className="flex justify-between text-xs">
+                                                        <span className="text-slate-500">T: {plan.swNextDisb}</span>
+                                                        <span className="font-bold text-slate-700">R: {plan.actualSwNextDisb || '-'}</span>
+                                                     </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Collection Section */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <AlertTriangle className="w-4 h-4 text-red-500" />
-                                            <h4 className="font-bold text-slate-700 text-sm">Collection (Menunggak)</h4>
+                                    {/* Collection & Admin Section */}
+                                    <div className="flex flex-col gap-4">
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                                                <h4 className="font-bold text-slate-700 text-sm">Collection (Menunggak)</h4>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">CTX (Nasabah Bayar)</p>
+                                                <ProgressBar 
+                                                    target={plan.colCtxNoa} 
+                                                    actual={plan.actualCtxNoa} 
+                                                    colorClass="bg-red-500" 
+                                                />
+                                            </div>
+
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Lantakur (Menabung)</p>
+                                                <ProgressBar 
+                                                    target={plan.colLantakurNoa} 
+                                                    actual={plan.actualLantakurNoa} 
+                                                    colorClass="bg-amber-500" 
+                                                />
+                                            </div>
                                         </div>
 
-                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">CTX (Nasabah Bayar)</p>
-                                            <ProgressBar 
-                                                target={plan.colCtxNoa} 
-                                                actual={plan.actualCtxNoa} 
-                                                colorClass="bg-red-500" 
-                                            />
-                                        </div>
-
-                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Lantakur (Menabung)</p>
-                                            <ProgressBar 
-                                                target={plan.colLantakurNoa} 
-                                                actual={plan.actualLantakurNoa} 
-                                                colorClass="bg-amber-500" 
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Administrasi Section (NEW) */}
-                                    <div className="space-y-3 md:col-span-2 border-t border-slate-100 pt-3 mt-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <FileText className="w-4 h-4 text-purple-500" />
-                                            <h4 className="font-bold text-slate-700 text-sm">Administrasi</h4>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        {/* Administrasi Section */}
+                                        <div className="space-y-3 border-t border-slate-100 pt-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <FileText className="w-4 h-4 text-purple-500" />
+                                                <h4 className="font-bold text-slate-700 text-sm">Administrasi</h4>
+                                            </div>
                                             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                                 <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Input FPPB</p>
                                                 <ProgressBar 
@@ -203,6 +230,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                             </div>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                         </div>

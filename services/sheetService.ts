@@ -50,12 +50,22 @@ const parseCSV = (text: string): string[][] => {
 };
 
 // Helper to find column index loosely
-// UPDATED: Now trims header and keyword for safer match
 const findColIndex = (headers: string[], keywords: string[]): number => {
     return headers.findIndex(h => {
         const hClean = h.toLowerCase().trim();
         return keywords.some(k => hClean.includes(k.toLowerCase().trim()));
     });
+};
+
+// Helper key generator for consistent lookups (Plan vs Actual)
+const generateLookupKey = (date: string, co: string): string => {
+    if (!date || !co) return '';
+    // Normalize: remove extra spaces, lowercase.
+    // We treat dates as simple strings to avoid timezone parsing issues from CSV,
+    // assuming Plan and Actual use same locale format (e.g. DD/MM/YYYY).
+    const d = date.trim().toLowerCase().replace(/\s+/g, '');
+    const c = co.trim().toLowerCase().replace(/\s+/g, ' ');
+    return `${d}_${c}`;
 };
 
 // Helper to fetch CSV with retry mechanism
@@ -224,7 +234,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         // 1. Fetch PLAN Sheet (Targets)
         const planTextPromise = fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => "");
         
-        // 2. Fetch AKTUAL Sheet (Realization) - Try hardcoded 'Aktual'
+        // 2. Fetch AKTUAL Sheet (Realisasi) - Try hardcoded 'Aktual'
         const actualTextPromise = fetchSheetCsv(spreadsheetId, "Aktual", 1).catch(() => "");
         
         const [planText, actualText] = await Promise.all([planTextPromise, actualTextPromise]);
@@ -248,8 +258,12 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 
                 // --- MAPPING HEADER AKTUAL (SUPPORTS PLAN HEADERS) ---
                 // SW (Include keywords from Plan headers: 'sw cur noa')
-                const aIdxSwNoa = findColIndex(actHeaders, ['sw cur noa', 'sw noa', 'sw (noa)', 'sw bulan ini noa']);
-                const aIdxSwDisb = findColIndex(actHeaders, ['sw cur disb', 'sw disb', 'sw (disb)', 'sw bulan ini disb']);
+                const aIdxSwNoa = findColIndex(actHeaders, ['sw cur noa', 'sw noa', 'sw (noa)', 'sw bulan ini noa', 'sw bln ini noa']);
+                const aIdxSwDisb = findColIndex(actHeaders, ['sw cur disb', 'sw disb', 'sw (disb)', 'sw bulan ini disb', 'sw bln ini disb']);
+                
+                // SW Next (NEW)
+                const aIdxSwNextNoa = findColIndex(actHeaders, ['sw next noa', 'sw bulan depan noa', 'sw bln depan noa']);
+                const aIdxSwNextDisb = findColIndex(actHeaders, ['sw next disb', 'sw bulan depan disb', 'sw bln depan disb']);
                 
                 // CTX (Include keywords from Plan headers: 'col ctx noa')
                 const aIdxCtxNoa = findColIndex(actHeaders, ['col ctx noa', 'ctx noa', 'ctx (noa)']);
@@ -267,12 +281,14 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                      const date = row[aIdxDate];
                      const co = row[aIdxCo];
                      if (date && co) {
-                         // CREATE KEY: Clean spaces, case insensitive
-                         const key = `${date.trim()}_${co.trim().toLowerCase()}`;
+                         // CREATE KEY: Use helper for consistency
+                         const key = generateLookupKey(date, co);
                          
                          actualsMap.set(key, {
                              swNoa: row[aIdxSwNoa] || '0',
                              swDisb: row[aIdxSwDisb] || '0',
+                             swNextNoa: row[aIdxSwNextNoa] || '0',
+                             swNextDisb: row[aIdxSwNextDisb] || '0',
                              ctxNoa: row[aIdxCtxNoa] || '0',
                              ctxOs: row[aIdxCtxOs] || '0',
                              lantakurNoa: row[aIdxLantakurNoa] || '0',
@@ -317,8 +333,8 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
             const date = row[idxDate].trim();
             const co = row[idxCo].trim();
             
-            // Lookup Key: Match logic with Actuals (Trim + Lowercase)
-            const lookupKey = `${date}_${co.toLowerCase()}`;
+            // Lookup Key: Match logic with Actuals
+            const lookupKey = generateLookupKey(date, co);
             const actualData = actualsMap.get(lookupKey) || {};
 
             return {
@@ -341,6 +357,8 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 // Actuals (Merged from Aktual Sheet)
                 actualSwNoa: actualData.swNoa || '0',
                 actualSwDisb: actualData.swDisb || '0',
+                actualSwNextNoa: actualData.swNextNoa || '0', // NEW
+                actualSwNextDisb: actualData.swNextDisb || '0', // NEW
                 actualCtxNoa: actualData.ctxNoa || '0',
                 actualCtxOs: actualData.ctxOs || '0',
                 actualLantakurNoa: actualData.lantakurNoa || '0',

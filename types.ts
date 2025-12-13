@@ -89,6 +89,8 @@ export interface DailyPlan {
   // --- NEW: ACTUAL / REALISASI ---
   actualSwNoa?: string;
   actualSwDisb?: string;
+  actualSwNextNoa?: string; // NEW
+  actualSwNextDisb?: string; // NEW
   actualCtxNoa?: string;
   actualCtxOs?: string;
   actualLantakurNoa?: string;
