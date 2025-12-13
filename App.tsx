@@ -265,14 +265,10 @@ const App: React.FC = () => {
         
         const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
         
-        // COMPREHENSIVE TROUBLE DETECTION
-        const isTrouble = dpd > 0 || 
-                          status.includes('macet') || 
-                          status.includes('menunggak') || 
-                          flagMenunggak.includes('ctx') || 
-                          flagMenunggak.includes('xday') || 
-                          flagMenunggak.includes('npf') || 
-                          flagMenunggak.includes('macet');
+        // SPECIFIC TROUBLE CATEGORIES
+        const isCtx = flagMenunggak.includes('ctx');
+        const isExCtx = flagMenunggak.includes('xday') || flagMenunggak.includes('sm') || flagMenunggak.includes('npf') || flagMenunggak.includes('macet');
+        const isGenericTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
 
         const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur');
         
@@ -280,10 +276,14 @@ const App: React.FC = () => {
         const dueDate = contact.tglJatuhTempo ? parseFullDate(contact.tglJatuhTempo) : null;
         const lunasDate = contact.tglLunas ? parseFullDate(contact.tglLunas) : null;
 
-        // 1. COLLECTION LOGIC (Priority High)
-        // Jika bermasalah dan bukan DO/Lunas (Status aktif tapi nunggak)
-        if (isTrouble && !isInactive) {
-             acc.push({ contact, type: 'payment', status: 'collection', daysLeft: dpd });
+        // 1. COLLECTION LOGIC
+        // Priority 1A: CTX
+        if (isCtx && !isInactive) {
+             acc.push({ contact, type: 'payment', status: 'collection_ctx', daysLeft: dpd });
+        }
+        // Priority 1B: Eks CTX (XDAY, SM, NPF) or Generic Trouble
+        else if ((isExCtx || isGenericTrouble) && !isInactive) {
+             acc.push({ contact, type: 'payment', status: 'collection_ex', daysLeft: dpd });
         }
         
         // 2. LANTAKUR LOGIC (Priority High - Preventive)
@@ -328,7 +328,7 @@ const App: React.FC = () => {
         }
 
         // 4. PRS LOGIC (H-1)
-        if (contact.tglPrs && !isInactive && !isTrouble) {
+        if (contact.tglPrs && !isInactive && !isCtx && !isExCtx && !isGenericTrouble) {
              let prsDate: Date | null = null;
              if (contact.tglPrs.match(/^\d{1,2}$/)) {
                  // Format tanggal tok (misal "15") -> Asumsi bulan ini
@@ -351,16 +351,17 @@ const App: React.FC = () => {
         }
         return acc;
     }, []).sort((a, b) => {
-        // Sort Priority: Collection > Lantakur > Today > Tomorrow > This Month > Next Month > Winback Recent > Winback Old
+        // Sort Priority: CTX > Eks CTX > Lantakur > Today > Tomorrow > ...
         const score = (s: string) => {
-            if (s === 'collection') return 0; // Highest Priority
-            if (s === 'lantakur') return 1;   // Preventive Action
-            if (s === 'today') return 2;
-            if (s === 'soon') return 3;
-            if (s === 'this_month') return 4;
-            if (s === 'next_month') return 5;
-            if (s === 'winback_recent') return 6;
-            if (s === 'winback_old') return 7;
+            if (s === 'collection_ctx') return 0; // Highest Priority
+            if (s === 'collection_ex') return 1;  // Second Highest
+            if (s === 'lantakur') return 2;
+            if (s === 'today') return 3;
+            if (s === 'soon') return 4;
+            if (s === 'this_month') return 5;
+            if (s === 'next_month') return 6;
+            if (s === 'winback_recent') return 7;
+            if (s === 'winback_old') return 8;
             return 99;
         }
 
@@ -371,26 +372,15 @@ const App: React.FC = () => {
             return scoreA - scoreB;
         }
 
-        // --- SECONDARY SORT: CTX PRIORITY THEN DPD ---
-        if (a.status === 'collection' && b.status === 'collection') {
-            const flagA = (a.contact.flagMenunggak || '').toLowerCase();
-            const flagB = (b.contact.flagMenunggak || '').toLowerCase();
-            
-            // 1. CTX Flag Priority
-            const isCtxA = flagA.includes('ctx');
-            const isCtxB = flagB.includes('ctx');
-            
-            if (isCtxA && !isCtxB) return -1; // A first
-            if (!isCtxA && isCtxB) return 1;  // B first
-
-            // 2. DPD Sorting (Smallest DPD first)
+        // --- SECONDARY SORT: DPD Ascending for Collections ---
+        if (a.status.includes('collection') && b.status.includes('collection')) {
             let dpdA = parseInt(a.contact.dpd || '0', 10);
             let dpdB = parseInt(b.contact.dpd || '0', 10);
             
             if (isNaN(dpdA) || dpdA <= 0) dpdA = 999999;
             if (isNaN(dpdB) || dpdB <= 0) dpdB = 999999;
 
-            return dpdA - dpdB; // Ascending (1, 2, 3 ... 999999)
+            return dpdA - dpdB; 
         }
         
         return 0;
