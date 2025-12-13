@@ -59,21 +59,10 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
           if (isInactive) return false;
 
-          // 3. Must be Menunggak (CTX Criteria)
-          const status = (c.status || '').toLowerCase();
+          // 3. Must be specifically CTX (Requested Update)
           const flagMenunggak = (c.flagMenunggak || '').toLowerCase();
-          const dpd = parseInt(c.dpd || '0', 10);
+          return flagMenunggak.includes('ctx');
           
-          const isTrouble = dpd > 0 || 
-                            status.includes('macet') || 
-                            status.includes('menunggak') || 
-                            flagMenunggak.includes('ctx') || 
-                            flagMenunggak.includes('xday') || 
-                            flagMenunggak.includes('sm') || 
-                            flagMenunggak.includes('npf') || 
-                            flagMenunggak.includes('macet');
-          
-          return isTrouble;
       }).sort((a, b) => parseInt(a.dpd || '0') - parseInt(b.dpd || '0')); // Sort by DPD desc
   }, [contacts, formData.coName]);
 
@@ -310,7 +299,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                             <div className="mb-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                                 <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
                                     <p className="text-[10px] font-bold text-slate-500 uppercase">Pilih Nasabah Target (Checklist)</p>
-                                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{relevantCtxContacts.length} Menunggak</span>
+                                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{relevantCtxContacts.length} Nasabah CTX</span>
                                 </div>
                                 <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
                                     {relevantCtxContacts.map(c => {
