@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { DailyPlan } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { DailyPlan, Contact } from '../types';
 import { Button } from './Button';
-import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText, History, Sparkles } from 'lucide-react';
+import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText, History, Sparkles, CheckCircle2, Circle } from 'lucide-react';
 
 interface TodoInputModalProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface TodoInputModalProps {
   onSave: (plan: DailyPlan) => Promise<void>;
   availableCos: string[];
   dailyPlans: DailyPlan[]; // Added to access history
+  contacts: Contact[]; // Full contact list to filter from
 }
 
 export const TodoInputModal: React.FC<TodoInputModalProps> = ({ 
@@ -16,11 +17,13 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   onClose, 
   onSave,
   availableCos,
-  dailyPlans
+  dailyPlans,
+  contacts
 }) => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autofillSource, setAutofillSource] = useState<string | null>(null);
+  const [selectedCtxIds, setSelectedCtxIds] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState<Partial<DailyPlan>>({
       date: new Date().toLocaleDateString('id-ID'), 
@@ -31,6 +34,63 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
       colLantakurNoa: '', colLantakurOs: '',
       fppbNoa: '', biometrikNoa: ''
   });
+
+  // --- HELPERS ---
+  const parseMoney = (val?: string) => {
+      if (!val) return 0;
+      return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
+  };
+
+  const formatShortIDR = (num: number) => {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + ' Jt';
+      return (num / 1000).toFixed(0) + ' Rb';
+  };
+
+  // --- FILTER LOGIC FOR CTX/MENUNGGAK ---
+  const relevantCtxContacts = useMemo(() => {
+      if (!formData.coName) return [];
+      
+      return contacts.filter(c => {
+          // 1. Must match CO
+          if (c.co !== formData.coName) return false;
+          
+          // 2. Must be Active
+          const flag = (c.flag || '').toLowerCase();
+          const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
+          if (isInactive) return false;
+
+          // 3. Must be Menunggak (CTX Criteria)
+          const status = (c.status || '').toLowerCase();
+          const flagMenunggak = (c.flagMenunggak || '').toLowerCase();
+          const dpd = parseInt(c.dpd || '0', 10);
+          
+          const isTrouble = dpd > 0 || 
+                            status.includes('macet') || 
+                            status.includes('menunggak') || 
+                            flagMenunggak.includes('ctx') || 
+                            flagMenunggak.includes('xday') || 
+                            flagMenunggak.includes('sm') || 
+                            flagMenunggak.includes('npf') || 
+                            flagMenunggak.includes('macet');
+          
+          return isTrouble;
+      }).sort((a, b) => parseInt(a.dpd || '0') - parseInt(b.dpd || '0')); // Sort by DPD desc
+  }, [contacts, formData.coName]);
+
+  // --- RE-CALCULATE WHEN CHECKLIST CHANGES ---
+  useEffect(() => {
+      if (selectedCtxIds.size > 0) {
+          const selectedContacts = relevantCtxContacts.filter(c => selectedCtxIds.has(c.id));
+          const totalNoa = selectedContacts.length;
+          const totalOs = selectedContacts.reduce((sum, c) => sum + parseMoney(c.os), 0);
+          
+          setFormData(prev => ({
+              ...prev,
+              colCtxNoa: totalNoa.toString(),
+              colCtxOs: totalOs.toString()
+          }));
+      }
+  }, [selectedCtxIds, relevantCtxContacts]);
 
   if (!isOpen) return null;
 
@@ -47,6 +107,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   const handleCoChange = (coName: string) => {
       setFormData(prev => ({ ...prev, coName }));
       setAutofillSource(null);
+      setSelectedCtxIds(new Set()); // Reset checklist
 
       if (!coName) return;
 
@@ -64,6 +125,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
               swCurrentDisb: latest.swCurrentDisb,
               swNextNoa: latest.swNextNoa,
               swNextDisb: latest.swNextDisb,
+              // Only autofill Collection if NOT calculated dynamically
               colCtxNoa: latest.colCtxNoa,
               colCtxOs: latest.colCtxOs,
               colLantakurNoa: latest.colLantakurNoa,
@@ -73,6 +135,16 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           }));
           setAutofillSource(latest.date);
       }
+  };
+
+  const toggleCtxContact = (id: string) => {
+      const newSet = new Set(selectedCtxIds);
+      if (newSet.has(id)) {
+          newSet.delete(id);
+      } else {
+          newSet.add(id);
+      }
+      setSelectedCtxIds(newSet);
   };
 
   const handleSubmit = async () => {
@@ -106,6 +178,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
           setStep(1);
           setFormData({ ...formData, coName: '' }); 
           setAutofillSource(null);
+          setSelectedCtxIds(new Set());
       } catch (e) {
           alert("Gagal menyimpan rencana.");
       } finally {
@@ -232,10 +305,50 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                             <h3 className="font-bold text-slate-700">Target Collection</h3>
                         </div>
                         
-                        {/* CTX */}
+                        {/* === CHECKLIST SECTION FOR CTX === */}
+                        {relevantCtxContacts.length > 0 && (
+                            <div className="mb-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Pilih Nasabah Target (Checklist)</p>
+                                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{relevantCtxContacts.length} Menunggak</span>
+                                </div>
+                                <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                                    {relevantCtxContacts.map(c => {
+                                        const isSelected = selectedCtxIds.has(c.id);
+                                        return (
+                                            <div 
+                                                key={c.id} 
+                                                onClick={() => toggleCtxContact(c.id)}
+                                                className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {isSelected ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                                                    ) : (
+                                                        <Circle className="w-5 h-5 text-slate-300 shrink-0" />
+                                                    )}
+                                                    <div>
+                                                        <p className={`text-xs font-bold ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>{c.name}</p>
+                                                        <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                                                            {c.sentra} • <span className="text-red-500 font-bold">DPD: {c.dpd}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs font-bold text-slate-700">{formatShortIDR(parseMoney(c.os))}</p>
+                                                    <p className="text-[9px] text-slate-400">OS</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* CTX Summary Inputs */}
                         <div className="grid grid-cols-2 gap-3 mb-3">
                             <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (NOA)</p>
+                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (NOA) {selectedCtxIds.size > 0 && '(Auto)'}</p>
                                 <input 
                                     type="tel"
                                     className="w-full bg-transparent font-bold text-red-800 outline-none text-lg"
@@ -245,7 +358,7 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                                 />
                             </div>
                             <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (OS)</p>
+                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (OS) {selectedCtxIds.size > 0 && '(Auto)'}</p>
                                 <input 
                                     type="tel"
                                     className="w-full bg-transparent font-bold text-red-800 outline-none text-lg"

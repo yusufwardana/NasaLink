@@ -845,6 +845,7 @@ const App: React.FC = () => {
         onSave={handleSavePlan}
         availableCos={uniqueCos}
         dailyPlans={dailyPlans}
+        contacts={contacts} // PASS CONTACTS HERE
       />
 
       {renderBottomNav()}
