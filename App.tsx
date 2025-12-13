@@ -17,7 +17,7 @@ import { fetchContactsFromSheet, fetchPlansFromSheet, submitPlanToSheet } from '
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
 import { getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3 } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -580,6 +580,16 @@ const App: React.FC = () => {
                      <h3 className="font-bold text-slate-700 text-sm">Jadwal Harian</h3>
                      <p className="text-[10px] text-slate-400 mt-1">Cek Reminder</p>
                  </button>
+                 {/* NEW CARD: MONITORING REALISASI */}
+                 <button onClick={() => setActiveView('plans')} className="col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left group flex items-center justify-between">
+                     <div>
+                        <h3 className="font-bold text-slate-700 text-sm">Monitoring Realisasi</h3>
+                        <p className="text-[10px] text-slate-400 mt-1">Cek Plan vs Aktual Hari Ini</p>
+                     </div>
+                     <div className="bg-emerald-50 w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                         <BarChart3 className="w-5 h-5 text-emerald-600" />
+                     </div>
+                 </button>
             </div>
 
             {todaysPlan && (
@@ -604,7 +614,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="mt-3 text-center">
                          <button onClick={() => setActiveView('plans')} className="text-xs text-blue-600 font-bold hover:underline">
-                             Update Realisasi / Lihat Riwayat
+                             Lihat Detail Realisasi
                          </button>
                     </div>
                 </div>
