@@ -59,3 +59,28 @@ export interface SheetConfig {
   showHeroSection?: boolean; // Toggle Welcome Banner
   showStatsCards?: boolean; // Toggle Top Stats
 }
+
+// --- NEW INTERFACE FOR DAILY PLAN ---
+export interface DailyPlan {
+  id: string;
+  date: string;       // Format DD/MM/YYYY
+  coName: string;
+  
+  // 1. Survey Wawancara (SW)
+  swCurrentNoa: string;
+  swCurrentDisb: string;
+  swNextNoa: string;
+  swNextDisb: string;
+
+  // 2. Collection
+  colCtxNoa: string;
+  colCtxOs: string;
+  colLantakurNoa: string; // Lancar Tabungan Kurang
+  colLantakurOs: string;
+
+  // 3. Other
+  fppbNoa: string;
+  biometrikNoa: string;
+  
+  notes?: string;
+}

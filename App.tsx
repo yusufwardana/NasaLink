@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
-import { Contact, MessageTemplate, SheetConfig } from './types';
+import { Contact, MessageTemplate, SheetConfig, DailyPlan } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { EditContactModal } from './components/EditContactModal';
@@ -10,12 +10,13 @@ import { NotificationPanel, NotificationItem } from './components/NotificationPa
 import { BroadcastPanel } from './components/BroadcastPanel';
 import { DashboardPanel } from './components/DashboardPanel';
 import { ContactManagementPanel } from './components/ContactManagementPanel';
+import { TodoInputModal } from './components/TodoInputModal'; // New Import
 import { Button } from './components/Button';
-import { fetchContactsFromSheet } from './services/sheetService';
+import { fetchContactsFromSheet, fetchPlansFromSheet, submitPlanToSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
 import { getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -101,6 +102,7 @@ type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard'
 const App: React.FC = () => {
   // ... (State logic same as before) ...
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]); // New State for Plans
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [configError, setConfigError] = useState<boolean>(false);
@@ -123,6 +125,7 @@ const App: React.FC = () => {
   
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
+  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false); // New Modal State
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   // Removed showLoginModal state
@@ -179,11 +182,20 @@ const App: React.FC = () => {
         setActiveConfig(finalConfig);
 
         if (finalConfig.spreadsheetId) {
+            // Fetch Contacts
             try {
                 const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
                 setContacts(liveContacts);
             } catch (err) {
                 console.error("Error fetching live contacts from Sheet:", err);
+            }
+            
+            // Fetch Plans (NEW)
+            try {
+                const livePlans = await fetchPlansFromSheet(finalConfig.spreadsheetId, 'Plan');
+                setDailyPlans(livePlans);
+            } catch (err) {
+                console.error("Error fetching daily plans:", err);
             }
 
             try {
@@ -433,6 +445,14 @@ const App: React.FC = () => {
         return !flag.includes('do') && !flag.includes('drop') && !flag.includes('lunas') && !flag.includes('tutup') && !flag.includes('inactive');
       }).length;
   }, [contacts]);
+  
+  // --- DAILY PLAN LOGIC ---
+  const todaysPlan = useMemo(() => {
+      // Get most recent plan or plan for today
+      // For now, let's just show the last entry as "Latest Plan"
+      if (dailyPlans.length === 0) return null;
+      return dailyPlans[dailyPlans.length - 1];
+  }, [dailyPlans]);
 
   const handleSyncSheet = async () => {
     setIsSyncing(true);
@@ -452,6 +472,17 @@ const App: React.FC = () => {
 
   const handleDeleteContact = (id: string) => {
     setContacts(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleSavePlan = async (plan: DailyPlan) => {
+     if (activeConfig?.googleScriptUrl) {
+         // UI Optimistic Update
+         setDailyPlans(prev => [...prev, plan]);
+         // Background Save
+         await submitPlanToSheet(activeConfig.googleScriptUrl, plan);
+     } else {
+         alert("Script URL belum disetting di Admin panel. Data tidak akan tersimpan ke Sheet.");
+     }
   };
 
   const handleAdminAuth = () => {
@@ -731,7 +762,60 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-          {/* 2. Priority Agenda (Horizontal Scroll) */}
+            {/* 2. DAILY PLAN / TODOLIST CARD (NEW) */}
+            <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-sm shadow-blue-100/50">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            <ClipboardList className="w-5 h-5 text-blue-500" />
+                            Rencana Harian CO
+                        </h3>
+                        <p className="text-xs text-slate-500">Target SW, Collection & Admin.</p>
+                    </div>
+                    <button 
+                        onClick={() => setIsTodoModalOpen(true)}
+                        className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100 shadow-sm flex items-center gap-1.5"
+                    >
+                        <PenTool className="w-3.5 h-3.5" />
+                        <span className="text-xs font-bold">Input Plan</span>
+                    </button>
+                </div>
+
+                {todaysPlan ? (
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                            <span className="text-xs font-bold text-slate-400 uppercase">{todaysPlan.coName} • {todaysPlan.date}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Target SW (Noa)</p>
+                                <p className="text-sm font-black text-slate-700">{todaysPlan.swCurrentNoa} <span className="text-[9px] font-normal text-slate-400">Cur</span> / {todaysPlan.swNextNoa} <span className="text-[9px] font-normal text-slate-400">Nxt</span></p>
+                            </div>
+                             <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                                <p className="text-[9px] font-bold text-red-400 uppercase mb-1">Collect CTX</p>
+                                <p className="text-sm font-black text-red-700">{todaysPlan.colCtxNoa} <span className="text-[9px] font-normal text-red-400">NOA</span></p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                             <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded border border-yellow-100">Lantakur: {todaysPlan.colLantakurNoa}</span>
+                             <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">FPPB: {todaysPlan.fppbNoa}</span>
+                             <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">Bio: {todaysPlan.biometrikNoa}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/50">
+                        <p className="text-sm font-bold text-slate-400">Belum ada rencana hari ini</p>
+                        <button 
+                            onClick={() => setIsTodoModalOpen(true)} 
+                            className="text-xs text-blue-500 font-bold hover:underline mt-1"
+                        >
+                            + Buat Rencana Baru
+                        </button>
+                    </div>
+                )}
+            </div>
+
+          {/* 3. Priority Agenda (Horizontal Scroll) */}
           <div>
               <div className="flex justify-between items-end mb-3 px-1">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
@@ -785,7 +869,7 @@ const App: React.FC = () => {
               )}
           </div>
 
-          {/* 3. Quick Action Grid */}
+          {/* 4. Quick Action Grid */}
           <div>
                <h3 className="font-bold text-slate-700 mb-3 px-1 flex items-center gap-2">
                    <Sparkles className="w-5 h-5 text-amber-500" />
@@ -834,7 +918,7 @@ const App: React.FC = () => {
                </div>
           </div>
 
-          {/* 4. Sentra Overview List */}
+          {/* 5. Sentra Overview List */}
           <div>
                <h3 className="font-bold text-slate-700 mb-3 px-1 flex items-center gap-2">
                    <MapPin className="w-5 h-5 text-slate-500" />
@@ -895,6 +979,14 @@ const App: React.FC = () => {
         onSave={handleUpdateContact}
         onDelete={handleDeleteContact}
         sheetConfig={activeConfig}
+      />
+      
+      {/* Todo Input Modal */}
+      <TodoInputModal 
+        isOpen={isTodoModalOpen}
+        onClose={() => setIsTodoModalOpen(false)}
+        onSave={handleSavePlan}
+        availableCos={uniqueCos}
       />
 
       {renderBottomNav()}

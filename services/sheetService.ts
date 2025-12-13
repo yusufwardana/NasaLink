@@ -1,4 +1,4 @@
-import { Contact, MessageTemplate } from '../types';
+import { Contact, MessageTemplate, DailyPlan } from '../types';
 
 // Robust CSV Parser that handles quotes and commas inside quotes
 const parseCSV = (text: string): string[][] => {
@@ -212,15 +212,77 @@ export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: 
     }
 };
 
-export const saveTemplatesToSheet = async (scriptUrl: string, templates: MessageTemplate[]): Promise<void> => {
+// --- NEW FUNCTION: Fetch Daily Plans ---
+export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: string = 'Plan'): Promise<DailyPlan[]> => {
+    try {
+        // Try to fetch, if fails (sheet doesn't exist), return empty
+        const text = await fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => "");
+        if (!text) return [];
+
+        const rows = parseCSV(text);
+        if (rows.length < 2) return [];
+
+        const headers = rows[0].map(h => h.toLowerCase());
+        
+        // Map Columns
+        const idxDate = findColIndex(headers, ['tanggal', 'date']);
+        const idxCo = findColIndex(headers, ['co', 'petugas']);
+        
+        const idxSwCurNoa = findColIndex(headers, ['sw cur noa', 'sw bulan ini noa']);
+        const idxSwCurDisb = findColIndex(headers, ['sw cur disb', 'sw bulan ini disb']);
+        
+        const idxSwNextNoa = findColIndex(headers, ['sw next noa', 'sw bulan depan noa']);
+        const idxSwNextDisb = findColIndex(headers, ['sw next disb', 'sw bulan depan disb']);
+        
+        const idxCtxNoa = findColIndex(headers, ['ctx noa', 'col ctx noa']);
+        const idxCtxOs = findColIndex(headers, ['ctx os', 'col ctx os']);
+        
+        const idxLantakurNoa = findColIndex(headers, ['lantakur noa']);
+        const idxLantakurOs = findColIndex(headers, ['lantakur os']);
+        
+        const idxFppb = findColIndex(headers, ['fppb', 'fppb noa']);
+        const idxBiometrik = findColIndex(headers, ['biometrik', 'bio']);
+
+        return rows.slice(1).map((row, index): DailyPlan | null => {
+            const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
+            
+            // Must have date and CO
+            if (idxDate === -1 || idxCo === -1) return null;
+            if (!row[idxDate] || !row[idxCo]) return null;
+
+            return {
+                id: `plan-${index}-${Date.now()}`,
+                date: row[idxDate],
+                coName: row[idxCo],
+                swCurrentNoa: getVal(idxSwCurNoa),
+                swCurrentDisb: getVal(idxSwCurDisb),
+                swNextNoa: getVal(idxSwNextNoa),
+                swNextDisb: getVal(idxSwNextDisb),
+                colCtxNoa: getVal(idxCtxNoa),
+                colCtxOs: getVal(idxCtxOs),
+                colLantakurNoa: getVal(idxLantakurNoa),
+                colLantakurOs: getVal(idxLantakurOs),
+                fppbNoa: getVal(idxFppb),
+                biometrikNoa: getVal(idxBiometrik)
+            };
+        }).filter((p): p is DailyPlan => p !== null);
+
+    } catch (error) {
+        console.warn("Plan sheet fetch error (likely sheet doesn't exist yet):", error);
+        return [];
+    }
+};
+
+// --- NEW FUNCTION: Submit Daily Plan ---
+export const submitPlanToSheet = async (scriptUrl: string, plan: DailyPlan): Promise<void> => {
     if (!scriptUrl) throw new Error("URL Script tidak ditemukan");
 
     const payload = {
-        action: 'save_templates',
-        templates: templates
+        action: 'save_plan',
+        plan: plan
     };
 
-    // Use no-cors mode (Fire and forget, but wait a bit to ensure request is sent)
+    // Fire and forget (No Cors)
     try {
         await fetch(scriptUrl, {
             method: 'POST',
@@ -229,8 +291,29 @@ export const saveTemplatesToSheet = async (scriptUrl: string, templates: Message
             mode: 'no-cors'
         });
         
-        // Artificial delay to allow Google Apps Script to process and FLUSH the data to disk
-        // This is critical for the next fetch to see the new data
+        // Artificial delay to ensure Google Script writes data
+        await delay(2000); 
+    } catch (e) {
+        console.error("Save plan error", e);
+        throw e;
+    }
+};
+
+export const saveTemplatesToSheet = async (scriptUrl: string, templates: MessageTemplate[]): Promise<void> => {
+    if (!scriptUrl) throw new Error("URL Script tidak ditemukan");
+
+    const payload = {
+        action: 'save_templates',
+        templates: templates
+    };
+
+    try {
+        await fetch(scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'text/plain' },
+            mode: 'no-cors'
+        });
         await delay(3000); 
     } catch (e) {
         console.error("Save template error", e);
@@ -256,6 +339,5 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
     mode: 'no-cors'
   });
   
-  // Small delay for UI stability
   await delay(500);
 };
