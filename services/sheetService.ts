@@ -61,8 +61,6 @@ const findColIndex = (headers: string[], keywords: string[]): number => {
 const generateLookupKey = (date: string, co: string): string => {
     if (!date || !co) return '';
     // Normalize: remove extra spaces, lowercase.
-    // We treat dates as simple strings to avoid timezone parsing issues from CSV,
-    // assuming Plan and Actual use same locale format (e.g. DD/MM/YYYY).
     const d = date.trim().toLowerCase().replace(/\s+/g, '');
     const c = co.trim().toLowerCase().replace(/\s+/g, ' ');
     return `${d}_${c}`;
@@ -323,12 +321,16 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         const idxFppb = findColIndex(headers, ['fppb', 'fppb noa', 'input fppb']);
         const idxBiometrik = findColIndex(headers, ['biometrik', 'bio', 'biometrik noa']);
 
-        return planRows.slice(1).map((row, index): DailyPlan | null => {
+        // Use Map to Deduplicate (Key: Date + CO)
+        // This solves "Data kebanyakan" by removing duplicate rows from the sheet
+        const uniquePlansMap = new Map<string, DailyPlan>();
+
+        planRows.slice(1).forEach((row, index) => {
             const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
             
             // Must have date and CO
-            if (idxDate === -1 || idxCo === -1) return null;
-            if (!row[idxDate] || !row[idxCo]) return null;
+            if (idxDate === -1 || idxCo === -1) return;
+            if (!row[idxDate] || !row[idxCo]) return;
 
             const date = row[idxDate].trim();
             const co = row[idxCo].trim();
@@ -337,7 +339,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
             const lookupKey = generateLookupKey(date, co);
             const actualData = actualsMap.get(lookupKey) || {};
 
-            return {
+            const plan: DailyPlan = {
                 id: `plan-${index}-${Date.now()}`,
                 date: date,
                 coName: co,
@@ -357,8 +359,8 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 // Actuals (Merged from Aktual Sheet)
                 actualSwNoa: actualData.swNoa || '0',
                 actualSwDisb: actualData.swDisb || '0',
-                actualSwNextNoa: actualData.swNextNoa || '0', // NEW
-                actualSwNextDisb: actualData.swNextDisb || '0', // NEW
+                actualSwNextNoa: actualData.swNextNoa || '0',
+                actualSwNextDisb: actualData.swNextDisb || '0',
                 actualCtxNoa: actualData.ctxNoa || '0',
                 actualCtxOs: actualData.ctxOs || '0',
                 actualLantakurNoa: actualData.lantakurNoa || '0',
@@ -366,7 +368,12 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 actualFppbNoa: actualData.fppbNoa || '0',
                 actualBiometrikNoa: actualData.biometrikNoa || '0'
             };
-        }).filter((p): p is DailyPlan => p !== null);
+
+            // Add to Map (Overwrites previous entry if same date/co -> effectively getting the latest)
+            uniquePlansMap.set(lookupKey, plan);
+        });
+
+        return Array.from(uniquePlansMap.values());
 
     } catch (error) {
         console.warn("Plan sheet fetch error (likely sheet doesn't exist yet):", error);

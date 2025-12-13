@@ -44,40 +44,52 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
   availableCos
 }) => {
   const [filterCo, setFilterCo] = useState('All');
-  const [visibleCount, setVisibleCount] = useState(10); // PERFORMANCE: Limit initial render
+  const [visibleDaysCount, setVisibleDaysCount] = useState(5); // Show 5 days initially
 
   // Reset pagination when filter changes
   useEffect(() => {
-    setVisibleCount(10);
+    setVisibleDaysCount(5);
   }, [filterCo]);
 
-  // Sort by Date Descending
-  const sortedPlans = useMemo(() => {
+  // Group Plans by Date
+  const groupedPlans = useMemo(() => {
     let filtered = plans;
     if (filterCo !== 'All') {
         filtered = plans.filter(p => p.coName === filterCo);
     }
     
-    return [...filtered].sort((a, b) => {
-        // Parse DD/MM/YYYY
-        const parseDate = (dStr: string) => {
-            if (!dStr) return 0;
-            const parts = dStr.split('/');
-            if (parts.length !== 3) return 0;
-            const [d, m, y] = parts.map(Number);
-            return new Date(y, m - 1, d).getTime();
-        };
-        return parseDate(b.date) - parseDate(a.date);
+    const groups: Record<string, DailyPlan[]> = {};
+    filtered.forEach(p => {
+        // Assume p.date is DD/MM/YYYY
+        if (!groups[p.date]) groups[p.date] = [];
+        groups[p.date].push(p);
     });
+
+    // Helper to parse date for sorting
+    const parseDate = (dStr: string) => {
+        if (!dStr) return 0;
+        const parts = dStr.split('/');
+        if (parts.length !== 3) return 0;
+        const [d, m, y] = parts.map(Number);
+        return new Date(y, m - 1, d).getTime();
+    };
+
+    return Object.entries(groups)
+        .map(([date, items]) => ({
+            date,
+            items: items.sort((a, b) => a.coName.localeCompare(b.coName)), // Sort CO alphabetically inside day
+            timestamp: parseDate(date)
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp); // Sort days descending
   }, [plans, filterCo]);
 
-  // PERFORMANCE: Only render visible items
-  const displayedPlans = useMemo(() => {
-      return sortedPlans.slice(0, visibleCount);
-  }, [sortedPlans, visibleCount]);
+  // Pagination by DAY, not by item
+  const displayedGroups = useMemo(() => {
+      return groupedPlans.slice(0, visibleDaysCount);
+  }, [groupedPlans, visibleDaysCount]);
 
   const handleLoadMore = () => {
-      setVisibleCount(prev => prev + 10);
+      setVisibleDaysCount(prev => prev + 5);
   };
 
   return (
@@ -121,150 +133,141 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             
             <div className="mt-3 flex gap-2 items-start p-2 bg-blue-50 border border-blue-100 rounded-lg text-[10px] text-blue-700">
                 <Info className="w-4 h-4 shrink-0" />
-                Data aktual diambil otomatis dari sheet "Aktual". Jika data belum muncul, pastikan Admin sudah menginput data realisasi di Google Sheets.
+                Data dikelompokkan per Tanggal. Data ganda (duplikat) di Sheet sudah otomatis dihapus.
             </div>
         </div>
 
-        {/* List */}
-        <div className="space-y-4">
-            {displayedPlans.length === 0 ? (
+        {/* List (Grouped by Date) */}
+        <div className="space-y-8">
+            {displayedGroups.length === 0 ? (
                  <div className="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
                     Belum ada riwayat rencana.
                 </div>
             ) : (
-                displayedPlans.map(plan => {
-                    return (
-                        <div key={plan.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-                            
-                            {/* Card Header */}
-                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
-                                        <Calendar className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-800">{plan.date}</h3>
-                                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                                            <Briefcase className="w-3 h-3" /> {plan.coName}
-                                        </p>
-                                    </div>
-                                </div>
+                displayedGroups.map(group => (
+                    <div key={group.date} className="animate-fade-in-up">
+                        {/* Date Header */}
+                        <div className="flex items-center gap-3 mb-4 sticky top-[80px] z-30 bg-slate-50/90 backdrop-blur p-2 rounded-xl border border-slate-200 w-fit">
+                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold border border-orange-200">
+                                <Calendar className="w-4 h-4" />
                             </div>
-
-                            {/* Card Body */}
-                            <div className="p-5">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* Survey Section */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <TrendingUp className="w-4 h-4 text-emerald-500" />
-                                            <h4 className="font-bold text-slate-700 text-sm">Survey (SW)</h4>
-                                        </div>
-                                        
-                                        {/* SW Bulan Ini */}
-                                        <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
-                                            <p className="text-[10px] font-bold text-emerald-600 mb-2 uppercase flex items-center gap-1">
-                                                 <Calendar className="w-3 h-3"/> Bulan Ini
-                                            </p>
-                                            <div className="space-y-3">
-                                                <div>
-                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">NOA</p>
-                                                     <ProgressBar target={plan.swCurrentNoa} actual={plan.actualSwNoa} colorClass="bg-emerald-500" />
-                                                </div>
-                                                <div>
-                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Pencairan</p>
-                                                     <div className="flex justify-between text-xs">
-                                                        <span className="text-slate-500">T: {plan.swCurrentDisb}</span>
-                                                        <span className="font-bold text-slate-700">R: {plan.actualSwDisb || '-'}</span>
-                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* SW Bulan Depan */}
-                                        <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-                                            <p className="text-[10px] font-bold text-blue-600 mb-2 uppercase flex items-center gap-1">
-                                                 <Calendar className="w-3 h-3"/> Bulan Depan
-                                            </p>
-                                            <div className="space-y-3">
-                                                 <div>
-                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">NOA</p>
-                                                     <ProgressBar target={plan.swNextNoa} actual={plan.actualSwNextNoa} colorClass="bg-blue-500" />
-                                                </div>
-                                                 <div>
-                                                     <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Pencairan</p>
-                                                     <div className="flex justify-between text-xs">
-                                                        <span className="text-slate-500">T: {plan.swNextDisb}</span>
-                                                        <span className="font-bold text-slate-700">R: {plan.actualSwNextDisb || '-'}</span>
-                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Collection & Admin Section */}
-                                    <div className="flex flex-col gap-4">
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <AlertTriangle className="w-4 h-4 text-red-500" />
-                                                <h4 className="font-bold text-slate-700 text-sm">Collection (Menunggak)</h4>
-                                            </div>
-
-                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">CTX (Nasabah Bayar)</p>
-                                                <ProgressBar 
-                                                    target={plan.colCtxNoa} 
-                                                    actual={plan.actualCtxNoa} 
-                                                    colorClass="bg-red-500" 
-                                                />
-                                            </div>
-
-                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Lantakur (Menabung)</p>
-                                                <ProgressBar 
-                                                    target={plan.colLantakurNoa} 
-                                                    actual={plan.actualLantakurNoa} 
-                                                    colorClass="bg-amber-500" 
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Administrasi Section */}
-                                        <div className="space-y-3 border-t border-slate-100 pt-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <FileText className="w-4 h-4 text-purple-500" />
-                                                <h4 className="font-bold text-slate-700 text-sm">Administrasi</h4>
-                                            </div>
-                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Input FPPB</p>
-                                                <ProgressBar 
-                                                    target={plan.fppbNoa} 
-                                                    actual={plan.actualFppbNoa} 
-                                                    colorClass="bg-purple-500" 
-                                                />
-                                            </div>
-                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Biometrik</p>
-                                                <ProgressBar 
-                                                    target={plan.biometrikNoa} 
-                                                    actual={plan.actualBiometrikNoa} 
-                                                    colorClass="bg-indigo-500" 
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
+                            <h3 className="font-bold text-slate-700 text-sm">{group.date}</h3>
+                            <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-slate-200 font-bold text-slate-400">
+                                {group.items.length} CO
+                            </span>
                         </div>
-                    );
-                })
+
+                        {/* Cards Grid for this Date */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {group.items.map(plan => (
+                                <div key={plan.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
+                                    
+                                    {/* Card Header (CO Name) */}
+                                    <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200 text-xs">
+                                                {plan.coName.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 text-sm">{plan.coName}</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Body */}
+                                    <div className="p-4">
+                                        {/* Survey Section */}
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                                                <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Survey (SW)</h4>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {/* SW Bulan Ini */}
+                                                <div className="bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                                                    <p className="text-[9px] font-bold text-emerald-600 mb-2 uppercase">Bulan Ini</p>
+                                                    <div className="space-y-2">
+                                                        <ProgressBar target={plan.swCurrentNoa} actual={plan.actualSwNoa} colorClass="bg-emerald-500" />
+                                                        <div className="flex justify-between text-[10px] pt-1 border-t border-emerald-200/50">
+                                                            <span className="text-slate-500">Disb T: {plan.swCurrentDisb}</span>
+                                                            <span className="font-bold text-slate-700">R: {plan.actualSwDisb || '-'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* SW Bulan Depan */}
+                                                <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+                                                    <p className="text-[9px] font-bold text-blue-600 mb-2 uppercase">Bulan Depan</p>
+                                                    <div className="space-y-2">
+                                                        <ProgressBar target={plan.swNextNoa} actual={plan.actualSwNextNoa} colorClass="bg-blue-500" />
+                                                        <div className="flex justify-between text-[10px] pt-1 border-t border-blue-200/50">
+                                                            <span className="text-slate-500">Disb T: {plan.swNextDisb}</span>
+                                                            <span className="font-bold text-slate-700">R: {plan.actualSwNextDisb || '-'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Collection & Admin Section */}
+                                        <div className="flex flex-col gap-3">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                                                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Collection</h4>
+                                                </div>
+
+                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                    <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">CTX (Bayar)</p>
+                                                    <ProgressBar 
+                                                        target={plan.colCtxNoa} 
+                                                        actual={plan.actualCtxNoa} 
+                                                        colorClass="bg-red-500" 
+                                                    />
+                                                </div>
+
+                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                    <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Lantakur (Nabung)</p>
+                                                    <ProgressBar 
+                                                        target={plan.colLantakurNoa} 
+                                                        actual={plan.actualLantakurNoa} 
+                                                        colorClass="bg-amber-500" 
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Administrasi Section */}
+                                            <div className="space-y-2 border-t border-slate-100 pt-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <FileText className="w-3.5 h-3.5 text-purple-500" />
+                                                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Admin</h4>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                        <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">FPPB</p>
+                                                        <ProgressBar target={plan.fppbNoa} actual={plan.actualFppbNoa} colorClass="bg-purple-500" />
+                                                    </div>
+                                                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                        <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Biometrik</p>
+                                                        <ProgressBar target={plan.biometrikNoa} actual={plan.actualBiometrikNoa} colorClass="bg-indigo-500" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))
             )}
 
-            {visibleCount < sortedPlans.length && (
+            {visibleDaysCount < groupedPlans.length && (
                 <div className="pt-4 flex justify-center">
                     <Button variant="secondary" onClick={handleLoadMore} icon={<ChevronDown className="w-4 h-4"/>}>
-                        Tampilkan Lebih Banyak ({sortedPlans.length - visibleCount})
+                        Tampilkan Lebih Banyak ({groupedPlans.length - visibleDaysCount} Hari)
                     </Button>
                 </div>
             )}
