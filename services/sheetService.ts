@@ -238,13 +238,17 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 const aIdxDate = findColIndex(actHeaders, ['tanggal', 'date']);
                 const aIdxCo = findColIndex(actHeaders, ['co', 'petugas']);
                 
-                // Map Actual Columns
-                const aIdxSwNoa = findColIndex(actHeaders, ['sw noa', 'sw (noa)']);
-                const aIdxSwDisb = findColIndex(actHeaders, ['sw disb', 'sw (disb)']);
-                const aIdxCtxNoa = findColIndex(actHeaders, ['ctx noa', 'ctx (noa)']);
-                const aIdxCtxOs = findColIndex(actHeaders, ['ctx os', 'ctx (os)']);
+                // Map Actual Columns - SUPPORT IDENTICAL NAMES AS PLAN
+                const aIdxSwNoa = findColIndex(actHeaders, ['sw noa', 'sw (noa)', 'sw cur noa', 'sw bulan ini noa']);
+                const aIdxSwDisb = findColIndex(actHeaders, ['sw disb', 'sw (disb)', 'sw cur disb', 'sw bulan ini disb']);
+                const aIdxCtxNoa = findColIndex(actHeaders, ['ctx noa', 'ctx (noa)', 'col ctx noa']);
+                const aIdxCtxOs = findColIndex(actHeaders, ['ctx os', 'ctx (os)', 'col ctx os']);
                 const aIdxLantakurNoa = findColIndex(actHeaders, ['lantakur noa', 'lantakur (noa)']);
                 const aIdxLantakurOs = findColIndex(actHeaders, ['lantakur os', 'lantakur (os)']);
+                
+                // NEW: FPPB & BIOMETRIK ACTUALS (Identical to Plan names support)
+                const aIdxFppb = findColIndex(actHeaders, ['fppb', 'fppb noa']);
+                const aIdxBiometrik = findColIndex(actHeaders, ['biometrik', 'bio', 'biometrik noa']);
 
                 actRows.slice(1).forEach(row => {
                      const date = row[aIdxDate];
@@ -257,7 +261,9 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                              ctxNoa: row[aIdxCtxNoa] || '0',
                              ctxOs: row[aIdxCtxOs] || '0',
                              lantakurNoa: row[aIdxLantakurNoa] || '0',
-                             lantakurOs: row[aIdxLantakurOs] || '0'
+                             lantakurOs: row[aIdxLantakurOs] || '0',
+                             fppbNoa: row[aIdxFppb] || '0',
+                             biometrikNoa: row[aIdxBiometrik] || '0'
                          });
                      }
                 });
@@ -271,8 +277,8 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         const idxDate = findColIndex(headers, ['tanggal', 'date']);
         const idxCo = findColIndex(headers, ['co', 'petugas']);
         
-        const idxSwCurNoa = findColIndex(headers, ['sw cur noa', 'sw bulan ini noa']);
-        const idxSwCurDisb = findColIndex(headers, ['sw cur disb', 'sw bulan ini disb']);
+        const idxSwCurNoa = findColIndex(headers, ['sw cur noa', 'sw bulan ini noa', 'sw noa']);
+        const idxSwCurDisb = findColIndex(headers, ['sw cur disb', 'sw bulan ini disb', 'sw disb']);
         
         const idxSwNextNoa = findColIndex(headers, ['sw next noa', 'sw bulan depan noa']);
         const idxSwNextDisb = findColIndex(headers, ['sw next disb', 'sw bulan depan disb']);
@@ -321,7 +327,9 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 actualCtxNoa: actualData.ctxNoa || '0',
                 actualCtxOs: actualData.ctxOs || '0',
                 actualLantakurNoa: actualData.lantakurNoa || '0',
-                actualLantakurOs: actualData.lantakurOs || '0'
+                actualLantakurOs: actualData.lantakurOs || '0',
+                actualFppbNoa: actualData.fppbNoa || '0',
+                actualBiometrikNoa: actualData.biometrikNoa || '0'
             };
         }).filter((p): p is DailyPlan => p !== null);
 

@@ -93,4 +93,8 @@ export interface DailyPlan {
   actualCtxOs?: string;
   actualLantakurNoa?: string;
   actualLantakurOs?: string;
+  
+  // Added based on request
+  actualFppbNoa?: string;
+  actualBiometrikNoa?: string;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, Briefcase, Filter, ChevronDown, TrendingUp, AlertTriangle, BarChart3, Info } from 'lucide-react';
+import { ArrowLeft, Calendar, Briefcase, Filter, ChevronDown, TrendingUp, AlertTriangle, BarChart3, Info, FileText } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -168,13 +168,39 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                             />
                                         </div>
 
-                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                             <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Lantakur (Menabung)</p>
                                             <ProgressBar 
                                                 target={plan.colLantakurNoa} 
                                                 actual={plan.actualLantakurNoa} 
                                                 colorClass="bg-amber-500" 
                                             />
+                                        </div>
+                                    </div>
+
+                                    {/* Administrasi Section (NEW) */}
+                                    <div className="space-y-3 md:col-span-2 border-t border-slate-100 pt-3 mt-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <FileText className="w-4 h-4 text-purple-500" />
+                                            <h4 className="font-bold text-slate-700 text-sm">Administrasi</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Input FPPB</p>
+                                                <ProgressBar 
+                                                    target={plan.fppbNoa} 
+                                                    actual={plan.actualFppbNoa} 
+                                                    colorClass="bg-purple-500" 
+                                                />
+                                            </div>
+                                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Biometrik</p>
+                                                <ProgressBar 
+                                                    target={plan.biometrikNoa} 
+                                                    actual={plan.actualBiometrikNoa} 
+                                                    colorClass="bg-indigo-500" 
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
