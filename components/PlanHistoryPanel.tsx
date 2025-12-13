@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DailyPlan } from '../types';
 import { ArrowLeft, Calendar, Briefcase, Filter, ChevronDown, TrendingUp, AlertTriangle, BarChart3, Info, FileText } from 'lucide-react';
+import { Button } from './Button';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -8,12 +9,47 @@ interface PlanHistoryPanelProps {
   availableCos: string[];
 }
 
+// Optimized Helper: Defined outside to prevent re-creation on every render
+const ProgressBar = React.memo(({ target, actual, colorClass }: { target: string, actual?: string, colorClass: string }) => {
+    // Robust parsing
+    const parse = (val?: string) => {
+        if (!val) return 0;
+        const clean = val.replace(/[^0-9]/g, '');
+        return clean ? parseInt(clean, 10) : 0;
+    };
+    
+    const t = parse(target);
+    const a = parse(actual);
+    
+    if (t === 0) return <span className="text-xs text-slate-400">-</span>;
+    
+    const percent = Math.min((a / t) * 100, 100);
+    
+    return (
+        <div className="w-full">
+            <div className="flex justify-between text-[10px] mb-1 font-bold">
+                <span className="text-slate-500">Target: {t}</span>
+                <span className={a >= t ? 'text-green-600' : 'text-slate-700'}>Aktual: {a} ({Math.round((a/t)*100)}%)</span>
+            </div>
+            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: `${percent}%` }}></div>
+            </div>
+        </div>
+    );
+});
+
 export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({ 
   plans, 
   onBack, 
   availableCos
 }) => {
   const [filterCo, setFilterCo] = useState('All');
+  const [visibleCount, setVisibleCount] = useState(10); // PERFORMANCE: Limit initial render
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [filterCo]);
 
   // Sort by Date Descending
   const sortedPlans = useMemo(() => {
@@ -25,36 +61,23 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
     return [...filtered].sort((a, b) => {
         // Parse DD/MM/YYYY
         const parseDate = (dStr: string) => {
-            const [d, m, y] = dStr.split('/').map(Number);
+            if (!dStr) return 0;
+            const parts = dStr.split('/');
+            if (parts.length !== 3) return 0;
+            const [d, m, y] = parts.map(Number);
             return new Date(y, m - 1, d).getTime();
         };
         return parseDate(b.date) - parseDate(a.date);
     });
   }, [plans, filterCo]);
 
-  // Helper for Percentage Bar (Robust parsing)
-  const ProgressBar = ({ target, actual, colorClass }: { target: string, actual?: string, colorClass: string }) => {
-      // Remove non-numeric chars except . or , if needed, but for now strict numeric
-      const parse = (val?: string) => parseInt(val?.replace(/[^0-9]/g, '') || '0', 10);
-      
-      const t = parse(target);
-      const a = parse(actual);
-      
-      if (t === 0) return <span className="text-xs text-slate-400">-</span>;
-      
-      const percent = Math.min((a / t) * 100, 100);
-      
-      return (
-          <div className="w-full">
-              <div className="flex justify-between text-[10px] mb-1 font-bold">
-                  <span className="text-slate-500">Target: {t}</span>
-                  <span className={a >= t ? 'text-green-600' : 'text-slate-700'}>Aktual: {a} ({Math.round((a/t)*100)}%)</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: `${percent}%` }}></div>
-              </div>
-          </div>
-      );
+  // PERFORMANCE: Only render visible items
+  const displayedPlans = useMemo(() => {
+      return sortedPlans.slice(0, visibleCount);
+  }, [sortedPlans, visibleCount]);
+
+  const handleLoadMore = () => {
+      setVisibleCount(prev => prev + 10);
   };
 
   return (
@@ -104,12 +127,12 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
 
         {/* List */}
         <div className="space-y-4">
-            {sortedPlans.length === 0 ? (
+            {displayedPlans.length === 0 ? (
                  <div className="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
                     Belum ada riwayat rencana.
                 </div>
             ) : (
-                sortedPlans.map(plan => {
+                displayedPlans.map(plan => {
                     return (
                         <div key={plan.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
                             
@@ -236,6 +259,14 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                         </div>
                     );
                 })
+            )}
+
+            {visibleCount < sortedPlans.length && (
+                <div className="pt-4 flex justify-center">
+                    <Button variant="secondary" onClick={handleLoadMore} icon={<ChevronDown className="w-4 h-4"/>}>
+                        Tampilkan Lebih Banyak ({sortedPlans.length - visibleCount})
+                    </Button>
+                </div>
             )}
         </div>
     </div>
