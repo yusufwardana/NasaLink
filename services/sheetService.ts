@@ -30,7 +30,8 @@ const parseCSV = (text: string): string[][] => {
     } else if (char === '\n' && !insideQuote) {
       // End of row
       row.push(currentVal.trim());
-      if (row.length > 0 && row.some(c => c !== '')) {
+      // Only push non-empty rows (check if at least one cell has content)
+      if (row.length > 0 && row.some(c => c.trim() !== '')) {
          result.push(row);
       }
       row = [];
@@ -43,7 +44,7 @@ const parseCSV = (text: string): string[][] => {
   // Push last value/row if exists
   if (currentVal || row.length > 0) {
       row.push(currentVal.trim());
-      if (row.length > 0) result.push(row);
+      if (row.length > 0 && row.some(c => c.trim() !== '')) result.push(row);
   }
 
   return result;
@@ -64,6 +65,15 @@ const generateLookupKey = (date: string, co: string): string => {
     const d = date.trim().toLowerCase().replace(/\s+/g, '');
     const c = co.trim().toLowerCase().replace(/\s+/g, ' ');
     return `${d}_${c}`;
+};
+
+// Helper to check if a value string represents a non-zero number
+const isNonZero = (val?: string): boolean => {
+    if (!val) return false;
+    // Remove non-numeric (keep digits)
+    const clean = val.replace(/[^0-9]/g, '');
+    const num = parseInt(clean || '0', 10);
+    return num > 0;
 };
 
 // Helper to fetch CSV with retry mechanism
@@ -369,8 +379,25 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 actualBiometrikNoa: actualData.biometrikNoa || '0'
             };
 
-            // Add to Map (Overwrites previous entry if same date/co -> effectively getting the latest)
-            uniquePlansMap.set(lookupKey, plan);
+            // INTELLIGENT FILTERING:
+            // Only add if there is meaningful data (either a target > 0 OR an actual > 0)
+            // This prevents "Ghost Rows" (thousands of empty spreadsheet rows) from cluttering the UI.
+            const hasTargets = 
+                isNonZero(plan.swCurrentNoa) || isNonZero(plan.swCurrentDisb) ||
+                isNonZero(plan.swNextNoa) || isNonZero(plan.swNextDisb) ||
+                isNonZero(plan.colCtxNoa) || isNonZero(plan.colLantakurNoa) ||
+                isNonZero(plan.fppbNoa) || isNonZero(plan.biometrikNoa);
+
+            const hasActuals = 
+                isNonZero(plan.actualSwNoa) || isNonZero(plan.actualSwDisb) ||
+                isNonZero(plan.actualSwNextNoa) || isNonZero(plan.actualSwNextDisb) ||
+                isNonZero(plan.actualCtxNoa) || isNonZero(plan.actualLantakurNoa) ||
+                isNonZero(plan.actualFppbNoa) || isNonZero(plan.actualBiometrikNoa);
+
+            if (hasTargets || hasActuals) {
+                 // Add to Map (Overwrites previous entry if same date/co -> effectively getting the latest)
+                 uniquePlansMap.set(lookupKey, plan);
+            }
         });
 
         return Array.from(uniquePlansMap.values());
