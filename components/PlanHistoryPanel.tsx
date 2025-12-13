@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, Briefcase, Filter, ChevronDown, TrendingUp, AlertTriangle, BarChart3, Info, FileText } from 'lucide-react';
-import { Button } from './Button';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -9,266 +8,248 @@ interface PlanHistoryPanelProps {
   availableCos: string[];
 }
 
-// Optimized Helper: Defined outside to prevent re-creation on every render
-const ProgressBar = React.memo(({ target, actual, colorClass }: { target: string, actual?: string, colorClass: string }) => {
-    // Robust parsing
-    const parse = (val?: string) => {
-        if (!val) return 0;
-        const clean = val.replace(/[^0-9]/g, '');
-        return clean ? parseInt(clean, 10) : 0;
-    };
-    
-    const t = parse(target);
-    const a = parse(actual);
-    
-    if (t === 0) return <span className="text-xs text-slate-400">-</span>;
-    
-    const percent = Math.min((a / t) * 100, 100);
-    
-    return (
-        <div className="w-full">
-            <div className="flex justify-between text-[10px] mb-1 font-bold">
-                <span className="text-slate-500">Target: {t}</span>
-                <span className={a >= t ? 'text-green-600' : 'text-slate-700'}>Aktual: {a} ({Math.round((a/t)*100)}%)</span>
-            </div>
-            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: `${percent}%` }}></div>
-            </div>
-        </div>
-    );
-});
-
 export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({ 
   plans, 
   onBack, 
   availableCos
 }) => {
-  const [filterCo, setFilterCo] = useState('All');
-  const [visibleDaysCount, setVisibleDaysCount] = useState(5); // Show 5 days initially
+  // Helper to get date string in DD/MM/YYYY
+  const getDateString = (date: Date) => {
+      const d = String(date.getDate()).padStart(2, '0');
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const y = date.getFullYear();
+      return `${d}/${m}/${y}`;
+  };
 
-  // Reset pagination when filter changes
-  useEffect(() => {
-    setVisibleDaysCount(5);
-  }, [filterCo]);
+  const todayStr = useMemo(() => getDateString(new Date()), []);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Group Plans by Date
-  const groupedPlans = useMemo(() => {
-    let filtered = plans;
-    if (filterCo !== 'All') {
-        filtered = plans.filter(p => p.coName === filterCo);
-    }
-    
-    const groups: Record<string, DailyPlan[]> = {};
-    filtered.forEach(p => {
-        // Assume p.date is DD/MM/YYYY
-        if (!groups[p.date]) groups[p.date] = [];
-        groups[p.date].push(p);
-    });
+  // Helper to parse numbers safely
+  const parseNum = (val?: string) => {
+      if (!val) return 0;
+      return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
+  };
 
-    // Helper to parse date for sorting
-    const parseDate = (dStr: string) => {
-        if (!dStr) return 0;
-        const parts = dStr.split('/');
-        if (parts.length !== 3) return 0;
-        const [d, m, y] = parts.map(Number);
-        return new Date(y, m - 1, d).getTime();
-    };
+  const filteredPlans = useMemo(() => {
+    return plans.filter(p => {
+        // Normalize date comparison (handle D/M/YYYY vs DD/MM/YYYY)
+        const pDate = p.date.split('/').map(s => s.padStart(2, '0')).join('/');
+        const sDate = selectedDate.split('/').map(s => s.padStart(2, '0')).join('/');
+        
+        const matchDate = pDate === sDate;
+        const matchSearch = searchTerm === '' || p.coName.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return matchDate && matchSearch;
+    }).sort((a, b) => a.coName.localeCompare(b.coName));
+  }, [plans, selectedDate, searchTerm]);
 
-    return Object.entries(groups)
-        .map(([date, items]) => ({
-            date,
-            items: items.sort((a, b) => a.coName.localeCompare(b.coName)), // Sort CO alphabetically inside day
-            timestamp: parseDate(date)
-        }))
-        .sort((a, b) => b.timestamp - a.timestamp); // Sort days descending
-  }, [plans, filterCo]);
+  // Totals Calculation for Footer
+  const totals = useMemo(() => {
+      const t = {
+          swCurT: 0, swCurR: 0,
+          swNextT: 0, swNextR: 0,
+          ctxT: 0, ctxR: 0,
+          parT: 0, parR: 0,
+          fppbT: 0, fppbR: 0
+      };
+      filteredPlans.forEach(p => {
+          t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
+          t.swNextT += parseNum(p.swNextNoa); t.swNextR += parseNum(p.actualSwNextNoa);
+          t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
+          t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
+          t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
+      });
+      return t;
+  }, [filteredPlans]);
 
-  // Pagination by DAY, not by item
-  const displayedGroups = useMemo(() => {
-      return groupedPlans.slice(0, visibleDaysCount);
-  }, [groupedPlans, visibleDaysCount]);
+  // Date Navigation
+  const changeDate = (days: number) => {
+      const parts = selectedDate.split('/');
+      if (parts.length === 3) {
+          const current = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          current.setDate(current.getDate() + days);
+          setSelectedDate(getDateString(current));
+      }
+  };
 
-  const handleLoadMore = () => {
-      setVisibleDaysCount(prev => prev + 5);
+  // Render Cell Helper
+  const MetricCell = ({ target, actual, label, hideLabel = true }: { target: string, actual?: string, label: string, hideLabel?: boolean }) => {
+      const t = parseNum(target);
+      const a = parseNum(actual);
+      const isAchieved = t > 0 && a >= t;
+      const isZero = t === 0 && a === 0;
+
+      if (isZero) return <div className="text-center text-slate-300">-</div>;
+
+      return (
+          <div className="flex flex-col items-center justify-center h-full w-full p-1">
+              {!hideLabel && <span className="text-[9px] text-slate-400 mb-0.5 uppercase">{label}</span>}
+              <div className="flex items-baseline gap-1">
+                  <span className={`font-bold text-xs ${isAchieved ? 'text-emerald-600' : 'text-slate-700'}`}>
+                      {a}
+                  </span>
+                  <span className="text-[9px] text-slate-400">/ {t}</span>
+              </div>
+              {t > 0 && (
+                <div className="w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                    <div className={`h-full rounded-full ${isAchieved ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${Math.min((a/t)*100, 100)}%` }}></div>
+                </div>
+              )}
+          </div>
+      );
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pb-24 animate-fade-in-up">
+    <div className="max-w-6xl mx-auto px-2 pb-24 animate-fade-in-up">
         {/* Header */}
-        <div className="sticky top-0 z-40 -mx-4 px-4 py-4 mb-6 bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm flex items-center gap-4">
-            <button 
-                onClick={onBack}
-                className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
-            >
-                <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    Riwayat Rencana
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
-                </h2>
-                <p className="text-sm text-slate-500">Monitoring Target vs Realisasi Harian</p>
-            </div>
-        </div>
-
-        {/* Filter */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <Filter className="w-4 h-4" /> Filter Riwayat
-            </div>
-            <div className="relative">
-                <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <select 
-                    className="w-full pl-9 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 focus:ring-2 focus:ring-orange-500/20 outline-none appearance-none"
-                    value={filterCo}
-                    onChange={(e) => setFilterCo(e.target.value)}
+        <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm px-4 py-4 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 -mx-2">
+            <div className="flex items-center gap-3">
+                <button 
+                    onClick={onBack}
+                    className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all"
                 >
-                    <option value="All">Semua Petugas (CO)</option>
-                    {availableCos.map(co => (
-                        <option key={co} value={co}>{co}</option>
-                    ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                    <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        Monitoring Realisasi
+                        <BarChart3 className="w-5 h-5 text-blue-600" />
+                    </h2>
+                    <p className="text-xs text-slate-500">Tabel Kinerja Harian Petugas</p>
+                </div>
             </div>
-            
-            <div className="mt-3 flex gap-2 items-start p-2 bg-blue-50 border border-blue-100 rounded-lg text-[10px] text-blue-700">
-                <Info className="w-4 h-4 shrink-0" />
-                Data dikelompokkan per Tanggal. Data ganda (duplikat) di Sheet sudah otomatis dihapus.
+
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-full md:w-auto">
+                <button onClick={() => changeDate(-1)} className="p-2 hover:bg-white rounded-lg transition-colors text-slate-500"><ChevronLeft className="w-4 h-4"/></button>
+                <div className="flex-1 text-center px-4 font-bold text-slate-700 flex items-center justify-center gap-2">
+                    <Calendar className="w-4 h-4 text-orange-500" />
+                    {selectedDate === todayStr ? 'Hari Ini' : selectedDate}
+                </div>
+                <button onClick={() => changeDate(1)} className="p-2 hover:bg-white rounded-lg transition-colors text-slate-500"><ChevronRight className="w-4 h-4"/></button>
             </div>
         </div>
 
-        {/* List (Grouped by Date) */}
-        <div className="space-y-8">
-            {displayedGroups.length === 0 ? (
-                 <div className="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
-                    Belum ada riwayat rencana.
-                </div>
-            ) : (
-                displayedGroups.map(group => (
-                    <div key={group.date} className="animate-fade-in-up">
-                        {/* Date Header */}
-                        <div className="flex items-center gap-3 mb-4 sticky top-[80px] z-30 bg-slate-50/90 backdrop-blur p-2 rounded-xl border border-slate-200 w-fit">
-                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold border border-orange-200">
-                                <Calendar className="w-4 h-4" />
-                            </div>
-                            <h3 className="font-bold text-slate-700 text-sm">{group.date}</h3>
-                            <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-slate-200 font-bold text-slate-400">
-                                {group.items.length} CO
-                            </span>
-                        </div>
+        {/* Search */}
+        <div className="mb-4 relative">
+             <input 
+                type="text" 
+                placeholder="Cari Nama CO..." 
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+             />
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        </div>
 
-                        {/* Cards Grid for this Date */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {group.items.map(plan => (
-                                <div key={plan.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-                                    
-                                    {/* Card Header (CO Name) */}
-                                    <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
+        {/* TABLE WRAPPER */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-220px)]">
+            <div className="overflow-auto flex-1 custom-scrollbar">
+                <table className="w-full text-xs min-w-[800px]">
+                    <thead className="bg-slate-50 sticky top-0 z-10 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 shadow-sm">
+                        <tr>
+                            <th className="p-3 text-left sticky left-0 bg-slate-50 border-r border-slate-200 w-[120px] z-20">Petugas (CO)</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (NOA)</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (Disb)</th>
+                            <th className="p-2 text-center border-r border-slate-100">SW Next (NOA)</th>
+                            <th className="p-2 text-center border-r border-slate-200">SW Next (Disb)</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-red-50/30 text-red-600">CTX (Bayar)</th>
+                            <th className="p-2 text-center border-r border-slate-200 bg-amber-50/30 text-amber-600">Lantakur</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-purple-50/30 text-purple-600">FPPB</th>
+                            <th className="p-2 text-center bg-indigo-50/30 text-indigo-600">Biometrik</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {filteredPlans.length === 0 ? (
+                            <tr>
+                                <td colSpan={9} className="p-8 text-center text-slate-400 italic">
+                                    Tidak ada data rencana/realisasi untuk tanggal {selectedDate}.
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredPlans.map((plan, idx) => (
+                                <tr key={plan.id} className="hover:bg-orange-50/30 transition-colors group">
+                                    <td className="p-3 font-bold text-slate-700 sticky left-0 bg-white group-hover:bg-orange-50 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200 text-xs">
-                                                {plan.coName.charAt(0)}
+                                            <div className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-[10px] text-slate-500">
+                                                {idx + 1}
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-sm">{plan.coName}</h3>
-                                            </div>
+                                            <span className="truncate max-w-[100px]" title={plan.coName}>{plan.coName}</span>
                                         </div>
-                                    </div>
-
-                                    {/* Card Body */}
-                                    <div className="p-4">
-                                        {/* Survey Section */}
-                                        <div className="space-y-3 mb-4">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                                                <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Survey (SW)</h4>
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {/* SW Bulan Ini */}
-                                                <div className="bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
-                                                    <p className="text-[9px] font-bold text-emerald-600 mb-2 uppercase">Bulan Ini</p>
-                                                    <div className="space-y-2">
-                                                        <ProgressBar target={plan.swCurrentNoa} actual={plan.actualSwNoa} colorClass="bg-emerald-500" />
-                                                        <div className="flex justify-between text-[10px] pt-1 border-t border-emerald-200/50">
-                                                            <span className="text-slate-500">Disb T: {plan.swCurrentDisb}</span>
-                                                            <span className="font-bold text-slate-700">R: {plan.actualSwDisb || '-'}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* SW Bulan Depan */}
-                                                <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                                                    <p className="text-[9px] font-bold text-blue-600 mb-2 uppercase">Bulan Depan</p>
-                                                    <div className="space-y-2">
-                                                        <ProgressBar target={plan.swNextNoa} actual={plan.actualSwNextNoa} colorClass="bg-blue-500" />
-                                                        <div className="flex justify-between text-[10px] pt-1 border-t border-blue-200/50">
-                                                            <span className="text-slate-500">Disb T: {plan.swNextDisb}</span>
-                                                            <span className="font-bold text-slate-700">R: {plan.actualSwNextDisb || '-'}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                    </td>
+                                    
+                                    {/* SW CURRENT */}
+                                    <td className="border-r border-slate-100 bg-orange-50/10">
+                                        <MetricCell target={plan.swCurrentNoa} actual={plan.actualSwNoa} label="NOA" />
+                                    </td>
+                                    <td className="border-r border-slate-100 bg-orange-50/10">
+                                        <div className="text-center">
+                                             <div className="text-[10px] text-slate-500">{plan.actualSwDisb || 0}</div>
+                                             <div className="text-[9px] text-slate-400 border-t border-slate-100 mt-0.5 pt-0.5">{plan.swCurrentDisb || 0}</div>
                                         </div>
+                                    </td>
 
-                                        {/* Collection & Admin Section */}
-                                        <div className="flex flex-col gap-3">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                                                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Collection</h4>
-                                                </div>
-
-                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                    <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">CTX (Bayar)</p>
-                                                    <ProgressBar 
-                                                        target={plan.colCtxNoa} 
-                                                        actual={plan.actualCtxNoa} 
-                                                        colorClass="bg-red-500" 
-                                                    />
-                                                </div>
-
-                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                    <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Lantakur (Nabung)</p>
-                                                    <ProgressBar 
-                                                        target={plan.colLantakurNoa} 
-                                                        actual={plan.actualLantakurNoa} 
-                                                        colorClass="bg-amber-500" 
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Administrasi Section */}
-                                            <div className="space-y-2 border-t border-slate-100 pt-2">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <FileText className="w-3.5 h-3.5 text-purple-500" />
-                                                    <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Admin</h4>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                        <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">FPPB</p>
-                                                        <ProgressBar target={plan.fppbNoa} actual={plan.actualFppbNoa} colorClass="bg-purple-500" />
-                                                    </div>
-                                                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                        <p className="text-[9px] font-bold text-slate-400 mb-1 uppercase">Biometrik</p>
-                                                        <ProgressBar target={plan.biometrikNoa} actual={plan.actualBiometrikNoa} colorClass="bg-indigo-500" />
-                                                    </div>
-                                                </div>
-                                            </div>
+                                    {/* SW NEXT */}
+                                    <td className="border-r border-slate-100">
+                                        <MetricCell target={plan.swNextNoa} actual={plan.actualSwNextNoa} label="NOA" />
+                                    </td>
+                                    <td className="border-r border-slate-200">
+                                        <div className="text-center">
+                                             <div className="text-[10px] text-slate-500">{plan.actualSwNextDisb || 0}</div>
+                                             <div className="text-[9px] text-slate-400 border-t border-slate-100 mt-0.5 pt-0.5">{plan.swNextDisb || 0}</div>
                                         </div>
+                                    </td>
 
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))
-            )}
+                                    {/* COLLECTION */}
+                                    <td className="border-r border-slate-100 bg-red-50/10">
+                                        <MetricCell target={plan.colCtxNoa} actual={plan.actualCtxNoa} label="CTX" />
+                                    </td>
+                                    <td className="border-r border-slate-200 bg-amber-50/10">
+                                        <MetricCell target={plan.colLantakurNoa} actual={plan.actualLantakurNoa} label="Lantakur" />
+                                    </td>
 
-            {visibleDaysCount < groupedPlans.length && (
-                <div className="pt-4 flex justify-center">
-                    <Button variant="secondary" onClick={handleLoadMore} icon={<ChevronDown className="w-4 h-4"/>}>
-                        Tampilkan Lebih Banyak ({groupedPlans.length - visibleDaysCount} Hari)
-                    </Button>
+                                    {/* ADMIN */}
+                                    <td className="border-r border-slate-100 bg-purple-50/10">
+                                        <MetricCell target={plan.fppbNoa} actual={plan.actualFppbNoa} label="FPPB" />
+                                    </td>
+                                    <td className="bg-indigo-50/10">
+                                        <MetricCell target={plan.biometrikNoa} actual={plan.actualBiometrikNoa} label="BIO" />
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Sticky Footer Totals */}
+            {filteredPlans.length > 0 && (
+                <div className="bg-slate-50 border-t border-slate-200 p-2 overflow-x-auto">
+                    <table className="w-full text-xs min-w-[800px]">
+                        <tfoot>
+                            <tr>
+                                <td className="font-bold text-slate-700 w-[120px] p-2">TOTAL</td>
+                                <td className="p-2 text-center font-bold text-orange-600 w-[10%]">
+                                    {totals.swCurR}/{totals.swCurT}
+                                </td>
+                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
+                                <td className="p-2 text-center font-bold text-slate-600 w-[10%]">
+                                    {totals.swNextR}/{totals.swNextT}
+                                </td>
+                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
+                                <td className="p-2 text-center font-bold text-red-600 w-[12%]">
+                                    {totals.ctxR}/{totals.ctxT}
+                                </td>
+                                <td className="p-2 text-center font-bold text-amber-600 w-[12%]">
+                                    {totals.parR}/{totals.parT}
+                                </td>
+                                <td className="p-2 text-center font-bold text-purple-600 w-[10%]">
+                                    {totals.fppbR}/{totals.fppbT}
+                                </td>
+                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             )}
         </div>
