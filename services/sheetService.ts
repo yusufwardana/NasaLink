@@ -50,8 +50,12 @@ const parseCSV = (text: string): string[][] => {
 };
 
 // Helper to find column index loosely
+// UPDATED: Now trims header and keyword for safer match
 const findColIndex = (headers: string[], keywords: string[]): number => {
-    return headers.findIndex(h => keywords.some(k => h.includes(k)));
+    return headers.findIndex(h => {
+        const hClean = h.toLowerCase().trim();
+        return keywords.some(k => hClean.includes(k.toLowerCase().trim()));
+    });
 };
 
 // Helper to fetch CSV with retry mechanism
@@ -97,7 +101,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     if (rows.length < 2) return [];
 
     // Header Mapping based on User Screenshot & New Request
-    const headers = rows[0].map(h => h.toLowerCase());
+    const headers = rows[0].map(h => h.toLowerCase().trim());
     
     // Exact mapping prioritized
     const idxName = findColIndex(headers, ['nasabah', 'nama', 'name']);
@@ -220,7 +224,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         // 1. Fetch PLAN Sheet (Targets)
         const planTextPromise = fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => "");
         
-        // 2. Fetch AKTUAL Sheet (Realization) - Hardcoded 'Aktual' as per instruction
+        // 2. Fetch AKTUAL Sheet (Realization) - Try hardcoded 'Aktual'
         const actualTextPromise = fetchSheetCsv(spreadsheetId, "Aktual", 1).catch(() => "");
         
         const [planText, actualText] = await Promise.all([planTextPromise, actualTextPromise]);
@@ -231,27 +235,29 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         
         // --- PARSE ACTUALS INTO LOOKUP MAP ---
         const actualsMap = new Map<string, any>();
+        
         if (actualText) {
             const actRows = parseCSV(actualText);
             if (actRows.length >= 2) {
-                const actHeaders = actRows[0].map(h => h.toLowerCase());
+                // Strict cleanup of headers: remove \r, \n, trim spaces, lowercase
+                const actHeaders = actRows[0].map(h => h.toLowerCase().trim().replace(/[\r\n]+/g, ' '));
                 
                 // Identify Columns (Look for common Plan headers too)
-                const aIdxDate = findColIndex(actHeaders, ['tanggal', 'date']);
-                const aIdxCo = findColIndex(actHeaders, ['co', 'petugas']);
+                const aIdxDate = findColIndex(actHeaders, ['tanggal', 'date', 'tgl']);
+                const aIdxCo = findColIndex(actHeaders, ['co', 'petugas', 'nama co']);
                 
                 // --- MAPPING HEADER AKTUAL (SUPPORTS PLAN HEADERS) ---
-                // SW
-                const aIdxSwNoa = findColIndex(actHeaders, ['sw noa', 'sw (noa)', 'sw cur noa', 'sw bulan ini noa']);
-                const aIdxSwDisb = findColIndex(actHeaders, ['sw disb', 'sw (disb)', 'sw cur disb', 'sw bulan ini disb']);
+                // SW (Include keywords from Plan headers: 'sw cur noa')
+                const aIdxSwNoa = findColIndex(actHeaders, ['sw cur noa', 'sw noa', 'sw (noa)', 'sw bulan ini noa']);
+                const aIdxSwDisb = findColIndex(actHeaders, ['sw cur disb', 'sw disb', 'sw (disb)', 'sw bulan ini disb']);
                 
-                // CTX
-                const aIdxCtxNoa = findColIndex(actHeaders, ['ctx noa', 'ctx (noa)', 'col ctx noa']);
-                const aIdxCtxOs = findColIndex(actHeaders, ['ctx os', 'ctx (os)', 'col ctx os']);
+                // CTX (Include keywords from Plan headers: 'col ctx noa')
+                const aIdxCtxNoa = findColIndex(actHeaders, ['col ctx noa', 'ctx noa', 'ctx (noa)']);
+                const aIdxCtxOs = findColIndex(actHeaders, ['col ctx os', 'ctx os', 'ctx (os)']);
                 
                 // Lantakur
-                const aIdxLantakurNoa = findColIndex(actHeaders, ['lantakur noa', 'lantakur (noa)', 'col lantakur noa']);
-                const aIdxLantakurOs = findColIndex(actHeaders, ['lantakur os', 'lantakur (os)', 'col lantakur os']);
+                const aIdxLantakurNoa = findColIndex(actHeaders, ['col lantakur noa', 'lantakur noa', 'lantakur (noa)']);
+                const aIdxLantakurOs = findColIndex(actHeaders, ['col lantakur os', 'lantakur os', 'lantakur (os)']);
                 
                 // Admin (FPPB & Biometrik)
                 const aIdxFppb = findColIndex(actHeaders, ['fppb', 'fppb noa', 'input fppb']);
@@ -261,7 +267,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                      const date = row[aIdxDate];
                      const co = row[aIdxCo];
                      if (date && co) {
-                         // CREATE KEY: Case Insensitive for safer matching
+                         // CREATE KEY: Clean spaces, case insensitive
                          const key = `${date.trim()}_${co.trim().toLowerCase()}`;
                          
                          actualsMap.set(key, {
@@ -280,11 +286,11 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         }
 
         // --- PARSE PLANS ---
-        const headers = planRows[0].map(h => h.toLowerCase());
+        const headers = planRows[0].map(h => h.toLowerCase().trim().replace(/[\r\n]+/g, ' '));
         
         // Map Columns (Target)
-        const idxDate = findColIndex(headers, ['tanggal', 'date']);
-        const idxCo = findColIndex(headers, ['co', 'petugas']);
+        const idxDate = findColIndex(headers, ['tanggal', 'date', 'tgl']);
+        const idxCo = findColIndex(headers, ['co', 'petugas', 'nama co']);
         
         const idxSwCurNoa = findColIndex(headers, ['sw cur noa', 'sw bulan ini noa', 'sw noa']);
         const idxSwCurDisb = findColIndex(headers, ['sw cur disb', 'sw bulan ini disb', 'sw disb']);
@@ -292,14 +298,14 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         const idxSwNextNoa = findColIndex(headers, ['sw next noa', 'sw bulan depan noa']);
         const idxSwNextDisb = findColIndex(headers, ['sw next disb', 'sw bulan depan disb']);
         
-        const idxCtxNoa = findColIndex(headers, ['ctx noa', 'col ctx noa']);
-        const idxCtxOs = findColIndex(headers, ['ctx os', 'col ctx os']);
+        const idxCtxNoa = findColIndex(headers, ['col ctx noa', 'ctx noa']);
+        const idxCtxOs = findColIndex(headers, ['col ctx os', 'ctx os']);
         
-        const idxLantakurNoa = findColIndex(headers, ['lantakur noa']);
-        const idxLantakurOs = findColIndex(headers, ['lantakur os']);
+        const idxLantakurNoa = findColIndex(headers, ['col lantakur noa', 'lantakur noa']);
+        const idxLantakurOs = findColIndex(headers, ['col lantakur os', 'lantakur os']);
         
-        const idxFppb = findColIndex(headers, ['fppb', 'fppb noa']);
-        const idxBiometrik = findColIndex(headers, ['biometrik', 'bio']);
+        const idxFppb = findColIndex(headers, ['fppb', 'fppb noa', 'input fppb']);
+        const idxBiometrik = findColIndex(headers, ['biometrik', 'bio', 'biometrik noa']);
 
         return planRows.slice(1).map((row, index): DailyPlan | null => {
             const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
@@ -311,7 +317,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
             const date = row[idxDate].trim();
             const co = row[idxCo].trim();
             
-            // Lookup Key: Case Insensitive on CO
+            // Lookup Key: Match logic with Actuals (Trim + Lowercase)
             const lookupKey = `${date}_${co.toLowerCase()}`;
             const actualData = actualsMap.get(lookupKey) || {};
 
