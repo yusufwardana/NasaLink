@@ -214,19 +214,60 @@ export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: 
     }
 };
 
-// --- NEW FUNCTION: Fetch Daily Plans ---
+// --- NEW UPDATED FUNCTION: Fetch Daily Plans & Merge with Actuals ---
 export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: string = 'Plan'): Promise<DailyPlan[]> => {
     try {
-        // Try to fetch, if fails (sheet doesn't exist), return empty
-        const text = await fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => "");
-        if (!text) return [];
-
-        const rows = parseCSV(text);
-        if (rows.length < 2) return [];
-
-        const headers = rows[0].map(h => h.toLowerCase());
+        // 1. Fetch PLAN Sheet (Targets)
+        const planTextPromise = fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => "");
         
-        // Map Columns
+        // 2. Fetch AKTUAL Sheet (Realization) - Hardcoded 'Aktual' as per instruction
+        const actualTextPromise = fetchSheetCsv(spreadsheetId, "Aktual", 1).catch(() => "");
+        
+        const [planText, actualText] = await Promise.all([planTextPromise, actualTextPromise]);
+
+        if (!planText) return [];
+        const planRows = parseCSV(planText);
+        if (planRows.length < 2) return [];
+        
+        // --- PARSE ACTUALS INTO LOOKUP MAP ---
+        const actualsMap = new Map<string, any>();
+        if (actualText) {
+            const actRows = parseCSV(actualText);
+            if (actRows.length >= 2) {
+                const actHeaders = actRows[0].map(h => h.toLowerCase());
+                const aIdxDate = findColIndex(actHeaders, ['tanggal', 'date']);
+                const aIdxCo = findColIndex(actHeaders, ['co', 'petugas']);
+                
+                // Map Actual Columns
+                const aIdxSwNoa = findColIndex(actHeaders, ['sw noa', 'sw (noa)']);
+                const aIdxSwDisb = findColIndex(actHeaders, ['sw disb', 'sw (disb)']);
+                const aIdxCtxNoa = findColIndex(actHeaders, ['ctx noa', 'ctx (noa)']);
+                const aIdxCtxOs = findColIndex(actHeaders, ['ctx os', 'ctx (os)']);
+                const aIdxLantakurNoa = findColIndex(actHeaders, ['lantakur noa', 'lantakur (noa)']);
+                const aIdxLantakurOs = findColIndex(actHeaders, ['lantakur os', 'lantakur (os)']);
+
+                actRows.slice(1).forEach(row => {
+                     const date = row[aIdxDate];
+                     const co = row[aIdxCo];
+                     if (date && co) {
+                         const key = `${date.trim()}_${co.trim()}`;
+                         actualsMap.set(key, {
+                             swNoa: row[aIdxSwNoa] || '0',
+                             swDisb: row[aIdxSwDisb] || '0',
+                             ctxNoa: row[aIdxCtxNoa] || '0',
+                             ctxOs: row[aIdxCtxOs] || '0',
+                             lantakurNoa: row[aIdxLantakurNoa] || '0',
+                             lantakurOs: row[aIdxLantakurOs] || '0'
+                         });
+                     }
+                });
+            }
+        }
+
+        // --- PARSE PLANS ---
+        const headers = planRows[0].map(h => h.toLowerCase());
+        
+        // Map Columns (Target)
         const idxDate = findColIndex(headers, ['tanggal', 'date']);
         const idxCo = findColIndex(headers, ['co', 'petugas']);
         
@@ -245,17 +286,24 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         const idxFppb = findColIndex(headers, ['fppb', 'fppb noa']);
         const idxBiometrik = findColIndex(headers, ['biometrik', 'bio']);
 
-        return rows.slice(1).map((row, index): DailyPlan | null => {
+        return planRows.slice(1).map((row, index): DailyPlan | null => {
             const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
             
             // Must have date and CO
             if (idxDate === -1 || idxCo === -1) return null;
             if (!row[idxDate] || !row[idxCo]) return null;
 
+            const date = row[idxDate].trim();
+            const co = row[idxCo].trim();
+            const lookupKey = `${date}_${co}`;
+            const actualData = actualsMap.get(lookupKey) || {};
+
             return {
                 id: `plan-${index}-${Date.now()}`,
-                date: row[idxDate],
-                coName: row[idxCo],
+                date: date,
+                coName: co,
+                
+                // Targets
                 swCurrentNoa: getVal(idxSwCurNoa),
                 swCurrentDisb: getVal(idxSwCurDisb),
                 swNextNoa: getVal(idxSwNextNoa),
@@ -265,7 +313,15 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 colLantakurNoa: getVal(idxLantakurNoa),
                 colLantakurOs: getVal(idxLantakurOs),
                 fppbNoa: getVal(idxFppb),
-                biometrikNoa: getVal(idxBiometrik)
+                biometrikNoa: getVal(idxBiometrik),
+
+                // Actuals (Merged from Aktual Sheet)
+                actualSwNoa: actualData.swNoa || '0',
+                actualSwDisb: actualData.swDisb || '0',
+                actualCtxNoa: actualData.ctxNoa || '0',
+                actualCtxOs: actualData.ctxOs || '0',
+                actualLantakurNoa: actualData.lantakurNoa || '0',
+                actualLantakurOs: actualData.lantakurOs || '0'
             };
         }).filter((p): p is DailyPlan => p !== null);
 

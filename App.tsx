@@ -191,7 +191,7 @@ const App: React.FC = () => {
                 console.error("Error fetching live contacts from Sheet:", err);
             }
             
-            // Fetch Plans (NEW)
+            // Fetch Plans (NEW: This now merges PLAN + AKTUAL internally)
             try {
                 const livePlans = await fetchPlansFromSheet(finalConfig.spreadsheetId, 'Plan');
                 setDailyPlans(livePlans);
@@ -416,17 +416,6 @@ const App: React.FC = () => {
      }
   };
 
-  const handleUpdatePlanActuals = async (updatedPlan: DailyPlan) => {
-    // Update local state
-    setDailyPlans(prev => prev.map(p => p.id === updatedPlan.id ? updatedPlan : p));
-    
-    // Save to Sheet (This assumes submitPlanToSheet appends. 
-    // In a real DB we would update. Here we just re-submit as a new log for simplicity/tracking)
-    if (activeConfig?.googleScriptUrl) {
-        await submitPlanToSheet(activeConfig.googleScriptUrl, updatedPlan);
-    }
-  };
-
   const handleAdminAuth = () => {
       setActiveView('login');
   };
@@ -521,7 +510,6 @@ const App: React.FC = () => {
               <PlanHistoryPanel 
                 plans={dailyPlans} 
                 onBack={() => setActiveView('dashboard')}
-                onUpdatePlan={handleUpdatePlanActuals}
                 availableCos={uniqueCos}
               />
               {renderBottomNav()}
