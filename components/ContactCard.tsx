@@ -54,6 +54,8 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
   const isDpdWarning = dpdValue > 0;
   // Check if paid off
   const isLunas = contact.tglLunas && contact.tglLunas.length > 0;
+  // Check if Lantakur (Tabungan Kurang)
+  const isLantakur = contact.flagLantakur && contact.flagLantakur.toLowerCase().includes('lantakur');
 
   return (
     <div className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden relative flex flex-col ${isDpdWarning ? 'border-red-200 ring-1 ring-red-100' : 'border-slate-200'}`}>
@@ -98,6 +100,14 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
                      {contact.status}
                  </span>
              )}
+             
+             {/* Lantakur Warning Badge */}
+             {isLantakur && !isDpdWarning && (
+                 <span className="flex items-center gap-1 text-[10px] text-yellow-700 font-bold bg-yellow-100 px-2 py-0.5 rounded border border-yellow-200">
+                     <AlertTriangle className="w-3 h-3" /> LANTAKUR
+                 </span>
+             )}
+
              {isDpdWarning && (
                  <span className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100 animate-pulse">
                      <AlertOctagon className="w-3 h-3" /> DPD: {contact.dpd}
@@ -122,7 +132,7 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
             {contact.tunggakan && parseInt(contact.tunggakan) > 0 ? (
                 <InfoItem label="Tunggakan" value={formatIDR(contact.tunggakan)} icon={AlertTriangle} mono highlight color="text-red-600" />
             ) : (
-                <InfoItem label="Tabungan" value={formatIDR(contact.saldoTabungan)} icon={Landmark} highlight mono color="text-emerald-700" />
+                <InfoItem label="Tabungan" value={formatIDR(contact.saldoTabungan)} icon={Landmark} highlight mono color={isLantakur ? "text-yellow-600 font-bold" : "text-emerald-700"} />
             )}
 
             <InfoItem label="Produk" value={contact.produk} icon={Box} />

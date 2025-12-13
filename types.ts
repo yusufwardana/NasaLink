@@ -27,6 +27,7 @@ export interface Contact {
   angsuran?: string;       // Map from 'ANGSURAN'
   tunggakan?: string;      // Map from 'TUNGGAKAN'
   flagMenunggak?: string;  // Map from 'FLAG MENUNGGAK' (Lancar, CTX, XDAY, SM, NPF)
+  flagLantakur?: string;   // Map from 'FLAG LANTAKUR' (Lancar Tabungan Kurang)
 }
 
 export interface MessageTemplate {

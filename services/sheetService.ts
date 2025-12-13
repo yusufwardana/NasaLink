@@ -124,6 +124,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
     const idxAngsuran = findColIndex(headers, ['angsuran', 'besar angsuran', 'cicilan']);
     const idxTunggakan = findColIndex(headers, ['tunggakan', 'total tunggakan', 'amount due']);
     const idxFlagMenunggak = findColIndex(headers, ['flag menunggak', 'kolektabilitas', 'kolek', 'bucket']);
+    const idxFlagLantakur = findColIndex(headers, ['flag lantakur', 'lantakur', 'status lantakur', 'tabungan kurang']);
 
     // Map rows to Contact objects
     return rows.slice(1).map((row, index): Contact | null => {
@@ -166,6 +167,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             angsuran: getVal(idxAngsuran),
             tunggakan: getVal(idxTunggakan),
             flagMenunggak: getVal(idxFlagMenunggak),
+            flagLantakur: getVal(idxFlagLantakur),
 
             notes: getVal(idxNotes),
             lastInteraction: ''

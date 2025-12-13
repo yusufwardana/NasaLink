@@ -31,6 +31,7 @@ export const generateWhatsAppMessage = async (
     const tunggakanStr = contact.tunggakan || 'Rp 0';
 
     const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
+    const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur');
     
     // Deteksi Status
     const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
@@ -102,8 +103,18 @@ export const generateWhatsAppMessage = async (
         - Ucapkan terima kasih karena angsurannya lancar.
         - Tawarkan pencairan tahap berikutnya (Tambah Modal) untuk pengembangan usaha.
         `;
+    } else if (isLantakur) {
+        // KONDISI 4: LANTAKUR (Lancar Tabungan Kurang)
+        strategyGuide = `
+        STRATEGI: EDUKASI MENABUNG (LANTAKUR)
+        - Nasabah ini STATUS LANCAR, tetapi saldo tabungannya kurang dari 1x angsuran (Status: LANTAKUR).
+        - Fokus: EDUKASI & PERSIAPAN.
+        - Apresiasi kelancaran angsurannya selama ini.
+        - Ingatkan dengan halus pentingnya menambah saldo tabungan sukarela untuk dana cadangan/jaga-jaga jika berhalangan hadir.
+        - "Bu, sekadar mengingatkan, kalau ada rezeki lebih boleh ditambah tabungannya ya Bu untuk jaga-jaga..."
+        `;
     } else {
-        // KONDISI 4: MAINTENANCE (UMUM)
+        // KONDISI 5: MAINTENANCE (UMUM)
         strategyGuide = `
         STRATEGI: RELATIONSHIP MAINTENANCE
         - Fokus: Menjaga hubungan baik.
@@ -127,6 +138,7 @@ export const generateWhatsAppMessage = async (
     if (contact.saldoTabungan) details += `\n      Saldo Tabungan: ${contact.saldoTabungan}`;
     if (contact.dpd) details += `\n      Keterlambatan (DPD): ${dpd} hari`; 
     if (contact.flagMenunggak) details += `\n      Status Kolektabilitas: ${contact.flagMenunggak}`;
+    if (contact.flagLantakur) details += `\n      Status Tabungan: ${contact.flagLantakur}`;
     if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
     if (contact.tglLunas) details += `\n      Tanggal Pelunasan (Lunas): ${contact.tglLunas}`;
     if (contact.tglPrs) details += `\n      Jadwal Kumpulan (PRS): ${contact.tglPrs}`;

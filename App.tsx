@@ -259,11 +259,22 @@ const App: React.FC = () => {
     return contacts.reduce<NotificationItem[]>((acc, contact) => {
         const flag = (contact.flag || '').toLowerCase();
         const status = (contact.status || '').toLowerCase();
+        const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
         // Robust Parsing of DPD
         const dpd = parseInt(contact.dpd || '0', 10) || 0;
         
         const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
-        const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+        
+        // COMPREHENSIVE TROUBLE DETECTION
+        const isTrouble = dpd > 0 || 
+                          status.includes('macet') || 
+                          status.includes('menunggak') || 
+                          flagMenunggak.includes('ctx') || 
+                          flagMenunggak.includes('xday') || 
+                          flagMenunggak.includes('npf') || 
+                          flagMenunggak.includes('macet');
+
+        const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur');
         
         // Date parsing helper
         const dueDate = contact.tglJatuhTempo ? parseFullDate(contact.tglJatuhTempo) : null;
@@ -275,7 +286,12 @@ const App: React.FC = () => {
              acc.push({ contact, type: 'payment', status: 'collection', daysLeft: dpd });
         }
         
-        // 2. REFINANCING / WINBACK LOGIC
+        // 2. LANTAKUR LOGIC (Priority High - Preventive)
+        else if (isLantakur && !isInactive) {
+             acc.push({ contact, type: 'payment', status: 'lantakur', daysLeft: 0 });
+        }
+
+        // 3. REFINANCING / WINBACK LOGIC
         else if (dueDate || lunasDate) {
             
             if (!isInactive && dueDate) {
@@ -311,7 +327,7 @@ const App: React.FC = () => {
             }
         }
 
-        // 3. PRS LOGIC (H-1)
+        // 4. PRS LOGIC (H-1)
         if (contact.tglPrs && !isInactive && !isTrouble) {
              let prsDate: Date | null = null;
              if (contact.tglPrs.match(/^\d{1,2}$/)) {
@@ -335,15 +351,16 @@ const App: React.FC = () => {
         }
         return acc;
     }, []).sort((a, b) => {
-        // Sort Priority: Collection > Today > Tomorrow > This Month > Next Month > Winback Recent > Winback Old
+        // Sort Priority: Collection > Lantakur > Today > Tomorrow > This Month > Next Month > Winback Recent > Winback Old
         const score = (s: string) => {
             if (s === 'collection') return 0; // Highest Priority
-            if (s === 'today') return 1;
-            if (s === 'soon') return 2;
-            if (s === 'this_month') return 3;
-            if (s === 'next_month') return 4;
-            if (s === 'winback_recent') return 5;
-            if (s === 'winback_old') return 6;
+            if (s === 'lantakur') return 1;   // Preventive Action
+            if (s === 'today') return 2;
+            if (s === 'soon') return 3;
+            if (s === 'this_month') return 4;
+            if (s === 'next_month') return 5;
+            if (s === 'winback_recent') return 6;
+            if (s === 'winback_old') return 7;
             return 99;
         }
 
@@ -354,13 +371,22 @@ const App: React.FC = () => {
             return scoreA - scoreB;
         }
 
-        // --- SECONDARY SORT: PRIORITAS DPD TERKECIL UNTUK COLLECTION ---
+        // --- SECONDARY SORT: CTX PRIORITY THEN DPD ---
         if (a.status === 'collection' && b.status === 'collection') {
+            const flagA = (a.contact.flagMenunggak || '').toLowerCase();
+            const flagB = (b.contact.flagMenunggak || '').toLowerCase();
+            
+            // 1. CTX Flag Priority
+            const isCtxA = flagA.includes('ctx');
+            const isCtxB = flagB.includes('ctx');
+            
+            if (isCtxA && !isCtxB) return -1; // A first
+            if (!isCtxA && isCtxB) return 1;  // B first
+
+            // 2. DPD Sorting (Smallest DPD first)
             let dpdA = parseInt(a.contact.dpd || '0', 10);
             let dpdB = parseInt(b.contact.dpd || '0', 10);
             
-            // Handle NaN or 0: Push to bottom (Assume 0/Empty DPD is less urgent than DPD 1)
-            // Or prioritize explicit DPDs.
             if (isNaN(dpdA) || dpdA <= 0) dpdA = 999999;
             if (isNaN(dpdB) || dpdB <= 0) dpdB = 999999;
 
@@ -415,11 +441,13 @@ const App: React.FC = () => {
       if (deferredStatus !== 'All') {
           const cStatus = (contact.status || '').toLowerCase();
           const cFlag = (contact.flag || '').toLowerCase();
+          const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
           
           // Defines "Trouble" / Inactive criteria
           const isTrouble = cStatus.includes('macet') || 
                             cStatus.includes('menunggak') || 
                             cStatus.includes('tutup') || 
+                            flagMenunggak.includes('ctx') || 
                             cFlag.includes('do') || 
                             cFlag.includes('drop');
           
@@ -595,16 +623,20 @@ const App: React.FC = () => {
                         const dpd = parseInt(contact.dpd || '0', 10);
                         const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
                         const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
+                        const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur');
 
                         if (isTrouble) {
                             // 1. Collection
                             keywords = ['tagih', 'ctx', 'tunggak', 'bayar'];
+                        } else if (isLantakur) {
+                            // 2. Lantakur
+                            keywords = ['lantakur', 'tabungan'];
                         } else if (isInactive) {
-                            // 2. Winback
+                            // 3. Winback
                             // Menambahkan 'tawar' dan 'cair' agar template refinancing juga bisa terpilih untuk nasabah lunas
                             keywords = ['winback', 'gabung', 'tawar', 'cair'];
                         } else {
-                            // 3. Refinancing / Lancar
+                            // 4. Refinancing / Lancar
                             keywords = ['tawar', 'lanjut', 'cair', 'modal'];
                         }
                     }
