@@ -82,18 +82,41 @@ const normalizeSheetDate = (val: string): string => {
     if (!val) return '';
     const clean = val.trim();
     
-    // Check YYYY-MM-DD (ISO Format - common in Sheets CSV export)
+    // 1. Check YYYY-MM-DD (ISO Format - common in Sheets CSV export)
     if (clean.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
         const [y, m, d] = clean.split('-');
         return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     }
 
-    // Check DD/MM/YYYY or MM/DD/YYYY
+    // 2. Check DD/MM/YYYY or DD/MM/YY
     if (clean.includes('/')) {
         const parts = clean.split('/');
         if (parts.length === 3) {
-             // Basic padding ensure 1/1/2025 -> 01/01/2025
-             return parts.map(p => p.padStart(2, '0')).join('/');
+             let d = parts[0].padStart(2, '0');
+             let m = parts[1].padStart(2, '0');
+             let y = parts[2];
+             
+             // Handle 2 digit year (e.g. 25 -> 2025)
+             if (y.length === 2) {
+                 y = '20' + y;
+             }
+             
+             return `${d}/${m}/${y}`;
+        }
+    }
+    
+    // 3. Check DD-MM-YYYY or DD-MM-YY (Dash separator)
+    if (clean.includes('-')) {
+        const parts = clean.split('-');
+        if (parts.length === 3) {
+             // Assume Day-Month-Year order if not ISO
+             // Note: If ISO matched above, this won't run.
+             let d = parts[0].padStart(2, '0');
+             let m = parts[1].padStart(2, '0');
+             let y = parts[2];
+             
+             if (y.length === 2) y = '20' + y;
+             return `${d}/${m}/${y}`;
         }
     }
     

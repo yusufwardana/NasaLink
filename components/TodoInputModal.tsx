@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DailyPlan, Contact } from '../types';
 import { Button } from './Button';
-import { X, Save, Calendar, ChevronRight, TrendingUp, AlertTriangle, FileText, Sparkles, CheckCircle2, Circle, AlertCircle, BarChart2, Target } from 'lucide-react';
+import { X, Save, Calendar, ChevronRight, TrendingUp, AlertTriangle, FileText, CheckCircle2, Circle, AlertCircle, BarChart2, Target } from 'lucide-react';
 
 interface TodoInputModalProps {
   isOpen: boolean;
@@ -26,7 +26,6 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<InputMode>('plan');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [autofillSource, setAutofillSource] = useState<string | null>(null);
   
   // Selection State
   const [selectedCtxIds, setSelectedCtxIds] = useState<Set<string>>(new Set());
@@ -140,39 +139,22 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
 
       if (existingPlan) {
           setFormData({ ...existingPlan }); // Load everything (Plan + Actuals)
-          setAutofillSource(`Data Tersimpan (ID: ${existingPlan.id})`);
       } else {
-          // No exact match for today.
-          // If in PLAN mode, try to autofill TARGETS from latest previous plan
-          const previousPlans = dailyPlans
-            .filter(p => p.coName.toLowerCase() === co.toLowerCase())
-            .sort((a, b) => b.id.localeCompare(a.id)); // Assuming ID is time-sortable or use Date parse
-          
-          if (previousPlans.length > 0) {
-              const last = previousPlans[0];
-              setFormData(prev => ({
-                  ...prev,
-                  id: '', // New ID for new date
-                  swCurrentNoa: last.swCurrentNoa,
-                  swCurrentDisb: last.swCurrentDisb,
-                  swNextNoa: last.swNextNoa,
-                  swNextDisb: last.swNextDisb,
-                  // Reset Actuals
-                  actualSwNoa: '', actualSwDisb: '', 
-                  actualCtxNoa: '', actualCtxOs: '',
-                  // ... reset others ...
-              }));
-              setAutofillSource(`Salin Target dari tgl ${last.date}`);
-          } else {
-              // Fresh start
-              setAutofillSource(null);
-              setFormData(prev => ({
-                  ...prev,
-                  id: '',
-                  swCurrentNoa: '', swCurrentDisb: '',
-                  // ... clear ...
-              }));
-          }
+          // Fresh start (Reset)
+          setFormData(prev => ({
+              ...prev,
+              id: '',
+              swCurrentNoa: '', swCurrentDisb: '',
+              swNextNoa: '', swNextDisb: '',
+              colCtxNoa: '', colCtxOs: '',
+              colLantakurNoa: '', colLantakurOs: '',
+              fppbNoa: '', biometrikNoa: '',
+              actualSwNoa: '', actualSwDisb: '',
+              actualSwNextNoa: '', actualSwNextDisb: '',
+              actualCtxNoa: '', actualCtxOs: '',
+              actualLantakurNoa: '', actualLantakurOs: '',
+              actualFppbNoa: '', actualBiometrikNoa: ''
+          }));
       }
   };
 
@@ -343,12 +325,6 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                             </select>
                         </div>
                     </div>
-
-                    {autofillSource && (
-                        <div className="text-[10px] text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100 flex items-center gap-2">
-                            <Sparkles className="w-3 h-3" /> {autofillSource}
-                        </div>
-                    )}
 
                     <hr className="border-slate-100" />
 

@@ -381,7 +381,7 @@ const App: React.FC = () => {
       }).length;
   }, [contacts]);
   
-  // --- CORRECTED "TODAY'S PLAN" LOGIC ---
+  // --- CORRECTED "TODAY'S PLAN" LOGIC (STRICT) ---
   const todaysPlan = useMemo(() => {
       const today = new Date();
       const dd = String(today.getDate()).padStart(2, '0');
@@ -389,25 +389,27 @@ const App: React.FC = () => {
       const yyyy = today.getFullYear();
       const todayStr = `${dd}/${mm}/${yyyy}`; 
 
-      // Helper to remove leading zeros for loose matching (1/1/2025 == 01/01/2025)
-      const norm = (str: string) => str.split('/').map(s => parseInt(s, 10)).join('/');
+      // Strictly normalize: Remove any extra zeroes to be safe: 01/01/2025 -> 1/1/2025
+      const norm = (str: string) => {
+          if (!str) return '';
+          return str.split('/').map(s => parseInt(s, 10)).join('/');
+      };
+      
       const target = norm(todayStr);
 
-      // Filter plans that match TODAY's date
+      // Filter plans that match TODAY's date (Strict Check)
       const plansToday = dailyPlans.filter(p => norm(p.date) === target);
 
       if (plansToday.length === 0) return null;
 
-      // AGGREGATE IF MULTIPLE (e.g. Multiple COs inputting for today)
-      // This ensures we show the TOTAL plan for the team for today on the dashboard
+      // AGGREGATE IF MULTIPLE
       const aggregated = plansToday.reduce((acc, curr) => ({
           ...acc,
           swCurrentNoa: String((parseInt(acc.swCurrentNoa)||0) + (parseInt(curr.swCurrentNoa)||0)),
           colCtxNoa: String((parseInt(acc.colCtxNoa)||0) + (parseInt(curr.colCtxNoa)||0)),
           colLantakurNoa: String((parseInt(acc.colLantakurNoa)||0) + (parseInt(curr.colLantakurNoa)||0)),
-          // Keep metadata from first entry but mark as aggregate
           id: curr.id, 
-          date: curr.date, 
+          date: todayStr, // Ensure display date is standardized
           coName: 'Total Tim' 
       }));
 
@@ -417,6 +419,7 @@ const App: React.FC = () => {
   const handleSyncSheet = async () => {
     setIsSyncing(true);
     setContacts([]); 
+    setDailyPlans([]); // Clear plans to ensure visual update on sync
     try {
         await loadData();
     } catch (e) {
@@ -628,12 +631,15 @@ const App: React.FC = () => {
                  </button>
             </div>
 
-            {todaysPlan && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-500" /> Rencana Hari Ini (Total)</h3>
-                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-mono text-slate-500">{todaysPlan.date}</span>
-                    </div>
+            {/* TODAYS PLAN CARD - VISUAL FEEDBACK FOR EMPTY */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-500" /> Rencana Hari Ini (Total)</h3>
+                    <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-mono text-slate-500">
+                        {todaysPlan ? todaysPlan.date : new Date().toLocaleDateString('id-ID')}
+                    </span>
+                </div>
+                {todaysPlan ? (
                     <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="p-2 bg-slate-50 rounded-lg">
                             <p className="text-[9px] text-slate-400 uppercase font-bold">SW</p>
@@ -648,13 +654,24 @@ const App: React.FC = () => {
                             <p className="font-black text-slate-700">{todaysPlan.colLantakurNoa}</p>
                         </div>
                     </div>
-                    <div className="mt-3 text-center">
-                         <button onClick={() => setActiveView('plans')} className="text-xs text-blue-600 font-bold hover:underline">
-                             Lihat Detail Realisasi
-                         </button>
+                ) : (
+                    <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/50">
+                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <BarChart3 className="w-5 h-5 text-slate-300" />
+                        </div>
+                        <p className="text-xs text-slate-400 font-bold">Belum ada data rencana hari ini.</p>
+                        <button onClick={() => setIsTodoModalOpen(true)} className="text-[10px] text-blue-600 font-bold mt-1 hover:underline">
+                            + Input Rencana Baru
+                        </button>
                     </div>
+                )}
+                
+                <div className="mt-3 text-center">
+                        <button onClick={() => setActiveView('plans')} className="text-xs text-blue-600 font-bold hover:underline">
+                            Lihat Detail Realisasi
+                        </button>
                 </div>
-            )}
+            </div>
       </main>
 
       <TodoInputModal isOpen={isTodoModalOpen} onClose={() => setIsTodoModalOpen(false)} onSave={handleSavePlan} availableCos={uniqueCos} dailyPlans={dailyPlans} contacts={contacts} />
