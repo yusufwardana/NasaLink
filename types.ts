@@ -48,6 +48,7 @@ export interface GeneratedMessage {
 export interface SheetConfig {
   spreadsheetId: string;
   sheetName: string;
+  planSheetName?: string; // NEW: Configurable Plan Sheet Name
   templateSheetName?: string;
   googleScriptUrl?: string;
   geminiApiKey?: string;

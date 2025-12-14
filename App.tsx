@@ -192,9 +192,10 @@ const App: React.FC = () => {
                 console.error("Error fetching live contacts from Sheet:", err);
             }
             
-            // Fetch Plans (NEW: This now merges PLAN + AKTUAL internally)
+            // Fetch Plans (NEW: Now uses configured Plan Sheet Name)
             try {
-                const livePlans = await fetchPlansFromSheet(finalConfig.spreadsheetId, 'Plan');
+                const planSheet = finalConfig.planSheetName || 'Plan';
+                const livePlans = await fetchPlansFromSheet(finalConfig.spreadsheetId, planSheet);
                 setDailyPlans(livePlans);
             } catch (err) {
                 console.error("Error fetching daily plans:", err);

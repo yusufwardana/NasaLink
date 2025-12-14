@@ -1,3 +1,4 @@
+
 import { SheetConfig } from './types';
 
 // ============================================================================
@@ -23,6 +24,7 @@ export const GLOBAL_CONFIG: SheetConfig = {
   // GANTI DENGAN ID SHEET ANDA
   spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
   sheetName: "Data",
+  planSheetName: "Plan", // Default Name for Plan Sheet
   googleScriptUrl: "https://script.google.com/macros/s/AKfycbx8WXSSX9zdfSlYLv2xw7NUc9913NyIYmindb6pocJx8VdBrfABxnaa8dbe-nKsEqmGFw/exec",
   
   // Default Logic Settings
