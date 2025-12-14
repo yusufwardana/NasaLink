@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
-import { updatePhoneInSheet } from '../services/sheetService';
-import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap } from 'lucide-react';
+import { updateContactData } from '../services/sheetService';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -34,7 +35,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name && formData.phone) {
+    if (formData.name) {
       // OPTIMISTIC UI UPDATE:
       // 1. Langsung update tampilan (UI) agar user merasa instan
       onSave(formData as Contact);
@@ -42,11 +43,16 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
 
       // 2. Kirim data ke Google Sheets di Background (Fire & Forget)
       if (sheetConfig?.googleScriptUrl) {
-           // Pass Debug Mode Flag
-           updatePhoneInSheet(sheetConfig.googleScriptUrl, formData.name, formData.phone, sheetConfig.enableDebugMode)
-             .catch(err => {
+           // Update Contact Data (Phone AND Notes)
+           updateContactData(
+               sheetConfig.googleScriptUrl, 
+               formData.name, 
+               formData.phone || '', 
+               formData.notes || '',
+               sheetConfig.enableDebugMode
+           ).catch(err => {
                 console.error("Background sync failed:", err);
-             });
+           });
       }
     }
   };
@@ -151,10 +157,10 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
                  <span className="font-bold">Mode Live Sheet:</span> Data utama dikunci sesuai Google Sheet. 
                  {sheetConfig?.googleScriptUrl ? (
                      <span className="text-green-700 font-bold block mt-1 flex items-center gap-1">
-                        <Zap className="w-3 h-3" /> Auto-Sync Aktif: Simpan instan ke Sheet.
+                        <Zap className="w-3 h-3" /> Auto-Sync Aktif: HP & Catatan tersimpan.
                      </span>
                  ) : (
-                     <span className="text-orange-700 block mt-1">⚠ Script Update Belum Dipasang: Perubahan nomor hanya sementara.</span>
+                     <span className="text-orange-700 block mt-1">⚠ Script Update Belum Dipasang: Perubahan hanya sementara di layar ini.</span>
                  )}
              </div>
           </div>
@@ -191,6 +197,21 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
                     <ContactIcon className="w-5 h-5" />
                 </button>
             </div>
+          </div>
+
+          {/* NEW: NOTES FIELD */}
+          <div>
+            <label className="block text-xs font-bold text-orange-600 mb-2 uppercase tracking-wider flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5" /> Catatan / Keterangan (Bisa Diedit)
+            </label>
+            <textarea
+              name="notes"
+              rows={3}
+              value={formData.notes || ''}
+              onChange={handleChange}
+              className="w-full p-3 bg-white border border-orange-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all shadow-sm text-sm"
+              placeholder="Contoh: Janji bayar tgl 25, Usaha lancar, dll..."
+            />
           </div>
           
           <div className="grid grid-cols-2 gap-4">

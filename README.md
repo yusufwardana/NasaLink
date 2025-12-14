@@ -11,6 +11,7 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 - **Notifikasi Cerdas:** Peluang Refinancing & Jadwal PRS.
 - **Input Rencana Harian:** CO bisa input target & realisasi harian yang tersinkronisasi ke Sheet 'Plan'.
 - **System Debugging:** Fitur pencatatan log error ke sheet 'SystemLogs' untuk mempermudah perbaikan.
+- **Update Data:** Edit nomor HP dan Catatan (Notes) langsung dari aplikasi.
 
 ## ⚙️ Setup & Instalasi
 
@@ -18,12 +19,12 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 
 1. **Sheet "Data"**: Kolom (Baris 1): `CO`, `SENTRA`, `NASABAH`, `PLAFON`, `PRODUK`, `FLAG`, `TGL JATUH TEMPO`, `TGL PRS`, `STATUS`, `NOMER TELP`, `CATATAN`...
 2. **Sheet "Plan"**: (Biarkan kosong, script akan otomatis membuat header).
-3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.5 - Debug Mode):
+3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.6 - Support Notes Update):
 
 ```javascript
 /**
  * B-CONNECT CRM BACKEND SCRIPT
- * Version: 3.5 (Debug Mode & Robust Plan Sync)
+ * Version: 3.6 (Updated Update Logic for Notes)
  */
 
 function doPost(e) {
@@ -203,8 +204,9 @@ function doPost(e) {
       return jsonResponse({ "result": "success", "row": rowIndex });
     }
 
-    // --- ACTION: UPDATE PHONE ---
-    if (payload.action === 'update_phone') {
+    // --- ACTION: UPDATE CONTACT (PHONE & NOTES) ---
+    // Updated from 'update_phone' to 'update_contact'
+    if (payload.action === 'update_contact' || payload.action === 'update_phone') {
         var sheet = doc.getSheetByName('Data');
         if (!sheet) {
              logToSheet("Sheet 'Data' not found!");
@@ -214,15 +216,28 @@ function doPost(e) {
         var finder = sheet.createTextFinder(payload.name).matchEntireCell(true).findNext();
         if (finder) {
              var headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
-             var colIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/telp|phone|wa/); });
-             if (colIdx > -1) {
-               sheet.getRange(finder.getRow(), colIdx + 1).setValue("'" + payload.phone);
-               logToSheet("Updated phone for " + payload.name);
-             } else {
-               logToSheet("Phone column not found in Data sheet");
+             var rowIdx = finder.getRow();
+             
+             // 1. Update Phone
+             if (payload.phone) {
+                 var colIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/telp|phone|wa/); });
+                 if (colIdx > -1) {
+                   sheet.getRange(rowIdx, colIdx + 1).setValue("'" + payload.phone);
+                   logToSheet("Updated phone for " + payload.name);
+                 }
              }
+             
+             // 2. Update Notes (New)
+             if (payload.notes) {
+                 var noteIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/catatan|note|keterangan/); });
+                 if (noteIdx > -1) {
+                   sheet.getRange(rowIdx, noteIdx + 1).setValue(payload.notes);
+                   logToSheet("Updated notes for " + payload.name);
+                 }
+             }
+
         } else {
-             logToSheet("Name not found for phone update: " + payload.name);
+             logToSheet("Name not found for update: " + payload.name);
         }
         return jsonResponse({ "result": "success" });
     }

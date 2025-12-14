@@ -202,6 +202,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
         const name = getVal(idxName);
         const rawPhone = getVal(idxPhone);
+        const sentra = getVal(idxSentra) || 'Pusat';
         
         // Validation: Must have at least a Name to be a valid contact
         if (!name || name === 'Tanpa Nama') return null;
@@ -211,12 +212,16 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         let flag = getVal(idxFlag);
         if (!flag) flag = 'Active'; 
 
+        // Generate Stable ID based on Content instead of Random Date
+        // This prevents re-renders and logic loss when Syncing
+        const stableId = `contact-${btoa(name + sentra).substring(0, 15)}-${index}`;
+
         return {
-            id: `sheet-${index}-${Date.now()}`,
+            id: stableId,
             name: name,
             phone: phone, 
             flag: flag,
-            sentra: getVal(idxSentra) || 'Pusat',
+            sentra: sentra,
             
             co: getVal(idxCo),
             plafon: getVal(idxPlafon),
@@ -432,15 +437,17 @@ export const saveTemplatesToSheet = async (scriptUrl: string, templates: Message
     }
 };
 
-export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPhone: string, isDebug: boolean = false): Promise<void> => {
+// RENAMED from updatePhoneInSheet to be more generic, and now accepts notes
+export const updateContactData = async (scriptUrl: string, name: string, newPhone: string, newNotes: string, isDebug: boolean = false): Promise<void> => {
   if (!scriptUrl) {
     throw new Error("URL Google Apps Script belum dikonfigurasi.");
   }
 
   const payload = {
-    action: 'update_phone',
+    action: 'update_contact', // Updated action name
     name: name,
     phone: newPhone,
+    notes: newNotes,
     debug: isDebug
   };
 
@@ -453,3 +460,6 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
   
   await delay(500);
 };
+
+// Keep deprecated export for backward compat if any, but better to update consumers
+export const updatePhoneInSheet = updateContactData;
