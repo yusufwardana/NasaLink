@@ -77,6 +77,29 @@ const isNonZero = (val?: string): boolean => {
     return num > 0;
 };
 
+// Helper: Normalize Date from Sheet to DD/MM/YYYY
+const normalizeSheetDate = (val: string): string => {
+    if (!val) return '';
+    const clean = val.trim();
+    
+    // Check YYYY-MM-DD (ISO Format - common in Sheets CSV export)
+    if (clean.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+        const [y, m, d] = clean.split('-');
+        return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+    }
+
+    // Check DD/MM/YYYY or MM/DD/YYYY
+    if (clean.includes('/')) {
+        const parts = clean.split('/');
+        if (parts.length === 3) {
+             // Basic padding ensure 1/1/2025 -> 01/01/2025
+             return parts.map(p => p.padStart(2, '0')).join('/');
+        }
+    }
+    
+    return clean;
+};
+
 // Helper to fetch CSV with retry mechanism
 const fetchSheetCsv = async (spreadsheetId: string, sheetName: string, retries = 1): Promise<string> => {
     // Add aggressive cache busting
@@ -119,7 +142,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
     if (rows.length < 2) return [];
 
-    // Header Mapping based on User Screenshot & New Request
+    // Header Mapping
     const headers = rows[0].map(h => h.toLowerCase().trim());
     
     // Exact mapping prioritized
@@ -174,8 +197,8 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             co: getVal(idxCo),
             plafon: getVal(idxPlafon),
             produk: getVal(idxProduk),
-            tglJatuhTempo: getVal(idxJatuhTempo),
-            tglPrs: getVal(idxPrs),
+            tglJatuhTempo: normalizeSheetDate(getVal(idxJatuhTempo)), // Apply Normalize
+            tglPrs: getVal(idxPrs), // Keep as is (usually 1-31 or date)
             status: getVal(idxStatus), 
             
             // New Fields
@@ -184,7 +207,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
             os: getVal(idxOs),
             dpd: getVal(idxDpd),
             saldoTabungan: getVal(idxSaldo),
-            tglLunas: getVal(idxTglLunas),
+            tglLunas: normalizeSheetDate(getVal(idxTglLunas)), // Apply Normalize
             
             // Collection Fields
             angsuran: getVal(idxAngsuran),
@@ -205,7 +228,7 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
 
 export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: string = 'Templates'): Promise<MessageTemplate[]> => {
     try {
-        const text = await fetchSheetCsv(spreadsheetId, sheetName, 2); // Retry twice
+        const text = await fetchSheetCsv(spreadsheetId, sheetName, 2); 
         const rows = parseCSV(text);
         if (rows.length < 2) return [];
 
@@ -233,7 +256,7 @@ export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: 
 
     } catch (error) {
         console.warn("Templates sheet not found or empty, using defaults.", error);
-        return []; // Return empty to fallback to defaults
+        return []; 
     }
 };
 
@@ -265,7 +288,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         const pIdxFppb = findColIndex(pHeaders, ['plan fppb', 'fppb', 'fppb noa']);
         const pIdxBiometrik = findColIndex(pHeaders, ['plan biometrik', 'biometrik', 'bio']);
 
-        // Plan Columns (Actuals - residing in the SAME sheet 'Plan')
+        // Plan Columns (Actuals)
         const pIdxActSwNoa = findColIndex(pHeaders, ['aktual sw cur noa', 'actual sw cur noa', 'realisasi sw cur noa']);
         const pIdxActSwDisb = findColIndex(pHeaders, ['aktual sw cur disb', 'actual sw cur disb']);
         const pIdxActSwNextNoa = findColIndex(pHeaders, ['aktual sw next noa', 'actual sw next noa']);
@@ -277,26 +300,26 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         const pIdxActFppb = findColIndex(pHeaders, ['aktual fppb', 'actual fppb']);
         const pIdxActBiometrik = findColIndex(pHeaders, ['aktual biometrik', 'actual biometrik']);
 
-
         // --- PARSE PLANS ---
         const uniquePlansMap = new Map<string, DailyPlan>();
 
         planRows.slice(1).forEach((row, index) => {
             const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
             
-            const date = (pIdxDate !== -1 && row[pIdxDate]) ? row[pIdxDate].trim() : '';
+            // Normalize Date
+            const rawDate = (pIdxDate !== -1 && row[pIdxDate]) ? row[pIdxDate].trim() : '';
+            const date = normalizeSheetDate(rawDate); // Use Helper!
+
             const co = (pIdxCo !== -1 && row[pIdxCo]) ? row[pIdxCo].trim() : '';
             
             let uniqueKey = '';
-            // Priority 1: ID from Sheet
             if (pIdxId !== -1 && row[pIdxId]) uniqueKey = row[pIdxId].trim();
-            // Priority 2: Date + CO
             if (!uniqueKey && date && co) uniqueKey = generateLookupKey(date, co);
             
-            if (!uniqueKey) return; // Skip invalid rows
+            if (!uniqueKey) return; 
 
             const plan: DailyPlan = {
-                id: (pIdxId !== -1 && row[pIdxId]) ? row[pIdxId].trim() : `plan-${index}-${Date.now()}`,
+                id: uniqueKey,
                 date: date,
                 coName: co,
                 
@@ -312,7 +335,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 fppbNoa: getVal(pIdxFppb),
                 biometrikNoa: getVal(pIdxBiometrik),
 
-                // Actuals (Read from the same sheet)
+                // Actuals
                 actualSwNoa: getVal(pIdxActSwNoa),
                 actualSwDisb: getVal(pIdxActSwDisb),
                 actualSwNextNoa: getVal(pIdxActSwNextNoa),

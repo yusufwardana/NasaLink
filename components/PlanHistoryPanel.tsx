@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
 import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
@@ -31,13 +32,20 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
   };
 
+  // Helper to Normalize Date String (Remove leading zeros to compare safely)
+  // e.g., '01/01/2025' becomes '1/1/2025'
+  const normalizeForMatch = (d: string) => {
+      if (!d) return '';
+      return d.split('/').map(p => parseInt(p, 10)).join('/');
+  };
+
   const filteredPlans = useMemo(() => {
     return plans.filter(p => {
-        // Normalize date comparison (handle D/M/YYYY vs DD/MM/YYYY)
-        const pDate = p.date.split('/').map(s => s.padStart(2, '0')).join('/');
-        const sDate = selectedDate.split('/').map(s => s.padStart(2, '0')).join('/');
+        // Robust Date Comparison
+        const pDateNorm = normalizeForMatch(p.date);
+        const sDateNorm = normalizeForMatch(selectedDate);
         
-        const matchDate = pDate === sDate;
+        const matchDate = pDateNorm === sDateNorm;
         const matchSearch = searchTerm === '' || p.coName.toLowerCase().includes(searchTerm.toLowerCase());
         
         return matchDate && matchSearch;
