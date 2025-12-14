@@ -433,7 +433,9 @@ const App: React.FC = () => {
 
   const handleSyncSheet = async () => {
     setIsSyncing(true);
-    setContacts([]); 
+    setContacts([]);
+    // Clear plans to force refresh visuals
+    setDailyPlans([]); 
     try {
         await loadData();
     } catch (e) {

@@ -254,35 +254,33 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         // Exclude terms for Plan vs Actual differentiation
         const excludeActual = ['aktual', 'actual', 'realisasi', 'pencapaian'];
         
-        // Plan Columns (Targets) - Exclude "Aktual" to avoid mismatch
+        // Plan Columns (Targets)
         const pIdxId = findColIndex(headers, ['id', 'plan id', 'plan_id', 'key']);
         const pIdxDate = findColIndex(headers, ['tanggal', 'date', 'tgl']);
         const pIdxCo = findColIndex(headers, ['co', 'petugas', 'nama co']);
         
-        const pIdxSwCurNoa = findColIndex(headers, ['plan sw cur noa', 'target sw cur noa', 'sw cur noa', 'sw noa'], excludeActual);
-        const pIdxSwCurDisb = findColIndex(headers, ['plan sw cur disb', 'target sw cur disb', 'sw cur disb', 'sw disb'], excludeActual);
-        const pIdxSwNextNoa = findColIndex(headers, ['plan sw next noa', 'sw next noa'], excludeActual);
-        const pIdxSwNextDisb = findColIndex(headers, ['plan sw next disb', 'sw next disb'], excludeActual);
-        const pIdxCtxNoa = findColIndex(headers, ['plan col ctx noa', 'col ctx noa', 'ctx noa'], excludeActual);
-        const pIdxCtxOs = findColIndex(headers, ['plan col ctx os', 'col ctx os', 'ctx os'], excludeActual);
-        const pIdxLantakurNoa = findColIndex(headers, ['plan col lantakur noa', 'col lantakur noa', 'lantakur noa'], excludeActual);
-        const pIdxLantakurOs = findColIndex(headers, ['plan col lantakur os', 'col lantakur os', 'lantakur os'], excludeActual);
-        const pIdxFppb = findColIndex(headers, ['plan fppb', 'fppb noa', 'fppb'], excludeActual);
-        const pIdxBiometrik = findColIndex(headers, ['plan biometrik', 'biometrik noa', 'biometrik'], excludeActual);
+        const pIdxSwCurNoa = findColIndex(headers, ['plan sw cur noa', 'target sw cur noa'], excludeActual);
+        const pIdxSwCurDisb = findColIndex(headers, ['plan sw cur disb', 'target sw cur disb'], excludeActual);
+        const pIdxSwNextNoa = findColIndex(headers, ['plan sw next noa', 'target sw next noa'], excludeActual);
+        const pIdxSwNextDisb = findColIndex(headers, ['plan sw next disb', 'target sw next disb'], excludeActual);
+        const pIdxCtxNoa = findColIndex(headers, ['plan col ctx noa', 'plan ctx noa'], excludeActual);
+        const pIdxCtxOs = findColIndex(headers, ['plan col ctx os', 'plan ctx os'], excludeActual);
+        const pIdxLantakurNoa = findColIndex(headers, ['plan col lantakur noa', 'plan lantakur noa'], excludeActual);
+        const pIdxLantakurOs = findColIndex(headers, ['plan col lantakur os', 'plan lantakur os'], excludeActual);
+        const pIdxFppb = findColIndex(headers, ['plan fppb', 'fppb noa'], excludeActual);
+        const pIdxBiometrik = findColIndex(headers, ['plan biometrik', 'biometrik noa'], excludeActual);
 
-        // Actual Columns (Realisasi) - Require explicit keywords
-        const actualKeywords = ['aktual', 'actual', 'realisasi', 'pencapaian'];
-        
-        const aIdxSwNoa = findColIndex(headers, ['aktual sw cur noa', 'actual sw cur noa', 'realisasi sw cur noa', 'aktual sw noa']);
-        const aIdxSwDisb = findColIndex(headers, ['aktual sw cur disb', 'actual sw cur disb', 'realisasi sw cur disb', 'aktual sw disb']);
-        const aIdxSwNextNoa = findColIndex(headers, ['aktual sw next noa', 'actual sw next noa', 'realisasi sw next noa']);
-        const aIdxSwNextDisb = findColIndex(headers, ['aktual sw next disb', 'actual sw next disb', 'realisasi sw next disb']);
-        const aIdxCtxNoa = findColIndex(headers, ['aktual col ctx noa', 'actual col ctx noa', 'realisasi ctx noa', 'aktual ctx noa']);
-        const aIdxCtxOs = findColIndex(headers, ['aktual col ctx os', 'actual col ctx os', 'realisasi ctx os', 'aktual ctx os']);
-        const aIdxLantakurNoa = findColIndex(headers, ['aktual col lantakur noa', 'actual col lantakur noa', 'realisasi lantakur noa', 'aktual lantakur noa']);
-        const aIdxLantakurOs = findColIndex(headers, ['aktual col lantakur os', 'actual col lantakur os', 'realisasi lantakur os', 'aktual lantakur os']);
-        const aIdxFppb = findColIndex(headers, ['aktual fppb', 'actual fppb', 'realisasi fppb']);
-        const aIdxBiometrik = findColIndex(headers, ['aktual biometrik', 'actual biometrik', 'realisasi biometrik']);
+        // Actual Columns (Realisasi) - Exactly as requested
+        const aIdxSwNoa = findColIndex(headers, ['aktual sw cur noa']);
+        const aIdxSwDisb = findColIndex(headers, ['aktual sw cur disb']);
+        const aIdxSwNextNoa = findColIndex(headers, ['aktual sw next noa']);
+        const aIdxSwNextDisb = findColIndex(headers, ['aktual sw next disb']);
+        const aIdxCtxNoa = findColIndex(headers, ['aktual ctx noa']);
+        const aIdxCtxOs = findColIndex(headers, ['aktual ctx os']);
+        const aIdxLantakurNoa = findColIndex(headers, ['aktual lantakur noa']);
+        const aIdxLantakurOs = findColIndex(headers, ['aktual lantakur os']);
+        const aIdxFppb = findColIndex(headers, ['aktual fppb']);
+        const aIdxBiometrik = findColIndex(headers, ['aktual biometrik']);
 
         // --- PARSE PLANS ---
         const uniquePlansMap = new Map<string, DailyPlan>();
