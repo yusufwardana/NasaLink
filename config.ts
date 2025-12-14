@@ -20,14 +20,14 @@ export const GEMINI_CONFIG = {
 // ============================================================================
 // KONFIGURASI GLOBAL DEFAULT
 // ============================================================================
+// NOTE: Nilai di bawah ini akan ditimpa oleh data dari Supabase jika tersedia.
 export const GLOBAL_CONFIG: SheetConfig = {
-  // GANTI DENGAN ID SHEET ANDA YANG BENAR
-  spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
+  // Biarkan kosong agar sistem memaksa pengambilan dari Supabase / Admin Settings
+  spreadsheetId: "", 
   sheetName: "Data",
   
   // URL Deployment Web App Google Apps Script
-  // Pastikan script sudah di-update dengan kode terbaru dari README.md dan di-deploy sebagai 'New Version'
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycbyAnnIAWyy1YItAvFXJ2bTq8_qxx6DqQNxo9uNTDzjgwKG8a-IAjc4AOaIuJPtMuQxT/exec",
+  googleScriptUrl: "",
   
   // Pengaturan Logika Notifikasi Default
   prsThresholdDays: 1, // Alert muncul H-1 sebelum kumpulan

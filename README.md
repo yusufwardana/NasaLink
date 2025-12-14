@@ -26,12 +26,37 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 
 ### 1. Konfigurasi Google Sheets (Data Nasabah)
 
-1. **Sheet "Data"**: Kolom (Baris 1): `CO`, `SENTRA`, `NASABAH`, `PLAFON`, `PRODUK`, `FLAG`, `TGL JATUH TEMPO`, `TGL PRS`, `STATUS`, `NOMER TELP`, `CATATAN`... (dan kolom lainnya).
-2. **Sheet "Plan"**: Kolom (Baris 1): `ID`, `Tanggal`, `CO`, `Plan SW Cur NOA`, `Plan SW Cur Disb`, `Plan SW Next NOA`, `Plan SW Next Disb`, `Plan CTX NOA`, `Plan CTX OS`, `Plan Lantakur NOA`, `Plan Lantakur OS`, `Plan FPPB`, `Plan Biometrik`... (Termasuk kolom Aktual/Realisasi).
+1. **Sheet "Data"**: Kolom (Baris 1): `CO`, `SENTRA`, `NASABAH`, `PLAFON`, `PRODUK`, `FLAG`, `TGL JATUH TEMPO`, `TGL PRS`, `STATUS`, `NOMER TELP`, `CATATAN`...
+2. **Sheet "Plan"**: Pastikan urutan kolom (24 Kolom) sebagai berikut:
+   1. `ID`
+   2. `Tanggal`
+   3. `CO`
+   4. `SW Cur NOA`
+   5. `SW Cur Disb`
+   6. `SW Next NOA`
+   7. `SW Next Disb`
+   8. `CTX NOA`
+   9. `CTX OS`
+   10. `Lantakur NOA`
+   11. `Lantakur OS`
+   12. `FPPB`
+   13. `Biometrik`
+   14. `Timestamp`
+   15. `Aktual SW Cur NOA`
+   16. `Aktual SW Cur Disb`
+   17. `Aktual SW Next NOA`
+   18. `Aktual SW Next Disb`
+   19. `Aktual CTX NOA`
+   20. `Aktual CTX OS`
+   21. `Aktual Lantakur NOA`
+   22. `Aktual Lantakur OS`
+   23. `Aktual FPPB`
+   24. `Aktual Biometrik`
+
 3. **Sheet "Templates"**: (Akan dibuat otomatis oleh script jika belum ada).
 
 4. Buka **Extensions** > **Apps Script**.
-5. Copy-Paste kode berikut (Versi Update Fuzzy Match - Lebih Pintar Membaca Kolom):
+5. Copy-Paste kode berikut (Updated for 24 Columns Layout):
 
 ```javascript
 function doPost(e) {
@@ -65,87 +90,92 @@ function doPost(e) {
       if (!sheet) return ContentService.createTextOutput(JSON.stringify({ "result": "error", "msg": "Sheet Plan not found" }));
 
       var p = payload.plan;
-      // Get headers and normalize to lowercase
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var headersLower = headers.map(function(h) { return String(h).toLowerCase().trim(); });
       
-      // Mapping Field App -> Keywords (Array of possibilities)
-      // Script will search for a column that CONTAINS one of these phrases
+      // MAPPING 24 KOLOM (Based on User Request)
+      // Kolom Aktual ditandai dengan awalan 'aktual'
       var map = {
-        'id': ['id', 'key', 'uuid'],
+        // IDENTITAS
+        'id': ['id', 'key'],
         'date': ['tanggal', 'date', 'tgl'],
         'coName': ['co', 'petugas', 'nama co'],
         
-        // PLAN (Target)
-        'swCurrentNoa': ['plan sw cur noa', 'target sw cur noa', 'plan sw current noa'],
-        'swCurrentDisb': ['plan sw cur disb', 'target sw cur disb', 'plan sw current disb'],
-        'swNextNoa': ['plan sw next noa', 'target sw next noa'],
-        'swNextDisb': ['plan sw next disb', 'target sw next disb'],
-        
-        'colCtxNoa': ['plan ctx noa', 'plan col ctx noa'],
-        'colCtxOs': ['plan ctx os', 'plan col ctx os'],
-        'colLantakurNoa': ['plan lantakur noa', 'plan col lantakur noa'],
-        'colLantakurOs': ['plan lantakur os', 'plan col lantakur os'],
-        
-        'fppbNoa': ['plan fppb', 'target fppb', 'fppb noa'],
-        'biometrikNoa': ['plan biometrik', 'target biometrik', 'biometrik noa'],
+        // RENCANA / PLAN (Kolom 4-13)
+        'swCurrentNoa': ['sw cur noa', 'plan sw cur noa'],
+        'swCurrentDisb': ['sw cur disb', 'plan sw cur disb'],
+        'swNextNoa': ['sw next noa', 'plan sw next noa'],
+        'swNextDisb': ['sw next disb', 'plan sw next disb'],
+        'colCtxNoa': ['ctx noa', 'plan ctx noa'],
+        'colCtxOs': ['ctx os', 'plan ctx os'],
+        'colLantakurNoa': ['lantakur noa', 'plan lantakur noa'],
+        'colLantakurOs': ['lantakur os', 'plan lantakur os'],
+        'fppbNoa': ['fppb', 'plan fppb'],
+        'biometrikNoa': ['biometrik', 'plan biometrik'],
 
-        // ACTUAL (Realisasi) - Optional if you want to sync actuals back too
-        'actualSwNoa': ['aktual sw cur noa', 'realisasi sw cur noa'],
-        'actualSwDisb': ['aktual sw cur disb', 'realisasi sw cur disb'],
-        'actualSwNextNoa': ['aktual sw next noa', 'realisasi sw next noa'],
-        'actualSwNextDisb': ['aktual sw next disb', 'realisasi sw next disb'],
-        'actualCtxNoa': ['aktual ctx noa', 'realisasi ctx noa'],
-        'actualCtxOs': ['aktual ctx os', 'realisasi ctx os'],
-        'actualLantakurNoa': ['aktual lantakur noa', 'realisasi lantakur noa'],
-        'actualLantakurOs': ['aktual lantakur os', 'realisasi lantakur os'],
-        'actualFppbNoa': ['aktual fppb', 'realisasi fppb'],
-        'actualBiometrikNoa': ['aktual biometrik', 'realisasi biometrik']
+        // AKTUAL / REALISASI (Kolom 15-24)
+        'actualSwNoa': ['aktual sw cur noa'],
+        'actualSwDisb': ['aktual sw cur disb'],
+        'actualSwNextNoa': ['aktual sw next noa'],
+        'actualSwNextDisb': ['aktual sw next disb'],
+        'actualCtxNoa': ['aktual ctx noa'],
+        'actualCtxOs': ['aktual ctx os'],
+        'actualLantakurNoa': ['aktual lantakur noa'],
+        'actualLantakurOs': ['aktual lantakur os'],
+        'actualFppbNoa': ['aktual fppb'],
+        'actualBiometrikNoa': ['aktual biometrik']
       };
 
-      // 1. Find Row Index (by ID or Date+CO)
+      // 1. Cari Baris (Row) berdasarkan ID atau (Tanggal + CO)
       var rowIndex = -1;
       var data = sheet.getDataRange().getValues();
       
-      // Try finding by ID first
       if (p.id) {
         for (var i = 1; i < data.length; i++) {
           if (String(data[i][0]) == String(p.id)) { rowIndex = i + 1; break; }
         }
       }
       
-      // If not found, try Date + CO combination
       if (rowIndex === -1) {
-        // Find column indices for Date and CO using fuzzy match
-        var idxTgl = headersLower.findIndex(function(h){ return h.indexOf('tanggal') > -1 || h.indexOf('date') > -1; });
-        var idxCo = headersLower.findIndex(function(h){ return h.indexOf('co') > -1 || h.indexOf('petugas') > -1; });
+        var idxTgl = headersLower.indexOf('tanggal'); 
+        var idxCo = headersLower.indexOf('co');
         
+        // Fallback search header manual jika index di atas -1
+        if (idxTgl === -1) idxTgl = headersLower.findIndex(function(h){ return h.indexOf('tanggal') > -1 || h.indexOf('date') > -1; });
+        if (idxCo === -1) idxCo = headersLower.findIndex(function(h){ return h.indexOf('co') > -1 || h.indexOf('petugas') > -1; });
+
         if (idxTgl > -1 && idxCo > -1) {
            for (var i = 1; i < data.length; i++) {
               var rowDate = String(data[i][idxTgl]); 
               var rowCo = String(data[i][idxCo]);
-              // Simple loose comparison
+              // Loose comparison
               if (rowDate.indexOf(p.date) > -1 && rowCo.indexOf(p.coName) > -1) { rowIndex = i + 1; break; }
            }
         }
       }
 
-      // Create new row if not found
+      // Buat baris baru jika tidak ketemu
       if (rowIndex === -1) {
         sheet.appendRow([p.id]); 
         rowIndex = sheet.getLastRow();
       }
 
-      // 2. Write Data to Columns (Using Fuzzy Header Match)
+      // 2. Tulis Data ke Kolom
       for (var key in map) {
-        // Only update if value is present in payload (allow 0)
+        // Cek apakah ada data yang dikirim untuk key ini (agar tidak menimpa data existing dengan kosong jika payload partial)
         if (p[key] !== undefined && p[key] !== null && p[key] !== '') {
           var keywords = map[key];
           var colIndex = -1;
           
-          // Search for column header that contains one of the keywords
+          // Cari kolom header yang COCOK
           for (var c = 0; c < headersLower.length; c++) {
              var headerCell = headersLower[c];
+             // Exact match check first for better precision with "Aktual" vs non-Aktual
+             if (keywords.indexOf(headerCell) > -1) {
+                 colIndex = c + 1;
+                 break;
+             }
+             // Fuzzy match fallback
              for (var k = 0; k < keywords.length; k++) {
                 if (headerCell.indexOf(keywords[k]) > -1) {
                    colIndex = c + 1; 
@@ -156,12 +186,17 @@ function doPost(e) {
           }
 
           if (colIndex > -1) {
-            // Force string to prevent formatting issues, or standard number if needed
             sheet.getRange(rowIndex, colIndex).setValue(p[key]);
           }
         }
       }
       
+      // Update Timestamp (Kolom 14 / cari header Timestamp)
+      var tsIdx = headersLower.indexOf('timestamp');
+      if (tsIdx > -1) {
+         sheet.getRange(rowIndex, tsIdx + 1).setValue(new Date());
+      }
+
       SpreadsheetApp.flush();
       return ContentService.createTextOutput(JSON.stringify({ "result": "success", "row": rowIndex }));
     }
@@ -247,10 +282,11 @@ export const SUPABASE_CONFIG = {
   key: "your-anon-key" 
 };
 
+// GLOBAL_CONFIG.googleScriptUrl dibiarkan kosong, nanti akan diisi via Admin Panel (disimpan di Supabase)
 export const GLOBAL_CONFIG = {
-  spreadsheetId: "ID_GOOGLE_SHEET_ANDA", 
+  spreadsheetId: "", 
   sheetName: "Data",
-  googleScriptUrl: "URL_WEB_APP_APPS_SCRIPT_ANDA" 
+  googleScriptUrl: "" 
 };
 ```
 

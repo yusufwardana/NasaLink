@@ -62,41 +62,35 @@ export interface SheetConfig {
   showStatsCards?: boolean; // Toggle Top Stats
 }
 
-// --- NEW INTERFACE FOR DAILY PLAN ---
+// --- NEW INTERFACE FOR DAILY PLAN (24 Columns Match) ---
 export interface DailyPlan {
-  id: string;
-  date: string;       // Format DD/MM/YYYY
-  coName: string;
+  id: string;         // Col 1
+  date: string;       // Col 2 (Format DD/MM/YYYY)
+  coName: string;     // Col 3
   
-  // 1. Survey Wawancara (SW)
+  // PLAN / TARGET (Columns 4-13)
   swCurrentNoa: string;
   swCurrentDisb: string;
   swNextNoa: string;
   swNextDisb: string;
-
-  // 2. Collection
   colCtxNoa: string;
   colCtxOs: string;
   colLantakurNoa: string; // Lancar Tabungan Kurang
   colLantakurOs: string;
-
-  // 3. Other
   fppbNoa: string;
   biometrikNoa: string;
   
   notes?: string;
 
-  // --- NEW: ACTUAL / REALISASI ---
+  // ACTUAL / REALISASI (Columns 15-24)
   actualSwNoa?: string;
   actualSwDisb?: string;
-  actualSwNextNoa?: string; // NEW
-  actualSwNextDisb?: string; // NEW
+  actualSwNextNoa?: string; 
+  actualSwNextDisb?: string;
   actualCtxNoa?: string;
   actualCtxOs?: string;
   actualLantakurNoa?: string;
   actualLantakurOs?: string;
-  
-  // Added based on request
   actualFppbNoa?: string;
   actualBiometrikNoa?: string;
 }

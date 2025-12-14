@@ -238,7 +238,7 @@ export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: 
     }
 };
 
-// --- NEW UPDATED FUNCTION: Fetch Daily Plans (Single Sheet: PLAN + AKTUAL COLUMNS) ---
+// --- UPDATED: FETCH PLAN WITH 24 COLUMNS LOGIC ---
 export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: string = 'Plan'): Promise<DailyPlan[]> => {
     try {
         // Fetch only PLAN Sheet
@@ -251,26 +251,25 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         // --- PREPARE HEADERS & INDICES ---
         const headers = rows[0].map(h => h.toLowerCase().trim().replace(/[\r\n]+/g, ' '));
         
-        // Exclude terms for Plan vs Actual differentiation
-        const excludeActual = ['aktual', 'actual', 'realisasi', 'pencapaian'];
+        // --- 1. RENCANA (TARGET) COLUMNS [No "Aktual"] ---
+        const excludeActual = ['aktual', 'actual', 'realisasi', 'timestamp'];
         
-        // Plan Columns (Targets)
-        const pIdxId = findColIndex(headers, ['id', 'plan id', 'plan_id', 'key']);
+        const pIdxId = findColIndex(headers, ['id', 'key']);
         const pIdxDate = findColIndex(headers, ['tanggal', 'date', 'tgl']);
-        const pIdxCo = findColIndex(headers, ['co', 'petugas', 'nama co']);
+        const pIdxCo = findColIndex(headers, ['co', 'petugas']);
         
-        const pIdxSwCurNoa = findColIndex(headers, ['plan sw cur noa', 'target sw cur noa'], excludeActual);
-        const pIdxSwCurDisb = findColIndex(headers, ['plan sw cur disb', 'target sw cur disb'], excludeActual);
-        const pIdxSwNextNoa = findColIndex(headers, ['plan sw next noa', 'target sw next noa'], excludeActual);
-        const pIdxSwNextDisb = findColIndex(headers, ['plan sw next disb', 'target sw next disb'], excludeActual);
-        const pIdxCtxNoa = findColIndex(headers, ['plan col ctx noa', 'plan ctx noa'], excludeActual);
-        const pIdxCtxOs = findColIndex(headers, ['plan col ctx os', 'plan ctx os'], excludeActual);
-        const pIdxLantakurNoa = findColIndex(headers, ['plan col lantakur noa', 'plan lantakur noa'], excludeActual);
-        const pIdxLantakurOs = findColIndex(headers, ['plan col lantakur os', 'plan lantakur os'], excludeActual);
-        const pIdxFppb = findColIndex(headers, ['plan fppb', 'fppb noa'], excludeActual);
-        const pIdxBiometrik = findColIndex(headers, ['plan biometrik', 'biometrik noa'], excludeActual);
+        const pIdxSwCurNoa = findColIndex(headers, ['sw cur noa'], excludeActual); // Plan
+        const pIdxSwCurDisb = findColIndex(headers, ['sw cur disb'], excludeActual); // Plan
+        const pIdxSwNextNoa = findColIndex(headers, ['sw next noa'], excludeActual); // Plan
+        const pIdxSwNextDisb = findColIndex(headers, ['sw next disb'], excludeActual); // Plan
+        const pIdxCtxNoa = findColIndex(headers, ['ctx noa'], excludeActual); // Plan
+        const pIdxCtxOs = findColIndex(headers, ['ctx os'], excludeActual); // Plan
+        const pIdxLantakurNoa = findColIndex(headers, ['lantakur noa'], excludeActual); // Plan
+        const pIdxLantakurOs = findColIndex(headers, ['lantakur os'], excludeActual); // Plan
+        const pIdxFppb = findColIndex(headers, ['fppb'], excludeActual); // Plan
+        const pIdxBiometrik = findColIndex(headers, ['biometrik'], excludeActual); // Plan
 
-        // Actual Columns (Realisasi) - Exactly as requested
+        // --- 2. REALISASI (ACTUAL) COLUMNS [Must have "Aktual"] ---
         const aIdxSwNoa = findColIndex(headers, ['aktual sw cur noa']);
         const aIdxSwDisb = findColIndex(headers, ['aktual sw cur disb']);
         const aIdxSwNextNoa = findColIndex(headers, ['aktual sw next noa']);
@@ -308,7 +307,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 date: date,
                 coName: co,
                 
-                // Targets (Plan)
+                // Targets (Plan - Columns 4-13)
                 swCurrentNoa: getVal(pIdxSwCurNoa),
                 swCurrentDisb: getVal(pIdxSwCurDisb),
                 swNextNoa: getVal(pIdxSwNextNoa),
@@ -320,7 +319,7 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 fppbNoa: getVal(pIdxFppb),
                 biometrikNoa: getVal(pIdxBiometrik),
 
-                // Actuals (Realisasi from same sheet)
+                // Actuals (Realisasi - Columns 15-24)
                 actualSwNoa: getVal(aIdxSwNoa),
                 actualSwDisb: getVal(aIdxSwDisb),
                 actualSwNextNoa: getVal(aIdxSwNextNoa),
