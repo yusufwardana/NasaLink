@@ -183,8 +183,8 @@ function doPost(e) {
 
             if (colIndex > -1) {
                var val = p[key];
-               // Force string for IDs and Dates to prevent auto-formatting issues
-               if (key === 'id' || key === 'date' || key === 'coName') {
+               // UPDATED: Only force string for ID/CO, NOT for Date to keep it clean
+               if (key === 'id' || key === 'coName') {
                   val = "'" + val;
                }
                sheet.getRange(rowIndex, colIndex).setValue(val);

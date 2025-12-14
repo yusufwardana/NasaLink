@@ -78,17 +78,19 @@ const isNonZero = (val?: string): boolean => {
 };
 
 // Helper: Normalize Date from Sheet to DD/MM/YYYY
+// UPDATED: Now strips leading quotes (') to fix disappearing data issues
 const normalizeSheetDate = (val: string): string => {
     if (!val) return '';
-    const clean = val.trim();
+    // 1. Remove leading apostrophe and whitespace
+    let clean = val.trim().replace(/^'/, '');
     
-    // 1. Check YYYY-MM-DD (ISO Format - common in Sheets CSV export)
+    // 2. Check YYYY-MM-DD (ISO Format - common in Sheets CSV export)
     if (clean.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
         const [y, m, d] = clean.split('-');
         return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     }
 
-    // 2. Check DD/MM/YYYY or DD/MM/YY
+    // 3. Check DD/MM/YYYY or DD/MM/YY
     if (clean.includes('/')) {
         const parts = clean.split('/');
         if (parts.length === 3) {
@@ -105,12 +107,11 @@ const normalizeSheetDate = (val: string): string => {
         }
     }
     
-    // 3. Check DD-MM-YYYY or DD-MM-YY (Dash separator)
+    // 4. Check DD-MM-YYYY or DD-MM-YY (Dash separator)
     if (clean.includes('-')) {
         const parts = clean.split('-');
         if (parts.length === 3) {
              // Assume Day-Month-Year order if not ISO
-             // Note: If ISO matched above, this won't run.
              let d = parts[0].padStart(2, '0');
              let m = parts[1].padStart(2, '0');
              let y = parts[2];
@@ -329,9 +330,9 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         planRows.slice(1).forEach((row, index) => {
             const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
             
-            // Normalize Date
+            // Normalize Date - Use enhanced normalizer to strip quotes!
             const rawDate = (pIdxDate !== -1 && row[pIdxDate]) ? row[pIdxDate].trim() : '';
-            const date = normalizeSheetDate(rawDate); // Use Helper!
+            const date = normalizeSheetDate(rawDate); 
 
             const co = (pIdxCo !== -1 && row[pIdxCo]) ? row[pIdxCo].trim() : '';
             
