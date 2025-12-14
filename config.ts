@@ -23,7 +23,7 @@ export const GLOBAL_CONFIG: SheetConfig = {
   // GANTI DENGAN ID SHEET ANDA
   spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
   sheetName: "Data",
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycbx8WXSSX9zdfSlYLv2xw7NUc9913NyIYmindb6pocJx8VdBrfABxnaa8dbe-nKsEqmGFw/exec",
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycbzbGMxnnueLVm1qENaXcf6I1frTB2VB1_eF_ZwDzUFmHKsz4DJKj5tF5mjTWKo3SgeawA/exec",
   
   // Default Logic Settings
   prsThresholdDays: 1, // H-1
