@@ -240,105 +240,43 @@ export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: 
 // --- NEW UPDATED FUNCTION: Fetch Daily Plans & Merge with Actuals ---
 export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: string = 'Plan'): Promise<DailyPlan[]> => {
     try {
-        // 1. Fetch PLAN & ACTUAL Sheet concurrently
-        const [planText, actualText] = await Promise.all([
-            fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => ""),
-            fetchSheetCsv(spreadsheetId, "Aktual", 1).catch(() => "")
-        ]);
-
+        const planText = await fetchSheetCsv(spreadsheetId, sheetName, 1).catch(() => "");
         if (!planText) return [];
+
         const planRows = parseCSV(planText);
         if (planRows.length < 2) return [];
 
         // --- PREPARE HEADERS & INDICES ---
         const pHeaders = planRows[0].map(h => h.toLowerCase().trim().replace(/[\r\n]+/g, ' '));
         
-        // Plan Columns
+        // Plan Columns (Targets)
         const pIdxId = findColIndex(pHeaders, ['id', 'plan id', 'plan_id', 'key']);
         const pIdxDate = findColIndex(pHeaders, ['tanggal', 'date', 'tgl']);
         const pIdxCo = findColIndex(pHeaders, ['co', 'petugas', 'nama co']);
         
-        const pIdxSwCurNoa = findColIndex(pHeaders, ['sw cur noa', 'sw bulan ini noa', 'sw noa']);
-        const pIdxSwCurDisb = findColIndex(pHeaders, ['sw cur disb', 'sw bulan ini disb', 'sw disb']);
-        const pIdxSwNextNoa = findColIndex(pHeaders, ['sw next noa', 'sw bulan depan noa']);
-        const pIdxSwNextDisb = findColIndex(pHeaders, ['sw next disb', 'sw bulan depan disb']);
-        const pIdxCtxNoa = findColIndex(pHeaders, ['col ctx noa', 'ctx noa']);
-        const pIdxCtxOs = findColIndex(pHeaders, ['col ctx os', 'ctx os']);
-        const pIdxLantakurNoa = findColIndex(pHeaders, ['col lantakur noa', 'lantakur noa']);
-        const pIdxLantakurOs = findColIndex(pHeaders, ['col lantakur os', 'lantakur os']);
-        const pIdxFppb = findColIndex(pHeaders, ['fppb', 'fppb noa', 'input fppb']);
-        const pIdxBiometrik = findColIndex(pHeaders, ['biometrik', 'bio', 'biometrik noa']);
+        const pIdxSwCurNoa = findColIndex(pHeaders, ['plan sw cur noa', 'sw cur noa', 'sw bulan ini noa']);
+        const pIdxSwCurDisb = findColIndex(pHeaders, ['plan sw cur disb', 'sw cur disb', 'sw bulan ini disb']);
+        const pIdxSwNextNoa = findColIndex(pHeaders, ['plan sw next noa', 'sw next noa', 'sw bulan depan noa']);
+        const pIdxSwNextDisb = findColIndex(pHeaders, ['plan sw next disb', 'sw next disb', 'sw bulan depan disb']);
+        const pIdxCtxNoa = findColIndex(pHeaders, ['plan ctx noa', 'col ctx noa', 'ctx noa']);
+        const pIdxCtxOs = findColIndex(pHeaders, ['plan ctx os', 'col ctx os', 'ctx os']);
+        const pIdxLantakurNoa = findColIndex(pHeaders, ['plan lantakur noa', 'col lantakur noa', 'lantakur noa']);
+        const pIdxLantakurOs = findColIndex(pHeaders, ['plan lantakur os', 'col lantakur os', 'lantakur os']);
+        const pIdxFppb = findColIndex(pHeaders, ['plan fppb', 'fppb', 'fppb noa']);
+        const pIdxBiometrik = findColIndex(pHeaders, ['plan biometrik', 'biometrik', 'bio']);
 
-        // Actual Columns Preparation
-        let actRows: string[][] = [];
-        let aHeaders: string[] = [];
-        let aIdxId = -1;
-        let aIdxDate = -1; 
-        let aIdxCo = -1;
-        
-        // Metric Indices for Actuals
-        let aIdxSwNoa = -1, aIdxSwDisb = -1, aIdxSwNextNoa = -1, aIdxSwNextDisb = -1;
-        let aIdxCtxNoa = -1, aIdxCtxOs = -1, aIdxLantakurNoa = -1, aIdxLantakurOs = -1;
-        let aIdxFppb = -1, aIdxBiometrik = -1;
+        // Plan Columns (Actuals - residing in the SAME sheet 'Plan')
+        const pIdxActSwNoa = findColIndex(pHeaders, ['aktual sw cur noa', 'actual sw cur noa', 'realisasi sw cur noa']);
+        const pIdxActSwDisb = findColIndex(pHeaders, ['aktual sw cur disb', 'actual sw cur disb']);
+        const pIdxActSwNextNoa = findColIndex(pHeaders, ['aktual sw next noa', 'actual sw next noa']);
+        const pIdxActSwNextDisb = findColIndex(pHeaders, ['aktual sw next disb', 'actual sw next disb']);
+        const pIdxActCtxNoa = findColIndex(pHeaders, ['aktual ctx noa', 'actual ctx noa']);
+        const pIdxActCtxOs = findColIndex(pHeaders, ['aktual ctx os', 'actual ctx os']);
+        const pIdxActLantakurNoa = findColIndex(pHeaders, ['aktual lantakur noa', 'actual lantakur noa']);
+        const pIdxActLantakurOs = findColIndex(pHeaders, ['aktual lantakur os', 'actual lantakur os']);
+        const pIdxActFppb = findColIndex(pHeaders, ['aktual fppb', 'actual fppb']);
+        const pIdxActBiometrik = findColIndex(pHeaders, ['aktual biometrik', 'actual biometrik']);
 
-        if (actualText) {
-            actRows = parseCSV(actualText);
-            if (actRows.length >= 2) {
-                aHeaders = actRows[0].map(h => h.toLowerCase().trim().replace(/[\r\n]+/g, ' '));
-                aIdxId = findColIndex(aHeaders, ['id', 'plan id', 'plan_id', 'key']);
-                aIdxDate = findColIndex(aHeaders, ['tanggal', 'date', 'tgl']);
-                aIdxCo = findColIndex(aHeaders, ['co', 'petugas', 'nama co']);
-
-                aIdxSwNoa = findColIndex(aHeaders, ['sw cur noa', 'sw noa', 'sw (noa)', 'sw bulan ini noa', 'sw bln ini noa']);
-                aIdxSwDisb = findColIndex(aHeaders, ['sw cur disb', 'sw disb', 'sw (disb)', 'sw bulan ini disb', 'sw bln ini disb']);
-                aIdxSwNextNoa = findColIndex(aHeaders, ['sw next noa', 'sw bulan depan noa', 'sw bln depan noa']);
-                aIdxSwNextDisb = findColIndex(aHeaders, ['sw next disb', 'sw bulan depan disb', 'sw bln depan disb']);
-                aIdxCtxNoa = findColIndex(aHeaders, ['col ctx noa', 'ctx noa', 'ctx (noa)']);
-                aIdxCtxOs = findColIndex(aHeaders, ['col ctx os', 'ctx os', 'ctx (os)']);
-                aIdxLantakurNoa = findColIndex(aHeaders, ['col lantakur noa', 'lantakur noa', 'lantakur (noa)']);
-                aIdxLantakurOs = findColIndex(aHeaders, ['col lantakur os', 'lantakur os', 'lantakur (os)']);
-                aIdxFppb = findColIndex(aHeaders, ['fppb', 'fppb noa', 'input fppb']);
-                aIdxBiometrik = findColIndex(aHeaders, ['biometrik', 'bio', 'biometrik noa']);
-            }
-        }
-
-        // --- DETERMINE MATCHING STRATEGY ---
-        // Priority: Use ID if available in both sheets. Fallback to Date+CO.
-        const useIdMatching = (pIdxId !== -1 && aIdxId !== -1);
-
-        // --- PARSE ACTUALS INTO LOOKUP MAP ---
-        const actualsMap = new Map<string, any>();
-        
-        if (actRows.length >= 2) {
-            actRows.slice(1).forEach(row => {
-                let key = '';
-                
-                // Strategy 1: Match by ID
-                if (useIdMatching && row[aIdxId]) {
-                    key = row[aIdxId].trim();
-                } 
-                
-                // Strategy 2: Match by Date+CO (Fallback if ID missing or Strategy 1 disabled)
-                if (!key && aIdxDate !== -1 && aIdxCo !== -1 && row[aIdxDate] && row[aIdxCo]) {
-                    key = generateLookupKey(row[aIdxDate], row[aIdxCo]);
-                }
-
-                if (key) {
-                     actualsMap.set(key, {
-                         swNoa: row[aIdxSwNoa] || '0',
-                         swDisb: row[aIdxSwDisb] || '0',
-                         swNextNoa: row[aIdxSwNextNoa] || '0',
-                         swNextDisb: row[aIdxSwNextDisb] || '0',
-                         ctxNoa: row[aIdxCtxNoa] || '0',
-                         ctxOs: row[aIdxCtxOs] || '0',
-                         lantakurNoa: row[aIdxLantakurNoa] || '0',
-                         lantakurOs: row[aIdxLantakurOs] || '0',
-                         fppbNoa: row[aIdxFppb] || '0',
-                         biometrikNoa: row[aIdxBiometrik] || '0'
-                     });
-                }
-            });
-        }
 
         // --- PARSE PLANS ---
         const uniquePlansMap = new Map<string, DailyPlan>();
@@ -346,37 +284,18 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         planRows.slice(1).forEach((row, index) => {
             const getVal = (idx: number) => idx !== -1 && row[idx] ? row[idx] : '0';
             
-            // Basic Checks
             const date = (pIdxDate !== -1 && row[pIdxDate]) ? row[pIdxDate].trim() : '';
             const co = (pIdxCo !== -1 && row[pIdxCo]) ? row[pIdxCo].trim() : '';
             
-            // Determine Lookup Key
-            let lookupKey = '';
+            let uniqueKey = '';
+            // Priority 1: ID from Sheet
+            if (pIdxId !== -1 && row[pIdxId]) uniqueKey = row[pIdxId].trim();
+            // Priority 2: Date + CO
+            if (!uniqueKey && date && co) uniqueKey = generateLookupKey(date, co);
             
-            if (useIdMatching && row[pIdxId]) {
-                lookupKey = row[pIdxId].trim();
-            }
-            
-            if (!lookupKey && date && co) {
-                lookupKey = generateLookupKey(date, co);
-            }
-
-            // Retrieve Actuals
-            const actualData = actualsMap.get(lookupKey) || {};
-
-            // Determine uniqueKey for deduplication map
-            // If using ID matching, ID is uniqueKey. If not, Date+CO is uniqueKey.
-            // If ID is missing on a row, fallback to Date+CO.
-            let uniqueKey = lookupKey;
-            if (!uniqueKey) {
-                 // Fallback if row has absolutely no identifier but we still want to list it?
-                 // We require at least Date & CO to be valid Plan.
-                 if (date && co) uniqueKey = generateLookupKey(date, co);
-                 else return; // Skip invalid row
-            }
+            if (!uniqueKey) return; // Skip invalid rows
 
             const plan: DailyPlan = {
-                // If Plan has ID column, prefer that as object ID. Else synthetic.
                 id: (pIdxId !== -1 && row[pIdxId]) ? row[pIdxId].trim() : `plan-${index}-${Date.now()}`,
                 date: date,
                 coName: co,
@@ -393,37 +312,20 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 fppbNoa: getVal(pIdxFppb),
                 biometrikNoa: getVal(pIdxBiometrik),
 
-                // Actuals (Merged)
-                actualSwNoa: actualData.swNoa || '0',
-                actualSwDisb: actualData.swDisb || '0',
-                actualSwNextNoa: actualData.swNextNoa || '0',
-                actualSwNextDisb: actualData.swNextDisb || '0',
-                actualCtxNoa: actualData.ctxNoa || '0',
-                actualCtxOs: actualData.ctxOs || '0',
-                actualLantakurNoa: actualData.lantakurNoa || '0',
-                actualLantakurOs: actualData.lantakurOs || '0',
-                actualFppbNoa: actualData.fppbNoa || '0',
-                actualBiometrikNoa: actualData.biometrikNoa || '0'
+                // Actuals (Read from the same sheet)
+                actualSwNoa: getVal(pIdxActSwNoa),
+                actualSwDisb: getVal(pIdxActSwDisb),
+                actualSwNextNoa: getVal(pIdxActSwNextNoa),
+                actualSwNextDisb: getVal(pIdxActSwNextDisb),
+                actualCtxNoa: getVal(pIdxActCtxNoa),
+                actualCtxOs: getVal(pIdxActCtxOs),
+                actualLantakurNoa: getVal(pIdxActLantakurNoa),
+                actualLantakurOs: getVal(pIdxActLantakurOs),
+                actualFppbNoa: getVal(pIdxActFppb),
+                actualBiometrikNoa: getVal(pIdxActBiometrik)
             };
 
-            // INTELLIGENT FILTERING:
-            // Only add if there is meaningful data (Target > 0 OR Actual > 0)
-            const hasTargets = 
-                isNonZero(plan.swCurrentNoa) || isNonZero(plan.swCurrentDisb) ||
-                isNonZero(plan.swNextNoa) || isNonZero(plan.swNextDisb) ||
-                isNonZero(plan.colCtxNoa) || isNonZero(plan.colLantakurNoa) ||
-                isNonZero(plan.fppbNoa) || isNonZero(plan.biometrikNoa);
-
-            const hasActuals = 
-                isNonZero(plan.actualSwNoa) || isNonZero(plan.actualSwDisb) ||
-                isNonZero(plan.actualSwNextNoa) || isNonZero(plan.actualSwNextDisb) ||
-                isNonZero(plan.actualCtxNoa) || isNonZero(plan.actualLantakurNoa) ||
-                isNonZero(plan.actualFppbNoa) || isNonZero(plan.actualBiometrikNoa);
-
-            if (hasTargets || hasActuals) {
-                 // Add to Map (Overwrites previous entry if same key -> effectively getting the latest)
-                 uniquePlansMap.set(uniqueKey, plan);
-            }
+            uniquePlansMap.set(uniqueKey, plan);
         });
 
         return Array.from(uniquePlansMap.values());
@@ -434,7 +336,6 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
     }
 };
 
-// --- NEW FUNCTION: Submit Daily Plan ---
 export const submitPlanToSheet = async (scriptUrl: string, plan: DailyPlan, isDebug: boolean = false): Promise<void> => {
     if (!scriptUrl) throw new Error("URL Script tidak ditemukan");
 

@@ -187,9 +187,9 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   if (!isOpen) return null;
 
   const handleChange = (field: keyof DailyPlan, value: string) => {
-      // Allow only numbers for numeric fields
+      // Allow only numbers, dots, commas for numeric fields
       if (field !== 'coName' && field !== 'date' && field !== 'notes' && field !== 'id') {
-          const numeric = value.replace(/[^0-9]/g, '');
+          const numeric = value.replace(/[^0-9.,]/g, '');
           setFormData(prev => ({ ...prev, [field]: numeric }));
       } else {
           setFormData(prev => ({ ...prev, [field]: value }));
@@ -242,31 +242,36 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
       }
   };
 
-  const renderInputPair = (label: string, fieldNoa: keyof DailyPlan, fieldVal: keyof DailyPlan) => (
+  const renderInputPair = (label: string, fieldNoa: keyof DailyPlan, fieldVal: keyof DailyPlan, isMillions: boolean = false) => (
       <div className={`p-3 rounded-xl border ${mode === 'plan' ? 'bg-slate-50 border-slate-200' : 'bg-white border-orange-200 shadow-sm'}`}>
-          <p className={`text-[10px] font-bold mb-1 uppercase ${mode === 'plan' ? 'text-slate-400' : 'text-orange-600'}`}>
+          <p className={`text-[10px] font-bold mb-3 uppercase ${mode === 'plan' ? 'text-slate-400' : 'text-orange-600'}`}>
               {label} ({mode === 'plan' ? 'Target' : 'Aktual'})
           </p>
-          <div className="flex gap-2">
-              <div className="flex-1">
+          <div className="flex gap-4">
+              <div className="flex-1 relative">
+                  <label className="text-[9px] font-bold text-slate-400 absolute -top-2 left-0">NOA (Nasabah)</label>
                   <input 
                       type="tel"
-                      className="w-full bg-transparent font-bold text-slate-800 outline-none text-sm placeholder-slate-300"
-                      placeholder="Jml (NOA)"
+                      className="w-full bg-transparent font-bold text-slate-800 outline-none text-base placeholder-slate-300 pt-2"
+                      placeholder="0"
                       value={formData[fieldNoa] || ''}
                       onChange={e => handleChange(fieldNoa, e.target.value)}
                   />
                   <div className="h-0.5 w-full bg-slate-200 mt-1"></div>
               </div>
-              <div className="flex-[1.5]">
+              <div className="flex-[1.5] relative">
+                  <label className="text-[9px] font-bold text-slate-400 absolute -top-2 right-0">
+                      {isMillions ? 'Disb (Juta Rp)' : 'Nominal (Rp)'}
+                  </label>
                   <input 
                       type="tel"
-                      className="w-full bg-transparent font-bold text-slate-800 outline-none text-sm placeholder-slate-300 text-right"
-                      placeholder="Nominal (Rp)"
+                      className="w-full bg-transparent font-bold text-slate-800 outline-none text-base placeholder-slate-300 text-right pt-2"
+                      placeholder={isMillions ? "Misal: 2 (=2 Juta)" : "0"}
                       value={formData[fieldVal] || ''}
                       onChange={e => handleChange(fieldVal, e.target.value)}
                   />
                   <div className="h-0.5 w-full bg-slate-200 mt-1"></div>
+                  {isMillions && <div className="text-[8px] text-slate-400 text-right mt-0.5 italic">Cukup tulis angka (misal 2)</div>}
               </div>
           </div>
       </div>
@@ -348,22 +353,24 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
                     <hr className="border-slate-100" />
 
                     {/* METRICS INPUT */}
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-emerald-500" /> 
                             Survey & Pencairan (SW)
                         </h3>
                         
                         {renderInputPair(
-                            "SW Bulan INI", 
+                            "1. SW BULAN INI", 
                             mode === 'plan' ? 'swCurrentNoa' : 'actualSwNoa',
-                            mode === 'plan' ? 'swCurrentDisb' : 'actualSwDisb'
+                            mode === 'plan' ? 'swCurrentDisb' : 'actualSwDisb',
+                            true // isMillions
                         )}
                         
                         {renderInputPair(
-                            "SW Bulan DEPAN", 
+                            "2. SW BULAN DEPAN", 
                             mode === 'plan' ? 'swNextNoa' : 'actualSwNextNoa',
-                            mode === 'plan' ? 'swNextDisb' : 'actualSwNextDisb'
+                            mode === 'plan' ? 'swNextDisb' : 'actualSwNextDisb',
+                            true // isMillions
                         )}
                     </div>
                 </div>

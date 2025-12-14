@@ -103,16 +103,16 @@ function doPost(e) {
         'fppbNoa': ['fppb', 'plan fppb'],
         'biometrikNoa': ['biometrik', 'plan biometrik'],
         // Actuals
-        'actualSwNoa': ['aktual sw cur noa'],
-        'actualSwDisb': ['aktual sw cur disb'],
-        'actualSwNextNoa': ['aktual sw next noa'],
-        'actualSwNextDisb': ['aktual sw next disb'],
-        'actualCtxNoa': ['aktual ctx noa'],
-        'actualCtxOs': ['aktual ctx os'],
-        'actualLantakurNoa': ['aktual lantakur noa'],
-        'actualLantakurOs': ['aktual lantakur os'],
-        'actualFppbNoa': ['aktual fppb'],
-        'actualBiometrikNoa': ['aktual biometrik']
+        'actualSwNoa': ['aktual sw cur noa', 'aktual sw cur disb', 'aktual sw cur noa'],
+        'actualSwDisb': ['aktual sw cur disb', 'actual sw cur disb'],
+        'actualSwNextNoa': ['aktual sw next noa', 'actual sw next noa'],
+        'actualSwNextDisb': ['aktual sw next disb', 'actual sw next disb'],
+        'actualCtxNoa': ['aktual ctx noa', 'actual ctx noa'],
+        'actualCtxOs': ['aktual ctx os', 'actual ctx os'],
+        'actualLantakurNoa': ['aktual lantakur noa', 'actual lantakur noa'],
+        'actualLantakurOs': ['aktual lantakur os', 'actual lantakur os'],
+        'actualFppbNoa': ['aktual fppb', 'actual fppb'],
+        'actualBiometrikNoa': ['aktual biometrik', 'actual biometrik']
       };
 
       var rowIndex = -1;
