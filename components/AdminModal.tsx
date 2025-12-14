@@ -5,7 +5,7 @@ import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupab
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { saveTemplatesToSheet } from '../services/sheetService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug } from 'lucide-react';
 
 interface AdminPanelProps {
   // Removed isOpen since it's a page now
@@ -217,7 +217,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
   };
 
-  // --- NEW: Backup to Sheet ---
+  // --- NEW: Backup to Sheet with Debug Flag ---
   const handleBackupToSheet = async () => {
       if (!sheetConfig.googleScriptUrl) {
           alert("URL Apps Script belum disetting di bawah.");
@@ -225,7 +225,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
       setIsBackingUp(true);
       try {
-          await saveTemplatesToSheet(sheetConfig.googleScriptUrl, templates);
+          await saveTemplatesToSheet(sheetConfig.googleScriptUrl, templates, sheetConfig.enableDebugMode);
           alert("Backup berhasil! Cek sheet 'Templates' di Google Sheet Anda.");
       } catch (e) {
           console.error(e);
@@ -457,6 +457,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </div>
                             <p className="text-xs text-slate-400 mt-1">Default: 1 (Menampilkan jatuh tempo bulan ini & bulan depan).</p>
                         </div>
+                    </div>
+                </div>
+
+                {/* 3. System Debugging (NEW) */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm border-l-4 border-l-red-500">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Bug className="w-5 h-5 text-red-500" />
+                        System Debugging
+                    </h3>
+                     <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl">
+                        <div>
+                            <span className="block text-sm font-bold text-slate-700">Aktifkan Log Apps Script</span>
+                            <span className="text-xs text-slate-500">Jika aktif, Script akan menulis error detail ke sheet "SystemLogs".</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={sheetConfig.enableDebugMode || false} onChange={e => setSheetConfig({...sheetConfig, enableDebugMode: e.target.checked})} />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                        </label>
                     </div>
                 </div>
 

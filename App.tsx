@@ -32,290 +32,266 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     id: 'manual-1', 
     label: 'Konfirmasi Hadir (Cek)', 
     type: 'manual', 
-    content: 'Assalamualaikum Ibu {name}, besok hadir di kumpulan sentra {sentra} kan Bu? Ditunggu kehadirannya tepat waktu ya. Sehat selalu Bu.', 
-    icon: '🗓️' 
+    content: 'Assalamualaikum Ibu {name}, besok hadir di kumpulan sentra {sentra} jam berapa ya? Ditunggu kehadirannya tepat waktu nggih Bu. Terima kasih.', 
+    icon: '✅' 
   },
-  { 
-    id: 'manual-2', 
-    label: 'Reminder Angsuran H-1', 
-    type: 'manual', 
-    content: 'Assalamualaikum Bu {name}. Sekadar mengingatkan besok jadwal angsuran di sentra {sentra}. Semoga rezekinya lancar dan dimudahkan ya Bu.', 
-    icon: '⏰' 
-  },
-
-  // --- KATEGORI 2: BISNIS & PENCAIRAN (REFINANCING) ---
   { 
     id: '2', 
-    label: 'Tawaran Lanjut (Cair)', 
+    label: 'Tagihan Angsuran (H-1)', 
     type: 'ai', 
-    promptContext: 'Nasabah ini sebentar lagi lunas (Jatuh Tempo). Berikan ucapan selamat atas kedisiplinannya. Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' 
-  },
-  { 
-    id: 'ai-winback', 
-    label: 'Ajak Gabung Kembali (Winback)', 
-    type: 'ai', 
-    promptContext: 'Nasabah ini sudah pernah lunas/berhenti beberapa bulan hingga setahun yang lalu. Sapa dengan hangat, tanyakan kabar usahanya. Ajak untuk bergabung kembali dengan BTPN Syariah karena mungkin beliau butuh tambahan modal sekarang.', icon: '🔄' 
-  },
-  { 
-    id: 'ai-prospek', 
-    label: 'Sapaan Prospek Baru', 
-    type: 'ai', 
-    promptContext: 'Buat pesan sapaan hangat untuk calon nasabah (Prospek). Tanyakan kabar usaha ibunya. Jelaskan sedikit keuntungan bergabung dengan komunitas BTPN Syariah (modal usaha & pendampingan). Ajak untuk ikut melihat kegiatan sentra terdekat.', 
-    icon: '🤝' 
+    promptContext: 'Ingatkan Ibu nasabah bahwa angsuran jatuh tempo besok. Gunakan bahasa yang sopan namun tegas. Sampaikan harap disiapkan uangnya agar lancar.', icon: '💰' 
   },
 
-  // --- KATEGORI 3: PENANGANAN MASALAH (COLLECTION) ---
+  // --- KATEGORI 2: PENANGANAN MASALAH (COLLECTION) ---
   { 
-    id: '6', 
-    label: 'Penagihan Menunggak (CTX)', 
+    id: '3', 
+    label: 'Penagihan Telat (Sopan)', 
     type: 'ai', 
-    promptContext: 'Buat pesan penagihan yang tegas dan profesional untuk nasabah menunggak (CTX). Tekankan urgensi pembayaran SEGERA hari ini. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk). Minta nasabah segera konfirmasi pembayaran.', icon: '⚠️' 
+    promptContext: 'Nasabah telat bayar angsuran 1-3 hari. Tanyakan kendalanya apa dengan empati, lalu ingatkan kewajiban untuk membayar segera agar tidak kena denda/masalah.', icon: '🙏' 
   },
-
-  // --- KATEGORI 4: HUBUNGAN & PERSONAL ---
   { 
-    id: 'ai-doa', 
-    label: 'Doa & Motivasi Usaha', 
+    id: '4', 
+    label: 'Penagihan Tegas (Macet)', 
     type: 'ai', 
-    promptContext: 'Buat pesan singkat yang berisi doa tulus untuk kelancaran usaha ibu nasabah dan kesehatan keluarganya. Jangan jualan, fokus pada menjalin hubungan emosional (bonding).', 
-    icon: '🎂' 
+    promptContext: 'Nasabah sudah menunggak lama (macet). Berikan peringatan tegas namun profesional. Minta kepastian pembayaran hari ini juga.', icon: '⚠️' 
   },
   { 
     id: '5', 
-    label: 'Sapaan Silaturahmi', 
-    type: 'manual', 
-    content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' 
+    label: 'Janji Bayar (Follow Up)', 
+    type: 'ai', 
+    promptContext: 'Nasabah kemarin janji bayar hari ini. Tagih janjinya dengan sopan. "Bu, sesuai janji kemarin..."', icon: '🤝' 
   },
 
-  // --- KATEGORI 5: INFORMASI ---
+  // --- KATEGORI 3: PROMOSI & RELATIONSHIP ---
   { 
-    id: '3', 
-    label: 'Undangan Resmi', 
-    type: 'manual', 
-    content: 'Assalamualaikum Ibu {name}, diinfokan besok akan ada kunjungan dari pusat di sentra {sentra}. Mohon dipastikan hadir lengkap dan buku angsuran dibawa ya Bu. Terima kasih.', 
-    icon: '📩' 
+    id: '6', 
+    label: 'Tawar Tambah Modal (Top Up)', 
+    type: 'ai', 
+    promptContext: 'Nasabah lancar dan mau lunas. Tawarkan pembiayaan tambahan (Top Up) untuk modal usaha. Puji perkembangan usahanya.', icon: '📈' 
   },
+  { 
+    id: '7', 
+    label: 'Ajak Menabung (Sukarela)', 
+    type: 'ai', 
+    promptContext: 'Ajak nasabah untuk menambah tabungan sukarela. Jelaskan manfaat menabung sedikit demi sedikit untuk masa depan.', icon: '🐖' 
+  },
+  { 
+    id: '8', 
+    label: 'Ucapan Ulang Tahun', 
+    type: 'ai', 
+    promptContext: 'Ucapkan selamat ulang tahun yang hangat dan doakan kesehatan serta kelancaran usahanya. Sebagai bentuk perhatian personal.', icon: '🎂' 
+  },
+  { 
+    id: '9', 
+    label: 'Winback (Ajak Kembali)', 
+    type: 'ai', 
+    promptContext: 'Sapa mantan nasabah yang sudah lunas. Tanyakan kabar usaha, dan tawarkan jika butuh modal lagi kami siap bantu proses cepat.', icon: '🔄' 
+  }
 ];
 
-// Add 'plans' to View Type
-type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts' | 'login' | 'plans';
-
-const App: React.FC = () => {
-  // ... (State logic same as before) ...
+export default function App() {
+  // --- STATE MANAGEMENT ---
+  const [view, setView] = useState<'home' | 'admin_login' | 'admin_panel' | 'notifications' | 'broadcast' | 'dashboard' | 'contacts' | 'plan_history'>('home');
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]); // New State for Plans
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [configError, setConfigError] = useState<boolean>(false);
-  const [activeConfig, setActiveConfig] = useState<SheetConfig | null>(null);
-
-  const [activeView, setActiveView] = useState<AppView>('home');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [templates, setTemplates] = useState<MessageTemplate[]>(INITIAL_TEMPLATES_FALLBACK);
+  const [sheetConfig, setSheetConfig] = useState<SheetConfig>(GLOBAL_CONFIG);
   
-  // Filters
-  const [selectedSentra, setSelectedSentra] = useState<string>('');
-  const [selectedCo, setSelectedCo] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('All');
-  
-  // --- PERFORMANCE OPTIMIZATION: Deferred Values ---
-  const deferredSentra = useDeferredValue(selectedSentra);
-  const deferredCo = useDeferredValue(selectedCo);
-  const deferredStatus = useDeferredValue(selectedStatus);
-  const deferredSearchTerm = useDeferredValue(debouncedSearchTerm);
-  
+  // Modals & UI State
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
-  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false); // New Modal State
+  const [isMsgModalOpen, setIsMsgModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false); // New Todo Modal
+  
+  // Loading & Data State
+  const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
-  // Removed showLoginModal state
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
+  // New Data
+  const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]);
   
-  const [visibleCount, setVisibleCount] = useState(50);
-  
-  // Update indicator to show loading when ANY deferred value is lagging behind
-  const isFiltering = (searchTerm !== debouncedSearchTerm) || 
-                      (selectedSentra !== deferredSentra) || 
-                      (selectedCo !== deferredCo) || 
-                      (selectedStatus !== deferredStatus);
-
-  // ... (Effects same as before) ...
+  // --- INITIALIZATION ---
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
-
-  // Reset pagination when filters change (using immediate values for responsiveness)
-  useEffect(() => {
-      setVisibleCount(50);
-  }, [debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
-
-  const loadData = async () => {
-    setIsLoadingData(true);
-    setConfigError(false);
-    try {
-        let finalConfig: SheetConfig = { ...GLOBAL_CONFIG };
+    const initApp = async () => {
+      setIsLoading(true);
+      try {
+        // 1. Load Settings (Local -> Supabase)
+        let config = await getSheetConfig() || GLOBAL_CONFIG;
         
-        // 1. Try to load Local Config (User overrides)
-        try {
-            const localConfig = await getSheetConfig();
-            if (localConfig) {
-                 finalConfig = { ...finalConfig, ...localConfig };
+        if (isSupabaseConfigured()) {
+            const remoteConfig = await fetchSettingsFromSupabase();
+            if (remoteConfig) {
+                config = { ...config, ...remoteConfig };
             }
-        } catch (e) {
-            console.warn("Failed to load local config", e);
         }
+        setSheetConfig(config);
 
-        // 2. Try to load Supabase Config (Server overrides, if exists)
+        // 2. Load Templates (Supabase -> Local Fallback)
         if (isSupabaseConfigured()) {
             try {
-                const supabaseSettings = await fetchSettingsFromSupabase();
-                if (supabaseSettings && supabaseSettings.spreadsheetId) {
-                    finalConfig = { ...finalConfig, ...supabaseSettings };
+                const remoteTemplates = await fetchTemplatesFromSupabase();
+                if (remoteTemplates.length > 0) {
+                    setTemplates(remoteTemplates);
                 }
-            } catch (err) {
-                console.warn("Failed to load settings from Supabase, using local/global config.", err);
+            } catch (e) {
+                console.warn("Using fallback templates due to load error.");
             }
         }
+
+        // 3. Load Contacts from Sheet (Live) if configured
+        if (config.spreadsheetId) {
+             await syncData(config);
+        }
+      } catch (error) {
+        console.error("Init Error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
+  }, []);
+
+  const syncData = async (config = sheetConfig) => {
+    if (!config.spreadsheetId) return;
+    setIsSyncing(true);
+    try {
+        // 1. Fetch Contacts
+        const data = await fetchContactsFromSheet(config.spreadsheetId, config.sheetName);
+        setContacts(data);
         
-        setActiveConfig(finalConfig);
+        // 2. Fetch Plans
+        const plans = await fetchPlansFromSheet(config.spreadsheetId, 'Plan');
+        setDailyPlans(plans);
 
-        if (finalConfig.spreadsheetId) {
-            // Fetch Contacts
-            try {
-                const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
-                setContacts(liveContacts);
-            } catch (err) {
-                console.error("Error fetching live contacts from Sheet:", err);
-            }
-            
-            // Fetch Plans (NEW: This now merges PLAN + AKTUAL internally)
-            try {
-                const livePlans = await fetchPlansFromSheet(finalConfig.spreadsheetId, 'Plan');
-                setDailyPlans(livePlans);
-            } catch (err) {
-                console.error("Error fetching daily plans:", err);
-            }
-
-            try {
-                if (isSupabaseConfigured()) {
-                    const sbTemplates = await fetchTemplatesFromSupabase();
-                    if (sbTemplates.length > 0) {
-                        setTemplates(sbTemplates);
-                    } else {
-                         setTemplates(INITIAL_TEMPLATES_FALLBACK);
-                    }
-                } else {
-                    setTemplates(INITIAL_TEMPLATES_FALLBACK);
-                }
-            } catch (err) {
-                console.warn("Failed to load templates from Supabase, using fallback.", err);
-                setTemplates(INITIAL_TEMPLATES_FALLBACK);
-            }
-        } else {
-            setConfigError(true);
-            setTemplates(INITIAL_TEMPLATES_FALLBACK);
-        }
-    } catch (e) {
-        console.error("Failed to initialize:", e);
+        setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    } catch (error) {
+        console.error("Sync Error:", error);
+        alert("Gagal sinkronisasi dengan Google Sheet. Cek ID Spreadsheet Anda.");
     } finally {
-        setIsLoadingData(false);
+        setIsSyncing(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // --- Helpers ---
-  const parseNum = (val?: string) => {
-      if (!val) return 0;
-      return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
-  };
-
-  // ... (Notification Logic remains same) ...
-  const upcomingEvents = useMemo(() => {
+  // --- DERIVED STATE ---
+  
+  // Notification Items Generator
+  const notificationItems: NotificationItem[] = useMemo(() => {
+    const items: NotificationItem[] = [];
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const nextMonthDate = new Date(today);
-    nextMonthDate.setMonth(currentMonth + 1);
-    const nextMonth = nextMonthDate.getMonth();
-    const nextMonthYear = nextMonthDate.getFullYear();
+    today.setHours(0,0,0,0);
+    
+    // Configurable thresholds
+    const prsThreshold = sheetConfig.prsThresholdDays || 1; // H-1
+    const refiLookahead = sheetConfig.refinancingLookaheadMonths || 1; // M+1
 
-    const parseFullDate = (dateStr: string): Date | null => {
-        if (!dateStr) return null;
-        const clean = dateStr.trim();
-        const partsIndo = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-        if (partsIndo) {
-            const day = parseInt(partsIndo[1], 10);
-            const month = parseInt(partsIndo[2], 10) - 1; 
-            const year = parseInt(partsIndo[3], 10);
-            const d = new Date(year, month, day);
-            if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) return d;
-        }
-        const parsed = Date.parse(clean);
-        if (!isNaN(parsed)) return new Date(parsed);
-        return null;
-    };
+    contacts.forEach(c => {
+        const flag = (c.flag || '').toLowerCase();
+        const status = (c.status || '').toLowerCase();
+        const flagMenunggak = (c.flagMenunggak || '').toLowerCase();
+        const flagLantakur = (c.flagLantakur || '').toLowerCase();
 
-    return contacts.reduce<NotificationItem[]>((acc, contact) => {
-        const flag = (contact.flag || '').toLowerCase();
-        const status = (contact.status || '').toLowerCase();
-        const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
-        const dpd = parseInt(contact.dpd || '0', 10) || 0;
-        
-        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
-        const isCtx = flagMenunggak.includes('ctx');
-        const isExCtx = flagMenunggak.includes('xday') || flagMenunggak.includes('sm') || flagMenunggak.includes('npf') || flagMenunggak.includes('macet');
-        const isGenericTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak');
-        const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur');
-        const dueDate = contact.tglJatuhTempo ? parseFullDate(contact.tglJatuhTempo) : null;
-        const lunasDate = contact.tglLunas ? parseFullDate(contact.tglLunas) : null;
+        // 1. PAYMENT REMINDERS (Jatuh Tempo) & COLLECTION
+        if (c.tglJatuhTempo) {
+            // Helper to parse DD/MM/YYYY
+            const parts = c.tglJatuhTempo.split('/');
+            if (parts.length === 3) {
+                const dueDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                const diffTime = dueDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (isCtx && !isInactive) acc.push({ contact, type: 'payment', status: 'collection_ctx', daysLeft: dpd });
-        else if ((isExCtx || isGenericTrouble) && !isInactive) acc.push({ contact, type: 'payment', status: 'collection_ex', daysLeft: dpd });
-        else if (isLantakur && !isInactive) acc.push({ contact, type: 'payment', status: 'lantakur', daysLeft: 0 });
-        else if (dueDate || lunasDate) {
-            if (!isInactive && dueDate) {
-                 const dm = dueDate.getMonth();
-                 const dy = dueDate.getFullYear();
-                 let notifStatus: any = null;
-                 if (dy === currentYear && dm === currentMonth) notifStatus = (dueDate.getDate() === today.getDate()) ? 'today' : 'this_month';
-                 else if ((dy === nextMonthYear && dm === nextMonth)) notifStatus = 'next_month';
-                 if (notifStatus) acc.push({ contact, type: 'payment', status: notifStatus, daysLeft: 0 });
-            } 
-            else if (isInactive && (lunasDate || dueDate)) {
-                const referenceDate = lunasDate || dueDate;
-                if (referenceDate) {
-                    const monthsAgo = (today.getFullYear() - referenceDate.getFullYear()) * 12 + (today.getMonth() - referenceDate.getMonth());
-                    if (monthsAgo >= 1 && monthsAgo <= 12) {
-                        if (monthsAgo < 3) acc.push({ contact, type: 'payment', status: 'winback_recent', daysLeft: 0 });
-                        else acc.push({ contact, type: 'payment', status: 'winback_old', daysLeft: 0 });
+                // --- PRIORITY 1: COLLECTION (MENUNGGAK) ---
+                const dpd = parseInt(c.dpd || '0', 10);
+                const isMenunggak = dpd > 0 || status.includes('macet') || status.includes('menunggak') || flagMenunggak.length > 0;
+                
+                if (isMenunggak) {
+                     // Check CTX vs Eks CTX
+                     if (flagMenunggak.includes('ctx')) {
+                         items.push({ contact: c, type: 'payment', status: 'collection_ctx', daysLeft: dpd });
+                     } else if (flagMenunggak.includes('npf') || flagMenunggak.includes('xday') || flagMenunggak.includes('sm')) {
+                         items.push({ contact: c, type: 'payment', status: 'collection_ex', daysLeft: dpd });
+                     }
+                } 
+                // --- PRIORITY 2: LANTAKUR (TABUNGAN KURANG) ---
+                else if (flagLantakur.includes('lantakur')) {
+                     items.push({ contact: c, type: 'payment', status: 'lantakur', daysLeft: 0 });
+                }
+                // --- PRIORITY 3: REFINANCING (JATUH TEMPO LANCAR) ---
+                else {
+                    // Logic: Show if Due This Month OR Next Month (Refinancing Window)
+                    const currentMonth = today.getMonth();
+                    const currentYear = today.getFullYear();
+                    const dueMonth = dueDate.getMonth();
+                    const dueYear = dueDate.getFullYear();
+                    
+                    const isRelevantMonth = 
+                        (dueYear === currentYear && dueMonth === currentMonth) || 
+                        (dueYear === currentYear && dueMonth === currentMonth + refiLookahead) ||
+                        (dueYear === currentYear + 1 && currentMonth + refiLookahead >= 12 && dueMonth === (currentMonth + refiLookahead) % 12);
+
+                    if (isRelevantMonth && !flag.includes('inactive') && !flag.includes('lunas')) {
+                         if (diffDays === 0) items.push({ contact: c, type: 'payment', status: 'today', daysLeft: 0 });
+                         else if (diffDays === 1) items.push({ contact: c, type: 'payment', status: 'soon', daysLeft: 1 });
+                         else if (dueMonth === currentMonth) items.push({ contact: c, type: 'payment', status: 'this_month', daysLeft: diffDays });
+                         else items.push({ contact: c, type: 'payment', status: 'next_month', daysLeft: diffDays });
                     }
                 }
             }
         }
-        if (contact.tglPrs && !isInactive && !isCtx && !isExCtx && !isGenericTrouble) {
+        
+        // 2. PRS REMINDERS (Kumpulan) - H-1
+        if (c.tglPrs && !flag.includes('inactive')) {
              let prsDate: Date | null = null;
-             if (contact.tglPrs.match(/^\d{1,2}$/)) {
-                 let targetDay = parseInt(contact.tglPrs);
-                 prsDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
-                 if (prsDate < today) prsDate.setMonth(prsDate.getMonth() + 1);
+             
+             // Handle simple date "15" -> Convert to this month's date
+             if (c.tglPrs.match(/^\d{1,2}$/)) {
+                 const d = parseInt(c.tglPrs);
+                 prsDate = new Date(today.getFullYear(), today.getMonth(), d);
+                 // If date passed, assume next month
+                 if (prsDate < today) {
+                     prsDate.setMonth(prsDate.getMonth() + 1);
+                 }
              } else {
-                 prsDate = parseFullDate(contact.tglPrs);
+                 // Try parse full date
+                 const parts = c.tglPrs.split('/');
+                 if (parts.length === 3) {
+                     prsDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                 }
              }
+
              if (prsDate) {
-                 const diff = Math.ceil((prsDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                 if (diff === 0) acc.push({ contact, type: 'prs', status: 'today', daysLeft: 0 });
-                 else if (diff === 1) acc.push({ contact, type: 'prs', status: 'soon', daysLeft: 1 }); 
+                 const diffPrs = Math.ceil((prsDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                 // Show alert if H-1 (Besok Kumpulan) or Today
+                 if (diffPrs >= 0 && diffPrs <= prsThreshold) {
+                      items.push({ contact: c, type: 'prs', status: 'soon', daysLeft: diffPrs });
+                 }
              }
         }
-        return acc;
-    }, []).sort((a, b) => {
+
+        // 3. WINBACK (Lunas)
+        if (c.tglLunas && (flag.includes('lunas') || flag.includes('do') || flag.includes('drop'))) {
+             // Parse Lunas Date
+             const parts = c.tglLunas.split('/');
+             if (parts.length === 3) {
+                 const lunasDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                 const monthsAgo = (today.getFullYear() - lunasDate.getFullYear()) * 12 + (today.getMonth() - lunasDate.getMonth());
+                 
+                 // Strategy: 
+                 // Recent Winback: < 3 Months
+                 // Old Winback: > 3 Months (Up to 12 months maybe?)
+                 if (monthsAgo >= 1 && monthsAgo < 3) {
+                      items.push({ contact: c, type: 'payment', status: 'winback_recent', daysLeft: 0 });
+                 } else if (monthsAgo >= 3 && monthsAgo <= 12) {
+                      items.push({ contact: c, type: 'payment', status: 'winback_old', daysLeft: 0 });
+                 }
+             }
+        }
+    });
+    
+    // Sort by priority: Collection > Lantakur > Today > Soon
+    return items.sort((a, b) => {
         const score = (s: string) => {
             if (s === 'collection_ctx') return 0;
             if (s === 'collection_ex') return 1;
@@ -324,404 +300,352 @@ const App: React.FC = () => {
             if (s === 'soon') return 4;
             return 99;
         }
-        const scoreA = score(a.status);
-        const scoreB = score(b.status);
-        if (scoreA !== scoreB) return scoreA - scoreB;
-        if (a.status.includes('collection') && b.status.includes('collection')) {
-            let dpdA = parseInt(a.contact.dpd || '0', 10);
-            let dpdB = parseInt(b.contact.dpd || '0', 10);
-            if (isNaN(dpdA) || dpdA <= 0) dpdA = 999999;
-            if (isNaN(dpdB) || dpdB <= 0) dpdB = 999999;
-            return dpdA - dpdB; 
-        }
-        return 0;
+        return score(a.status) - score(b.status);
     });
-  }, [contacts]);
+  }, [contacts, sheetConfig]);
 
-  const uniqueSentras = useMemo(() => {
-    const activeContacts = contacts.filter(c => {
-         const flag = (c.flag || '').toLowerCase();
-         return !flag.includes('do') && !flag.includes('drop') && !flag.includes('lunas') && !flag.includes('tutup') && !flag.includes('inactive');
-    });
-    let source = selectedCo ? activeContacts.filter(c => (c.co || 'Unassigned') === selectedCo) : activeContacts;
-    return Array.from(new Set(source.map(c => c.sentra || 'Unknown'))).sort();
-  }, [contacts, selectedCo]);
-
+  // Unique COs for Filtering
   const uniqueCos = useMemo(() => {
-      return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
+    return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
   }, [contacts]);
 
-  // ... (Filter & Stats logic same as before) ...
-  const filteredContacts = useMemo(() => {
-    if (!deferredSearchTerm && !deferredSentra && !deferredCo && deferredStatus === 'All') return [];
-    return contacts.filter(contact => {
-      if (deferredSearchTerm) {
-          const term = deferredSearchTerm.toLowerCase();
-          const matchName = contact.name.toLowerCase().includes(term);
-          const matchPhone = contact.phone.includes(term);
-          if (!matchName && !matchPhone) return false;
-      }
-      if (deferredSentra && (contact.sentra || 'Unknown') !== deferredSentra) return false;
-      if (deferredCo && (contact.co || 'Unassigned') !== deferredCo) return false;
-      if (deferredStatus !== 'All') {
-          const cStatus = (contact.status || '').toLowerCase();
-          const cFlag = (contact.flag || '').toLowerCase();
-          const flagMenunggak = (contact.flagMenunggak || '').toLowerCase();
-          const isTrouble = cStatus.includes('macet') || cStatus.includes('menunggak') || cStatus.includes('tutup') || flagMenunggak.includes('ctx') || cFlag.includes('do') || cFlag.includes('drop');
-          if (deferredStatus === 'Active') { if (isTrouble) return false; } 
-          else if (deferredStatus === 'Inactive') { if (!isTrouble) return false; }
-      }
-      return true;
-    });
-  }, [contacts, deferredSearchTerm, deferredSentra, deferredCo, deferredStatus]);
+  // Filtered Contacts for Home View
+  const homeFilteredContacts = useMemo(() => {
+     if (!deferredSearchTerm) return contacts;
+     const lower = deferredSearchTerm.toLowerCase();
+     return contacts.filter(c => 
+         c.name.toLowerCase().includes(lower) || 
+         c.phone.includes(lower) ||
+         (c.sentra || '').toLowerCase().includes(lower)
+     ).slice(0, 20); // Limit results for performance on home
+  }, [contacts, deferredSearchTerm]);
 
-  const visibleContacts = useMemo(() => {
-      return filteredContacts.slice(0, visibleCount);
-  }, [filteredContacts, visibleCount]);
 
-  const totalActiveContacts = useMemo(() => {
-      return contacts.filter(c => {
-        const flag = (c.flag || '').toLowerCase();
-        return !flag.includes('do') && !flag.includes('drop') && !flag.includes('lunas') && !flag.includes('tutup') && !flag.includes('inactive');
-      }).length;
-  }, [contacts]);
+  // --- HANDLERS ---
+
+  const handleOpenMsgModal = (c: Contact) => {
+    setSelectedContact(c);
+    setIsMsgModalOpen(true);
+  };
+
+  const handleOpenEditModal = (c: Contact) => {
+    setSelectedContact(c);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveContact = (updated: Contact) => {
+    // Optimistic Update
+    setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
+  };
   
-  // --- DAILY PERFORMANCE AGGREGATION ---
-  const todaysPerformance = useMemo(() => {
-      const todayDate = new Date().toLocaleDateString('id-ID');
-      
-      const t = {
-          date: todayDate,
-          swTarget: 0, swActual: 0,
-          collTarget: 0, collActual: 0,
-          bioTarget: 0, bioActual: 0
-      };
-
-      if (dailyPlans && dailyPlans.length > 0) {
-          // Attempt to get plans for TODAY
-          const todaysPlans = dailyPlans.filter(p => p.date === todayDate);
-          
-          if (todaysPlans.length > 0) {
-              todaysPlans.forEach(p => {
-                  t.swTarget += (parseNum(p.swCurrentNoa) + parseNum(p.swNextNoa));
-                  t.swActual += (parseNum(p.actualSwNoa) + parseNum(p.actualSwNextNoa));
-                  t.collTarget += (parseNum(p.colCtxNoa) + parseNum(p.colLantakurNoa));
-                  t.collActual += (parseNum(p.actualCtxNoa) + parseNum(p.actualLantakurNoa));
-                  t.bioTarget += parseNum(p.biometrikNoa);
-                  t.bioActual += parseNum(p.actualBiometrikNoa);
-              });
-          } else {
-              // Fallback: If no plan for today, use the LATEST available plan for context
-              // (So the card isn't all zeros effectively hiding data)
-              const latest = dailyPlans[dailyPlans.length - 1];
-              t.date = latest.date; 
-              
-              const latestPlans = dailyPlans.filter(p => p.date === latest.date);
-              latestPlans.forEach(p => {
-                  t.swTarget += (parseNum(p.swCurrentNoa) + parseNum(p.swNextNoa));
-                  t.swActual += (parseNum(p.actualSwNoa) + parseNum(p.actualSwNextNoa));
-                  t.collTarget += (parseNum(p.colCtxNoa) + parseNum(p.colLantakurNoa));
-                  t.collActual += (parseNum(p.actualCtxNoa) + parseNum(p.actualLantakurNoa));
-                  t.bioTarget += parseNum(p.biometrikNoa);
-                  t.bioActual += parseNum(p.actualBiometrikNoa);
-              });
-          }
-      }
-
-      return t;
-  }, [dailyPlans]);
-
-  const handleSyncSheet = async () => {
-    setIsSyncing(true);
-    setContacts([]);
-    // Clear plans to force refresh visuals
-    setDailyPlans([]); 
-    try {
-        await loadData();
-    } catch (e) {
-        alert("Gagal sinkronisasi. Cek koneksi internet.");
-    } finally {
-        setTimeout(() => setIsSyncing(false), 800);
-    }
-  };
-
-  const handleUpdateContact = (updatedContact: Contact) => {
-    setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
-  };
-
   const handleDeleteContact = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
+      // Optimistic Delete (Note: Won't delete from Sheet, just Hide)
+      setContacts(prev => prev.filter(c => c.id !== id));
+      alert("Kontak disembunyikan dari tampilan (Data di Sheet aman).");
   };
 
   const handleSavePlan = async (plan: DailyPlan) => {
-     if (activeConfig?.googleScriptUrl) {
-         // UI Optimistic Update
-         setDailyPlans(prev => [...prev, plan]);
-         // Background Save
-         await submitPlanToSheet(activeConfig.googleScriptUrl, plan);
-     } else {
-         alert("Script URL belum disetting di Admin panel. Data tidak akan tersimpan ke Sheet.");
-     }
-  };
-
-  const handleAdminAuth = () => {
-      setActiveView('login');
-  };
-
-  const handleBulkUpdateMode = async (mode: 'ai' | 'manual') => {
-      const updatedTemplates = templates.map(t => ({ ...t, type: mode }));
-      setTemplates(updatedTemplates);
-      if (isSupabaseConfigured()) {
-          try {
-              await saveTemplatesToSupabase(updatedTemplates);
-          } catch (e) {
-              console.error("Failed to bulk update templates", e);
-          }
+      // 1. Send to Sheet
+      if (sheetConfig.googleScriptUrl) {
+           // Pass debugMode flag
+           await submitPlanToSheet(sheetConfig.googleScriptUrl, plan, sheetConfig.enableDebugMode);
+      } else {
+          alert("URL Script belum disetting. Data hanya tersimpan lokal sementara.");
       }
+      
+      // 2. Update Local State
+      setDailyPlans(prev => [...prev, plan]);
+      alert("Rencana berhasil disimpan!");
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 10) return 'Selamat Pagi';
-    if (hour < 15) return 'Selamat Siang';
-    if (hour < 18) return 'Selamat Sore';
-    return 'Selamat Malam';
-  };
+  // --- RENDER ---
 
-  // --- Render Navigation ---
-  const renderBottomNav = () => (
-    <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
-        <div className="flex justify-between items-center px-4 py-2 max-w-md mx-auto">
-            <button onClick={() => setActiveView('home')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'home' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
-                <Home className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-medium">Beranda</span>
-            </button>
-            
-            <button onClick={() => setActiveView('dashboard')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' || activeView === 'plans' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
-                <TrendingUp className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-medium">Kinerja</span>
-            </button>
+  if (view === 'admin_login') {
+    return <AdminLoginPanel onBack={() => setView('home')} onLogin={() => setView('admin_panel')} />;
+  }
 
-            <button onClick={() => setActiveView('contacts')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'contacts' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
-                <ContactIcon className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-medium">Kontak</span>
-            </button>
+  if (view === 'admin_panel') {
+    return (
+      <AdminPanel 
+        onBack={() => setView('home')}
+        templates={templates}
+        onUpdateTemplates={setTemplates}
+        onResetData={() => setContacts([])}
+        defaultTemplates={INITIAL_TEMPLATES_FALLBACK}
+        onBulkUpdateMode={(mode) => {
+             const updated = templates.map(t => ({ ...t, type: mode }));
+             setTemplates(updated);
+             saveTemplatesToSupabase(updated);
+        }}
+      />
+    );
+  }
 
-            <div className="relative">
-                <button onClick={() => setActiveView('notifications')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'notifications' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
-                    <Bell className="w-5 h-5 mb-0.5" />
-                    <span className="text-[9px] font-medium">Follow Up</span>
-                </button>
-                {upcomingEvents.length > 0 && (
-                    <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                )}
-            </div>
-            
-            <button onClick={() => setActiveView('broadcast')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'broadcast' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
-                <Radio className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-medium">Siaran</span>
-            </button>
-            
-            <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' || activeView === 'login' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
-                <Settings className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-medium">Admin</span>
-            </button>
-        </div>
-    </div>
-  );
-
-
-  // --- Render Views ---
-
-  if (activeView === 'login') return <AdminLoginPanel onBack={() => setActiveView('home')} onLogin={() => setActiveView('settings')} />;
-  if (activeView === 'settings') return <><AdminPanel onBack={() => setActiveView('home')} templates={templates} onUpdateTemplates={setTemplates} onResetData={async () => { await loadData(); setActiveView('home'); }} defaultTemplates={INITIAL_TEMPLATES_FALLBACK} onBulkUpdateMode={handleBulkUpdateMode} />{renderBottomNav()}</>;
-  if (activeView === 'notifications') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><NotificationPanel items={upcomingEvents} onBack={() => setActiveView('home')} onRemind={(contact, type) => { let keywords: string[] = []; if (type === 'prs') { keywords = ['prs', 'kumpulan', 'besok']; } else if (type === 'payment') { const flag = (contact.flag || '').toLowerCase(); const status = (contact.status || '').toLowerCase(); const dpd = parseInt(contact.dpd || '0', 10); const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive'); const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak'); const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur'); if (isTrouble) { keywords = ['tagih', 'ctx', 'tunggak', 'bayar']; } else if (isLantakur) { keywords = ['lantakur', 'tabungan']; } else if (isInactive) { keywords = ['winback', 'gabung', 'tawar', 'cair']; } else { keywords = ['tawar', 'lanjut', 'cair', 'modal']; } } const found = templates.find(t => keywords.some(k => t.label.toLowerCase().includes(k))); setInitialTemplateId(found?.id || templates[0]?.id); setSelectedContact(contact); }} />{selectedContact && <MessageGeneratorModal contact={selectedContact} isOpen={!!selectedContact} onClose={() => setSelectedContact(null)} templates={templates} initialTemplateId={initialTemplateId} apiKey={activeConfig?.geminiApiKey} />}{renderBottomNav()}</div>;
-  if (activeView === 'broadcast') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><BroadcastPanel contacts={contacts} templates={templates} onBack={() => setActiveView('home')} apiKey={activeConfig?.geminiApiKey} />{renderBottomNav()}</div>;
-  if (activeView === 'dashboard') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
-      <div className="max-w-4xl mx-auto px-4 pt-4">
-          <Button 
-            variant="outline" 
-            className="w-full justify-between bg-white/80 backdrop-blur"
-            onClick={() => setActiveView('plans')}
-            icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
-          >
-              <span className="font-bold text-slate-700">Lihat Riwayat & Realisasi Rencana</span>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-          </Button>
-      </div>
-      <DashboardPanel contacts={contacts} onBack={() => setActiveView('home')} dailyPlans={dailyPlans} />{renderBottomNav()}
-  </div>;
-
-  if (activeView === 'plans') {
+  if (view === 'notifications') {
       return (
-          <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
-              <PlanHistoryPanel 
-                plans={dailyPlans} 
-                onBack={() => setActiveView('dashboard')}
-                availableCos={uniqueCos}
-              />
-              {renderBottomNav()}
-          </div>
+          <NotificationPanel 
+            items={notificationItems} 
+            onRemind={(c) => {
+                setSelectedContact(c);
+                setIsMsgModalOpen(true);
+            }}
+            onBack={() => setView('home')} 
+          />
       );
   }
 
-  if (activeView === 'contacts') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><ContactManagementPanel contacts={contacts} onEdit={setContactToEdit} onDelete={handleDeleteContact} onBack={() => setActiveView('home')} /><EditContactModal contact={contactToEdit} isOpen={!!contactToEdit} onClose={() => setContactToEdit(null)} onSave={handleUpdateContact} onDelete={handleDeleteContact} sheetConfig={activeConfig} />{renderBottomNav()}</div>;
+  if (view === 'broadcast') {
+      return (
+          <BroadcastPanel 
+            contacts={contacts} 
+            templates={templates} 
+            onBack={() => setView('home')}
+            apiKey={sheetConfig.geminiApiKey}
+          />
+      );
+  }
 
-  // --- HOME VIEW ---
+  if (view === 'dashboard') {
+      return (
+          <DashboardPanel 
+            contacts={contacts} 
+            dailyPlans={dailyPlans} // Pass plan data
+            onBack={() => setView('home')} 
+          />
+      );
+  }
+
+  if (view === 'contacts') {
+      return (
+          <ContactManagementPanel 
+            contacts={contacts} 
+            onEdit={handleOpenEditModal}
+            onDelete={handleDeleteContact}
+            onBack={() => setView('home')} 
+          />
+      );
+  }
+
+  if (view === 'plan_history') {
+      return (
+          <PlanHistoryPanel 
+            plans={dailyPlans}
+            availableCos={uniqueCos}
+            onBack={() => setView('home')}
+          />
+      );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-gradient-to-br from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg shadow-orange-500/20 text-white">
-              <Trophy className="w-5 h-5" />
+    <div className="min-h-screen bg-slate-50 pb-safe">
+      
+      {/* --- HEADER --- */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-sm transition-all">
+        <div className="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="bg-gradient-to-br from-orange-500 to-amber-500 text-white p-2 rounded-xl shadow-lg shadow-orange-500/20">
+               <Fingerprint className="w-5 h-5" />
             </div>
             <div>
-                <h1 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">
-                Borobudur <span className="text-orange-600">Berprestasi</span>
-                </h1>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Mobile CRM System</p>
+                <h1 className="font-bold text-slate-800 text-lg leading-tight tracking-tight">B-Connect</h1>
+                <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                   {isSyncing ? (
+                       <><Loader2 className="w-3 h-3 animate-spin text-orange-500"/> Syncing...</>
+                   ) : (
+                       <><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online {lastSyncTime && `• ${lastSyncTime}`}</>
+                   )}
+                </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-             <Button onClick={handleSyncSheet} size="sm" variant="outline" className="h-8 border-orange-200 text-orange-600 hover:bg-orange-50" icon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}>{isSyncing ? 'Syncing' : 'Sync'}</Button>
+          
+          <div className="flex gap-2">
+             <button 
+                onClick={() => setView('notifications')}
+                className="relative p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+             >
+                <Bell className="w-5 h-5" />
+                {notificationItems.length > 0 && (
+                    <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                )}
+             </button>
+             <button 
+                onClick={() => setView('admin_login')}
+                className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+             >
+                <Settings className="w-5 h-5" />
+             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in-up">
-          <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-                <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-orange-500/30 rounded-full blur-3xl"></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-2 opacity-90">
-                        <Trophy className="w-5 h-5 text-yellow-300" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-yellow-100">Team Borobudur</span>
-                    </div>
-                    <h2 className="text-2xl font-black mb-1">{getGreeting()}, CO!</h2>
-                    <p className="text-orange-50 text-sm leading-relaxed max-w-[90%]">Aplikasi CRM Digital untuk memonitor nasabah, sentra, dan kinerja tim BTPN Syariah secara real-time & presisi.</p>
-                    <div className="flex gap-4 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
-                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Total Nasabah</p>
-                            <p className="text-2xl font-black">{totalActiveContacts}</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
-                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> Total Sentra</p>
-                            <p className="text-2xl font-black">{uniqueSentras.length}</p>
-                        </div>
+      {/* --- MAIN CONTENT --- */}
+      <main className="max-w-md mx-auto p-4 space-y-6">
+        
+        {/* HERO SECTION */}
+        {sheetConfig.showHeroSection && (
+            <div className="relative overflow-hidden rounded-3xl bg-slate-900 p-6 shadow-xl shadow-slate-900/10">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500 rounded-full blur-[80px] opacity-20 -mr-16 -mt-16"></div>
+                <div className="relative z-10 text-white">
+                    <h2 className="text-2xl font-bold mb-1">Halo, Pejuang Syariah! 👋</h2>
+                    <p className="text-slate-300 text-sm mb-4">Siap melayani nasabah hari ini?</p>
+                    
+                    <div className="flex gap-3">
+                        <Button 
+                            size="sm" 
+                            className="bg-white/10 hover:bg-white/20 border-white/10 backdrop-blur-md text-white shadow-none"
+                            onClick={() => setIsTodoModalOpen(true)}
+                            icon={<ClipboardList className="w-4 h-4 text-orange-400"/>}
+                        >
+                            Input Rencana
+                        </Button>
+                        <Button 
+                            size="sm" 
+                            className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-lg shadow-orange-500/30"
+                            onClick={() => setView('plan_history')}
+                            icon={<BarChart3 className="w-4 h-4"/>}
+                        >
+                            Cek Realisasi
+                        </Button>
                     </div>
                 </div>
             </div>
+        )}
 
+        {/* QUICK MENU GRID */}
+        <div className="grid grid-cols-4 gap-3">
+            <button onClick={() => setView('dashboard')} className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <TrendingUp className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">Dashboard</span>
+            </button>
+            <button onClick={() => setView('broadcast')} className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Radio className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">Broadcast</span>
+            </button>
+            <button onClick={() => setView('contacts')} className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ContactIcon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">Kontak</span>
+            </button>
+            <button onClick={() => syncData()} disabled={isSyncing} className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                <div className={`w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform ${isSyncing ? 'animate-spin' : ''}`}>
+                    <RefreshCw className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">Sync</span>
+            </button>
+        </div>
+
+        {/* STATS OVERVIEW CARDS (Optional via Config) */}
+        {sheetConfig.showStatsCards && (
             <div className="grid grid-cols-2 gap-3">
-                 <button onClick={() => setIsTodoModalOpen(true)} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-orange-300 transition-all text-left group">
-                     <div className="bg-orange-50 w-10 h-10 rounded-full flex items-center justify-center mb-3 group-hover:bg-orange-100 transition-colors">
-                         <ClipboardList className="w-5 h-5 text-orange-600" />
+                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Nasabah</p>
+                     <div className="flex items-center gap-2 mt-1">
+                         <Users className="w-5 h-5 text-blue-500" />
+                         <span className="text-2xl font-black text-slate-800">{contacts.length}</span>
                      </div>
-                     <h3 className="font-bold text-slate-700 text-sm">Input Rencana</h3>
-                     <p className="text-[10px] text-slate-400 mt-1">Target Harian CO</p>
-                 </button>
-                 <button onClick={() => setActiveView('notifications')} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all text-left group">
-                     <div className="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
-                         <Calendar className="w-5 h-5 text-blue-600" />
+                 </div>
+                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Follow Up</p>
+                     <div className="flex items-center gap-2 mt-1">
+                         <Bell className="w-5 h-5 text-red-500" />
+                         <span className="text-2xl font-black text-slate-800">{notificationItems.length}</span>
                      </div>
-                     <h3 className="font-bold text-slate-700 text-sm">Jadwal Harian</h3>
-                     <p className="text-[10px] text-slate-400 mt-1">Cek Reminder</p>
-                 </button>
-                 {/* NEW CARD: MONITORING REALISASI */}
-                 <button onClick={() => setActiveView('plans')} className="col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left group flex items-center justify-between">
-                     <div>
-                        <h3 className="font-bold text-slate-700 text-sm">Monitoring Realisasi</h3>
-                        <p className="text-[10px] text-slate-400 mt-1">Cek Plan vs Aktual Hari Ini</p>
-                     </div>
-                     <div className="bg-emerald-50 w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                         <BarChart3 className="w-5 h-5 text-emerald-600" />
-                     </div>
-                 </button>
+                 </div>
+            </div>
+        )}
+
+        {/* SEARCH & LIST */}
+        <div className="space-y-4">
+            <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                </div>
+                <input
+                    type="text"
+                    className="block w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-sm"
+                    placeholder="Cari Nasabah, Sentra, atau HP..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
 
-            {/* 0. LIVE PERFORMANCE CARD (NEW) - Always rendered now */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                        <h4 className="font-bold text-slate-800">Live Realisasi ({todaysPerformance.date})</h4>
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-4" />
+                    <p className="text-sm font-medium">Memuat Data Direktori...</p>
+                </div>
+            ) : homeFilteredContacts.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Search className="w-6 h-6 text-slate-300" />
                     </div>
-                    <button onClick={() => setActiveView('plans')} className="text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-slate-500 font-medium transition-colors">
-                        Lihat Detail
-                    </button>
+                    <p className="text-slate-500 font-medium">Data tidak ditemukan.</p>
+                    <p className="text-xs text-slate-400 mt-1">Coba kata kunci lain atau sync data.</p>
                 </div>
-
-                <div className="space-y-4">
-                     {/* Pillar 1: Sales */}
-                     <div>
-                        <div className="flex justify-between items-end mb-1">
-                            <div className="flex items-center gap-1.5">
-                                <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
-                                <span className="text-xs font-bold text-slate-600 uppercase">Total SW (NOA)</span>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className={`text-sm font-black ${todaysPerformance.swActual >= todaysPerformance.swTarget ? 'text-emerald-600' : 'text-slate-800'}`}>{todaysPerformance.swActual}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">/ {todaysPerformance.swTarget}</span>
-                            </div>
+            ) : (
+                <div className="space-y-4 pb-20">
+                    {searchTerm && (
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
+                            Hasil Pencarian ({homeFilteredContacts.length})
+                        </p>
+                    )}
+                    
+                    {homeFilteredContacts.map((contact) => (
+                        <ContactCard 
+                            key={contact.id} 
+                            contact={contact} 
+                            onEditClick={handleOpenEditModal}
+                            onGenerateClick={handleOpenMsgModal}
+                        />
+                    ))}
+                    
+                    {!searchTerm && contacts.length > 20 && (
+                        <div className="text-center pt-4">
+                            <p className="text-xs text-slate-400 italic">Menampilkan 20 data teratas. Gunakan pencarian untuk hasil spesifik.</p>
                         </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                                className={`h-full rounded-full transition-all duration-1000 ${todaysPerformance.swActual >= todaysPerformance.swTarget ? 'bg-emerald-500' : 'bg-orange-500'}`} 
-                                style={{ width: `${Math.min((todaysPerformance.swActual / (todaysPerformance.swTarget || 1)) * 100, 100)}%` }}
-                            ></div>
-                        </div>
-                     </div>
-                     
-                     {/* Pillar 2: Collection */}
-                     <div>
-                         <div className="flex justify-between items-end mb-1">
-                            <div className="flex items-center gap-1.5">
-                                <AlertOctagon className="w-3.5 h-3.5 text-red-500" />
-                                <span className="text-xs font-bold text-slate-600 uppercase">Collection (CTX+Par)</span>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className={`text-sm font-black ${todaysPerformance.collActual >= todaysPerformance.collTarget ? 'text-emerald-600' : 'text-slate-800'}`}>{todaysPerformance.collActual}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">/ {todaysPerformance.collTarget}</span>
-                            </div>
-                        </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                                className={`h-full rounded-full transition-all duration-1000 ${todaysPerformance.collActual >= todaysPerformance.collTarget ? 'bg-emerald-500' : 'bg-red-500'}`} 
-                                style={{ width: `${Math.min((todaysPerformance.collActual / (todaysPerformance.collTarget || 1)) * 100, 100)}%` }}
-                            ></div>
-                        </div>
-                     </div>
-
-                     {/* Pillar 3: Admin */}
-                     <div>
-                         <div className="flex justify-between items-end mb-1">
-                            <div className="flex items-center gap-1.5">
-                                <Fingerprint className="w-3.5 h-3.5 text-indigo-500" />
-                                <span className="text-xs font-bold text-slate-600 uppercase">Biometrik</span>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className={`text-sm font-black ${todaysPerformance.bioActual >= todaysPerformance.bioTarget ? 'text-emerald-600' : 'text-slate-800'}`}>{todaysPerformance.bioActual}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">/ {todaysPerformance.bioTarget}</span>
-                            </div>
-                        </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                                className={`h-full rounded-full transition-all duration-1000 ${todaysPerformance.bioActual >= todaysPerformance.bioTarget ? 'bg-emerald-500' : 'bg-indigo-500'}`} 
-                                style={{ width: `${Math.min((todaysPerformance.bioActual / (todaysPerformance.bioTarget || 1)) * 100, 100)}%` }}
-                            ></div>
-                        </div>
-                     </div>
+                    )}
                 </div>
-            </div>
+            )}
+        </div>
       </main>
 
-      <TodoInputModal isOpen={isTodoModalOpen} onClose={() => setIsTodoModalOpen(false)} onSave={handleSavePlan} availableCos={uniqueCos} dailyPlans={dailyPlans} contacts={contacts} />
-      {renderBottomNav()}
+      {/* --- MODALS --- */}
+      
+      {selectedContact && (
+        <MessageGeneratorModal
+            contact={selectedContact}
+            isOpen={isMsgModalOpen}
+            onClose={() => setIsMsgModalOpen(false)}
+            templates={templates}
+            apiKey={sheetConfig.geminiApiKey}
+        />
+      )}
+
+      {selectedContact && (
+          <EditContactModal 
+            contact={selectedContact}
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onSave={handleSaveContact}
+            onDelete={handleDeleteContact}
+            sheetConfig={sheetConfig}
+          />
+      )}
+
+      <TodoInputModal 
+          isOpen={isTodoModalOpen}
+          onClose={() => setIsTodoModalOpen(false)}
+          onSave={handleSavePlan}
+          availableCos={uniqueCos}
+          dailyPlans={dailyPlans}
+          contacts={contacts}
+      />
+
     </div>
   );
-};
-export default App;
+}

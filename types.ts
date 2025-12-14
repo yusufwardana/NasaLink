@@ -1,4 +1,5 @@
 
+
 export interface Contact {
   id: string;
   name: string;       // Map from 'NASABAH'
@@ -60,6 +61,9 @@ export interface SheetConfig {
   // UI Settings
   showHeroSection?: boolean; // Toggle Welcome Banner
   showStatsCards?: boolean; // Toggle Top Stats
+
+  // System
+  enableDebugMode?: boolean; // Toggle Script Logging
 }
 
 // --- NEW INTERFACE FOR DAILY PLAN (24 Columns Match) ---

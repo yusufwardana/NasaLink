@@ -35,5 +35,8 @@ export const GLOBAL_CONFIG: SheetConfig = {
   
   // Pengaturan Tampilan
   showHeroSection: true,
-  showStatsCards: true
+  showStatsCards: true,
+
+  // System
+  enableDebugMode: false
 };

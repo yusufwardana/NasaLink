@@ -361,12 +361,13 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
 };
 
 // --- NEW FUNCTION: Submit Daily Plan ---
-export const submitPlanToSheet = async (scriptUrl: string, plan: DailyPlan): Promise<void> => {
+export const submitPlanToSheet = async (scriptUrl: string, plan: DailyPlan, debugMode: boolean = false): Promise<void> => {
     if (!scriptUrl) throw new Error("URL Script tidak ditemukan");
 
     const payload = {
         action: 'save_plan',
-        plan: plan
+        plan: plan,
+        debug: debugMode
     };
 
     // Fire and forget (No Cors)
@@ -386,12 +387,13 @@ export const submitPlanToSheet = async (scriptUrl: string, plan: DailyPlan): Pro
     }
 };
 
-export const saveTemplatesToSheet = async (scriptUrl: string, templates: MessageTemplate[]): Promise<void> => {
+export const saveTemplatesToSheet = async (scriptUrl: string, templates: MessageTemplate[], debugMode: boolean = false): Promise<void> => {
     if (!scriptUrl) throw new Error("URL Script tidak ditemukan");
 
     const payload = {
         action: 'save_templates',
-        templates: templates
+        templates: templates,
+        debug: debugMode
     };
 
     try {
@@ -408,7 +410,7 @@ export const saveTemplatesToSheet = async (scriptUrl: string, templates: Message
     }
 };
 
-export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPhone: string): Promise<void> => {
+export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPhone: string, debugMode: boolean = false): Promise<void> => {
   if (!scriptUrl) {
     throw new Error("URL Google Apps Script belum dikonfigurasi.");
   }
@@ -416,7 +418,8 @@ export const updatePhoneInSheet = async (scriptUrl: string, name: string, newPho
   const payload = {
     action: 'update_phone',
     name: name,
-    phone: newPhone
+    phone: newPhone,
+    debug: debugMode
   };
 
   await fetch(scriptUrl, {
