@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import { Contact, MessageTemplate, SheetConfig, DailyPlan } from './types';
 import { ContactCard } from './components/ContactCard';
@@ -380,9 +381,37 @@ const App: React.FC = () => {
       }).length;
   }, [contacts]);
   
+  // --- CORRECTED "TODAY'S PLAN" LOGIC ---
   const todaysPlan = useMemo(() => {
-      if (dailyPlans.length === 0) return null;
-      return dailyPlans[dailyPlans.length - 1];
+      const today = new Date();
+      const dd = String(today.getDate()).padStart(2, '0');
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const yyyy = today.getFullYear();
+      const todayStr = `${dd}/${mm}/${yyyy}`; 
+
+      // Helper to remove leading zeros for loose matching (1/1/2025 == 01/01/2025)
+      const norm = (str: string) => str.split('/').map(s => parseInt(s, 10)).join('/');
+      const target = norm(todayStr);
+
+      // Filter plans that match TODAY's date
+      const plansToday = dailyPlans.filter(p => norm(p.date) === target);
+
+      if (plansToday.length === 0) return null;
+
+      // AGGREGATE IF MULTIPLE (e.g. Multiple COs inputting for today)
+      // This ensures we show the TOTAL plan for the team for today on the dashboard
+      const aggregated = plansToday.reduce((acc, curr) => ({
+          ...acc,
+          swCurrentNoa: String((parseInt(acc.swCurrentNoa)||0) + (parseInt(curr.swCurrentNoa)||0)),
+          colCtxNoa: String((parseInt(acc.colCtxNoa)||0) + (parseInt(curr.colCtxNoa)||0)),
+          colLantakurNoa: String((parseInt(acc.colLantakurNoa)||0) + (parseInt(curr.colLantakurNoa)||0)),
+          // Keep metadata from first entry but mark as aggregate
+          id: curr.id, 
+          date: curr.date, 
+          coName: 'Total Tim' 
+      }));
+
+      return aggregated;
   }, [dailyPlans]);
 
   const handleSyncSheet = async () => {
@@ -408,7 +437,14 @@ const App: React.FC = () => {
   const handleSavePlan = async (plan: DailyPlan) => {
      if (activeConfig?.googleScriptUrl) {
          // UI Optimistic Update
-         setDailyPlans(prev => [...prev, plan]);
+         setDailyPlans(prev => {
+             // If update existing ID
+             if (prev.find(p => p.id === plan.id)) {
+                 return prev.map(p => p.id === plan.id ? plan : p);
+             }
+             return [...prev, plan];
+         });
+         
          // Background Save - Pass Debug Mode Flag
          await submitPlanToSheet(activeConfig.googleScriptUrl, plan, activeConfig.enableDebugMode);
      } else {
@@ -595,7 +631,7 @@ const App: React.FC = () => {
             {todaysPlan && (
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-500" /> Rencana Hari Ini</h3>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-500" /> Rencana Hari Ini (Total)</h3>
                         <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-mono text-slate-500">{todaysPlan.date}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center">
