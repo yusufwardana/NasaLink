@@ -62,6 +62,9 @@ export interface SheetConfig {
   showHeroSection?: boolean; // Toggle Welcome Banner
   showStatsCards?: boolean; // Toggle Top Stats
 
+  // Personalization
+  defaultCoName?: string; // NEW: Baku Nama CO
+
   // System
   enableDebugMode?: boolean; // Toggle Apps Script Logging
 }

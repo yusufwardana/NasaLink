@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, AlertCircle, FilterX } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -38,18 +38,28 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       return d.split('/').map(p => parseInt(p, 10)).join('/');
   };
 
-  const filteredPlans = useMemo(() => {
-    return plans.filter(p => {
-        // Robust Date Comparison
-        const pDateNorm = normalizeForMatch(p.date);
-        const sDateNorm = normalizeForMatch(selectedDate);
-        
-        const matchDate = pDateNorm === sDateNorm;
-        const matchSearch = searchTerm === '' || p.coName.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        return matchDate && matchSearch;
-    }).sort((a, b) => a.coName.localeCompare(b.coName));
+  // --- CORE LOGIC CHANGE: STRICT DATA FROM PLAN SHEET ---
+  // Hanya menampilkan data yang ada di variable 'plans'. Tidak melakukan Left Join dengan 'availableCos'.
+  const tableData = useMemo(() => {
+    const sDateNorm = normalizeForMatch(selectedDate);
+    
+    // 1. Get plans ONLY for the selected date
+    const plansForDate = plans.filter(p => normalizeForMatch(p.date) === sDateNorm);
+
+    // 2. Map directly from Plan Data
+    const rows = plansForDate.map(p => ({
+        coName: p.coName,
+        plan: p,
+        hasInput: true
+    }));
+
+    // 3. Filter by Search Term
+    return rows.filter(r => 
+        searchTerm === '' || r.coName.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a, b) => a.coName.localeCompare(b.coName));
+
   }, [plans, selectedDate, searchTerm]);
+
 
   // Totals Calculation for Footer
   const totals = useMemo(() => {
@@ -63,21 +73,25 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
           fppbT: 0, fppbR: 0,
           bioT: 0, bioR: 0
       };
-      filteredPlans.forEach(p => {
-          t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
-          t.swCurDisbT += parseNum(p.swCurrentDisb); t.swCurDisbR += parseNum(p.actualSwDisb);
-          
-          t.swNextT += parseNum(p.swNextNoa); t.swNextR += parseNum(p.actualSwNextNoa);
-          t.swNextDisbT += parseNum(p.swNextDisb); t.swNextDisbR += parseNum(p.actualSwNextDisb);
-          
-          t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
-          t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
-          
-          t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
-          t.bioT += parseNum(p.biometrikNoa); t.bioR += parseNum(p.actualBiometrikNoa);
+
+      tableData.forEach(row => {
+          if (row.plan) {
+            const p = row.plan;
+            t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
+            t.swCurDisbT += parseNum(p.swCurrentDisb); t.swCurDisbR += parseNum(p.actualSwDisb);
+            
+            t.swNextT += parseNum(p.swNextNoa); t.swNextR += parseNum(p.actualSwNextNoa);
+            t.swNextDisbT += parseNum(p.swNextDisb); t.swNextDisbR += parseNum(p.actualSwNextDisb);
+            
+            t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
+            t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
+            
+            t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
+            t.bioT += parseNum(p.biometrikNoa); t.bioR += parseNum(p.actualBiometrikNoa);
+          }
       });
       return t;
-  }, [filteredPlans]);
+  }, [tableData]);
 
   // Date Navigation
   const changeDate = (days: number) => {
@@ -90,7 +104,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
   };
 
   // --- ENHANCED METRIC CELL ---
-  const MetricCell = ({ target, actual, isMoney = false }: { target: string, actual?: string, isMoney?: boolean }) => {
+  const MetricCell = ({ target, actual }: { target: string, actual?: string }) => {
       const t = parseNum(target);
       const a = parseNum(actual);
       
@@ -144,7 +158,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                         Monitoring Realisasi
                         <BarChart3 className="w-5 h-5 text-blue-600" />
                     </h2>
-                    <p className="text-xs text-slate-500">Target vs Aktual Harian</p>
+                    <p className="text-xs text-slate-500">Data Real dari Sheet "Plan"</p>
                 </div>
             </div>
 
@@ -188,56 +202,58 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {filteredPlans.length === 0 ? (
+                        {tableData.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="p-8 text-center text-slate-400 italic">
-                                    Tidak ada data rencana/realisasi untuk tanggal {selectedDate}.
+                                <td colSpan={9} className="p-12 text-center">
+                                    <div className="flex flex-col items-center justify-center text-slate-300">
+                                        <FilterX className="w-10 h-10 mb-2" />
+                                        <p className="text-sm font-bold text-slate-400">Tidak ada data Rencana.</p>
+                                        <p className="text-xs">Belum ada input untuk tanggal {selectedDate}</p>
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
-                            filteredPlans.map((plan, idx) => (
-                                <tr key={plan.id} className="hover:bg-orange-50/30 transition-colors group">
+                            tableData.map((row, idx) => (
+                                <tr key={row.coName} className="transition-colors group hover:bg-orange-50/30">
+                                    
+                                    {/* COLUMN 1: NAME & STATUS */}
                                     <td className="p-3 font-bold text-slate-700 sticky left-0 bg-white group-hover:bg-orange-50 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-[10px] text-slate-500">
+                                            <div className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-[10px] text-slate-500 shrink-0">
                                                 {idx + 1}
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="truncate max-w-[100px]" title={plan.coName}>{plan.coName}</div>
+                                                <div className="truncate max-w-[100px]" title={row.coName}>{row.coName}</div>
                                             </div>
                                         </div>
                                     </td>
                                     
-                                    {/* SW CURRENT */}
                                     <td className="border-r border-slate-100 bg-orange-50/10">
-                                        <MetricCell target={plan.swCurrentNoa} actual={plan.actualSwNoa} />
+                                        <MetricCell target={row.plan?.swCurrentNoa || '0'} actual={row.plan?.actualSwNoa} />
                                     </td>
                                     <td className="border-r border-slate-100 bg-orange-50/10">
-                                        <MetricCell target={plan.swCurrentDisb} actual={plan.actualSwDisb} />
+                                        <MetricCell target={row.plan?.swCurrentDisb || '0'} actual={row.plan?.actualSwDisb} />
                                     </td>
 
-                                    {/* SW NEXT */}
                                     <td className="border-r border-slate-100">
-                                        <MetricCell target={plan.swNextNoa} actual={plan.actualSwNextNoa} />
+                                        <MetricCell target={row.plan?.swNextNoa || '0'} actual={row.plan?.actualSwNextNoa} />
                                     </td>
                                     <td className="border-r border-slate-200">
-                                        <MetricCell target={plan.swNextDisb} actual={plan.actualSwNextDisb} />
+                                        <MetricCell target={row.plan?.swNextDisb || '0'} actual={row.plan?.actualSwNextDisb} />
                                     </td>
 
-                                    {/* COLLECTION */}
                                     <td className="border-r border-slate-100 bg-red-50/10">
-                                        <MetricCell target={plan.colCtxNoa} actual={plan.actualCtxNoa} />
+                                        <MetricCell target={row.plan?.colCtxNoa || '0'} actual={row.plan?.actualCtxNoa} />
                                     </td>
                                     <td className="border-r border-slate-200 bg-amber-50/10">
-                                        <MetricCell target={plan.colLantakurNoa} actual={plan.actualLantakurNoa} />
+                                        <MetricCell target={row.plan?.colLantakurNoa || '0'} actual={row.plan?.actualLantakurNoa} />
                                     </td>
 
-                                    {/* ADMIN */}
                                     <td className="border-r border-slate-100 bg-purple-50/10">
-                                        <MetricCell target={plan.fppbNoa} actual={plan.actualFppbNoa} />
+                                        <MetricCell target={row.plan?.fppbNoa || '0'} actual={row.plan?.actualFppbNoa} />
                                     </td>
                                     <td className="bg-indigo-50/10">
-                                        <MetricCell target={plan.biometrikNoa} actual={plan.actualBiometrikNoa} />
+                                        <MetricCell target={row.plan?.biometrikNoa || '0'} actual={row.plan?.actualBiometrikNoa} />
                                     </td>
                                 </tr>
                             ))
@@ -247,7 +263,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             </div>
 
             {/* Sticky Footer Totals */}
-            {filteredPlans.length > 0 && (
+            {tableData.length > 0 && (
                 <div className="bg-slate-50 border-t border-slate-200 p-2 overflow-x-auto">
                     <table className="w-full text-xs min-w-[900px]">
                         <tfoot>

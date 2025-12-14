@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { saveTemplatesToSheet } from '../services/sheetService';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug, Table } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug, Table, UserCircle2 } from 'lucide-react';
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -43,7 +43,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       refinancingLookaheadMonths: 1,
       showHeroSection: true,
       showStatsCards: true,
-      enableDebugMode: false
+      enableDebugMode: false,
+      defaultCoName: '' // Default empty
   });
   
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
@@ -491,6 +492,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             {isCloudConnected 
                                 ? 'Pengaturan akan disimpan otomatis ke Supabase (Server) & bisa diakses semua user.' 
                                 : 'Setup Supabase di config.ts untuk mengaktifkan sinkronisasi.'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* PERSONALIZATION CONFIG (CO NAME) */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <UserCircle2 className="w-5 h-5 text-purple-600" />
+                        Konfigurasi Personal
+                    </h3>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Nama CO Default (Saya)</label>
+                        <input 
+                            type="text" 
+                            className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-purple-500/50 outline-none"
+                            value={sheetConfig.defaultCoName || ''}
+                            onChange={e => setSheetConfig({...sheetConfig, defaultCoName: e.target.value})}
+                            placeholder="Contoh: ALDA MANDA"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                            Nama ini akan digunakan sebagai default di form input rencana agar baku dan tidak perlu pilih manual.
                         </p>
                     </div>
                 </div>
