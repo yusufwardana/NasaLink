@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Contact } from '../types';
-import { ArrowLeft, TrendingUp, Users, Wallet, PieChart, MapPin, CheckCircle2, XCircle, UserMinus, LayoutList, Award, AlertOctagon, ArrowUpRight, Ban } from 'lucide-react';
+import { Contact, DailyPlan } from '../types';
+import { ArrowLeft, TrendingUp, Users, Wallet, PieChart, MapPin, CheckCircle2, XCircle, UserMinus, LayoutList, Award, AlertOctagon, ArrowUpRight, Ban, Target, BarChart3, Fingerprint } from 'lucide-react';
 
 interface DashboardPanelProps {
   contacts: Contact[];
   onBack: () => void;
+  dailyPlans?: DailyPlan[]; // Added prop for plan data
 }
 
 // --- HELPER COMPONENTS ---
@@ -77,22 +78,35 @@ const DonutChart = ({
   );
 };
 
-// 2. Stat Card
-const StatCard = ({ title, value, subtext, icon: Icon, colorClass, delay }: any) => (
-    <div className={`bg-white border border-slate-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-500 animate-fade-in-up`} style={{ animationDelay: delay }}>
-        <div className="flex justify-between items-start mb-2">
-            <div className={`p-2 rounded-xl ${colorClass}`}>
-                <Icon className="w-5 h-5" />
+// Progress Bar Helper
+const ProgressBar = ({ label, current, target, colorClass, icon: Icon }: any) => {
+    const safeTarget = target || 1; // Avoid div by zero
+    const percent = Math.min((current / safeTarget) * 100, 100);
+    const isAchieved = current >= target && target > 0;
+    
+    return (
+        <div className="mb-3 last:mb-0">
+            <div className="flex justify-between items-end mb-1">
+                <div className="flex items-center gap-1.5">
+                    <Icon className={`w-3.5 h-3.5 ${colorClass.replace('bg-', 'text-')}`} />
+                    <span className="text-xs font-bold text-slate-600 uppercase">{label}</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                    <span className={`text-sm font-black ${isAchieved ? 'text-emerald-600' : 'text-slate-800'}`}>{current}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">/ {target}</span>
+                </div>
             </div>
-            {subtext && <span className="text-[10px] font-bold bg-slate-50 text-slate-500 px-2 py-1 rounded-lg">{subtext}</span>}
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                    className={`h-full rounded-full transition-all duration-1000 ${isAchieved ? 'bg-emerald-500' : colorClass}`} 
+                    style={{ width: `${percent}%` }}
+                ></div>
+            </div>
         </div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">{title}</p>
-        <h3 className="text-2xl font-black text-slate-800">{value}</h3>
-    </div>
-);
+    )
+}
 
-
-export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack }) => {
+export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack, dailyPlans = [] }) => {
   const [viewMode, setViewMode] = useState<'summary' | 'co_list'>('summary');
   const [sortBy, setSortBy] = useState<'asset' | 'quality' | 'active'>('active');
 
@@ -103,6 +117,11 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
   };
 
   const parseMoney = (val?: string) => {
+      if (!val) return 0;
+      return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
+  };
+  
+  const parseNum = (val?: string) => {
       if (!val) return 0;
       return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
   };
@@ -137,13 +156,7 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
     const healthyCount = activeCount - troubleCount;
 
     // 4. Opportunity
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    
-    // Simple Opportunity Logic: Active Jatuh Tempo Soon OR Recent Winback
     const opportunityCount = contacts.filter(c => {
-        // ... (Logic same as App.tsx simplified for speed)
-        // For dashboard visualization, imply logic:
         if (!isVacantOrInactive(c)) return !!c.tglJatuhTempo; // Active & has Due Date = Potential Refinancing
         return !!c.tglLunas; // Inactive & has Lunas Date = Potential Winback
     }).length;
@@ -170,6 +183,39 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
         activeContacts 
     };
   }, [contacts]);
+
+  // --- DAILY PERFORMANCE ---
+  const todaysPerformance = useMemo(() => {
+      if (!dailyPlans || dailyPlans.length === 0) return null;
+      
+      // Get plans for today (assuming sorted or filter by date)
+      // Here we just aggregate ALL plans from the latest date in the list
+      const latestDate = dailyPlans[dailyPlans.length - 1].date;
+      const todaysPlans = dailyPlans.filter(p => p.date === latestDate);
+
+      const t = {
+          date: latestDate,
+          swTarget: 0, swActual: 0,
+          collTarget: 0, collActual: 0,
+          bioTarget: 0, bioActual: 0
+      };
+
+      todaysPlans.forEach(p => {
+          // SW (Cur + Next)
+          t.swTarget += (parseNum(p.swCurrentNoa) + parseNum(p.swNextNoa));
+          t.swActual += (parseNum(p.actualSwNoa) + parseNum(p.actualSwNextNoa));
+          
+          // Collection (CTX + Lantakur)
+          t.collTarget += (parseNum(p.colCtxNoa) + parseNum(p.colLantakurNoa));
+          t.collActual += (parseNum(p.actualCtxNoa) + parseNum(p.actualLantakurNoa));
+
+          // Biometrik
+          t.bioTarget += parseNum(p.biometrikNoa);
+          t.bioActual += parseNum(p.actualBiometrikNoa);
+      });
+
+      return t;
+  }, [dailyPlans]);
 
   // --- CO STATS ---
   const coStats = useMemo(() => {
@@ -217,7 +263,7 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
                 Dashboard Kinerja
                 <TrendingUp className="w-5 h-5 text-orange-600" />
             </h2>
-            <p className="text-sm text-slate-500">Analisis Portofolio Real-time</p>
+            <p className="text-sm text-slate-500">Analisis Portofolio & Realisasi Harian</p>
         </div>
       </div>
 
@@ -240,6 +286,57 @@ export const DashboardPanel: React.FC<DashboardPanelProps> = ({ contacts, onBack
       {viewMode === 'summary' ? (
         <div className="space-y-6">
             
+            {/* 0. LIVE PERFORMANCE CARD (NEW) */}
+            {todaysPerformance && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            <h4 className="font-bold text-slate-800">Live Realisasi ({todaysPerformance.date})</h4>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-medium">Auto-Update</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                         {/* Pillar 1: Sales */}
+                         <div className="p-3 bg-orange-50/50 rounded-xl border border-orange-100">
+                            <ProgressBar 
+                                label="Total SW (NOA)" 
+                                current={todaysPerformance.swActual} 
+                                target={todaysPerformance.swTarget} 
+                                colorClass="bg-orange-500" 
+                                icon={TrendingUp}
+                            />
+                         </div>
+                         
+                         {/* Pillar 2: Collection */}
+                         <div className="p-3 bg-red-50/50 rounded-xl border border-red-100">
+                             <ProgressBar 
+                                label="Collection (CTX+Par)" 
+                                current={todaysPerformance.collActual} 
+                                target={todaysPerformance.collTarget} 
+                                colorClass="bg-red-500" 
+                                icon={AlertOctagon}
+                            />
+                         </div>
+
+                         {/* Pillar 3: Admin */}
+                         <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                             <ProgressBar 
+                                label="Biometrik" 
+                                current={todaysPerformance.bioActual} 
+                                target={todaysPerformance.bioTarget} 
+                                colorClass="bg-indigo-500" 
+                                icon={Fingerprint}
+                            />
+                         </div>
+                    </div>
+                </div>
+            )}
+
             {/* 1. HERO CARD: ASSETS */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-white shadow-xl shadow-slate-900/20">
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-orange-500 rounded-full blur-3xl opacity-20"></div>

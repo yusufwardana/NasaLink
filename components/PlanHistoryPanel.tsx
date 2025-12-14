@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp, Target, Percent } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp, Target, Percent, Fingerprint } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -51,7 +51,8 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
           swNextT: 0, swNextR: 0,
           ctxT: 0, ctxR: 0,
           parT: 0, parR: 0,
-          fppbT: 0, fppbR: 0
+          fppbT: 0, fppbR: 0,
+          bioT: 0, bioR: 0 // Added Biometrik Totals
       };
       filteredPlans.forEach(p => {
           t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
@@ -59,6 +60,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
           t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
           t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
           t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
+          t.bioT += parseNum(p.biometrikNoa); t.bioR += parseNum(p.actualBiometrikNoa);
       });
       return t;
   }, [filteredPlans]);
@@ -103,25 +105,35 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       );
   };
 
-  // Render Cell Helper
+  // Render Cell Helper with GAP Indicator
   const MetricCell = ({ target, actual, label, hideLabel = true }: { target: string, actual?: string, label: string, hideLabel?: boolean }) => {
       const t = parseNum(target);
       const a = parseNum(actual);
+      const gap = a - t;
       const isAchieved = t > 0 && a >= t;
       const isZero = t === 0 && a === 0;
 
       if (isZero) return <div className="text-center text-slate-300">-</div>;
 
       return (
-          <div className="flex flex-col items-center justify-center h-full w-full p-1">
+          <div className="flex flex-col items-center justify-center h-full w-full p-1 relative group">
               {!hideLabel && <span className="text-[9px] text-slate-400 mb-0.5 uppercase">{label}</span>}
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-1 relative z-10">
                   <span className={`font-bold text-xs ${isAchieved ? 'text-emerald-600' : 'text-slate-700'}`}>
                       {a}
                   </span>
                   <span className="text-[9px] text-slate-400">/ {t}</span>
               </div>
-              {t > 0 && (
+              
+              {/* Gap Indicator (Show red deficit or green surplus) */}
+              {t > 0 && gap !== 0 && (
+                   <div className={`text-[8px] font-bold px-1 rounded-sm mt-0.5 ${gap < 0 ? 'text-red-500 bg-red-50' : 'text-emerald-500 bg-emerald-50'}`}>
+                       {gap > 0 ? `+${gap}` : gap}
+                   </div>
+              )}
+
+              {/* Progress Bar (Visible if no Gap text or as subtle background) */}
+              {t > 0 && gap === 0 && (
                 <div className="w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
                     <div className={`h-full rounded-full ${isAchieved ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${Math.min((a/t)*100, 100)}%` }}></div>
                 </div>
@@ -187,13 +199,14 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                     bgClass="bg-red-500" 
                     icon={Percent} 
                 />
+                {/* Changed to Biometrik to prioritize */}
                 <SummaryCard 
-                    label="FPPB (NOA)" 
-                    target={totals.fppbT} 
-                    actual={totals.fppbR} 
-                    colorClass="text-purple-500" 
-                    bgClass="bg-purple-500" 
-                    icon={BarChart3} 
+                    label="Biometrik" 
+                    target={totals.bioT} 
+                    actual={totals.bioR} 
+                    colorClass="text-indigo-500" 
+                    bgClass="bg-indigo-500" 
+                    icon={Fingerprint} 
                 />
             </div>
         )}
@@ -314,7 +327,9 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                 <td className="p-2 text-center font-bold text-purple-600 w-[10%]">
                                     {totals.fppbR}/{totals.fppbT}
                                 </td>
-                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
+                                <td className="p-2 text-center font-bold text-indigo-600 w-[10%]">
+                                    {totals.bioR}/{totals.bioT}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>

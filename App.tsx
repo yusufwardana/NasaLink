@@ -501,7 +501,7 @@ const App: React.FC = () => {
               <ChevronRight className="w-4 h-4 text-slate-400" />
           </Button>
       </div>
-      <DashboardPanel contacts={contacts} onBack={() => setActiveView('home')} />{renderBottomNav()}
+      <DashboardPanel contacts={contacts} onBack={() => setActiveView('home')} dailyPlans={dailyPlans} />{renderBottomNav()}
   </div>;
 
   if (activeView === 'plans') {
