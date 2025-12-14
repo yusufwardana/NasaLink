@@ -31,7 +31,7 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 3. **Sheet "Templates"**: (Akan dibuat otomatis oleh script jika belum ada).
 
 4. Buka **Extensions** > **Apps Script**.
-5. Copy-Paste kode berikut (Versi Update Fuzzy Match):
+5. Copy-Paste kode berikut (Versi Update Fuzzy Match - Lebih Pintar Membaca Kolom):
 
 ```javascript
 function doPost(e) {
@@ -65,70 +65,89 @@ function doPost(e) {
       if (!sheet) return ContentService.createTextOutput(JSON.stringify({ "result": "error", "msg": "Sheet Plan not found" }));
 
       var p = payload.plan;
+      // Get headers and normalize to lowercase
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      var headersLower = headers.map(function(h) { return h.toLowerCase().trim(); });
+      var headersLower = headers.map(function(h) { return String(h).toLowerCase().trim(); });
       
-      // Mapping Field App -> Keyword Header (Fuzzy Matching)
-      // Kata kunci harus unik agar tidak salah kolom (misal 'sw cur' vs 'sw next')
+      // Mapping Field App -> Keywords (Array of possibilities)
+      // Script will search for a column that CONTAINS one of these phrases
       var map = {
         'id': ['id', 'key', 'uuid'],
         'date': ['tanggal', 'date', 'tgl'],
         'coName': ['co', 'petugas', 'nama co'],
-        // PLAN
-        'swCurrentNoa': ['plan sw cur noa', 'target sw cur noa'],
-        'swCurrentDisb': ['plan sw cur disb', 'target sw cur disb'],
+        
+        // PLAN (Target)
+        'swCurrentNoa': ['plan sw cur noa', 'target sw cur noa', 'plan sw current noa'],
+        'swCurrentDisb': ['plan sw cur disb', 'target sw cur disb', 'plan sw current disb'],
         'swNextNoa': ['plan sw next noa', 'target sw next noa'],
         'swNextDisb': ['plan sw next disb', 'target sw next disb'],
+        
         'colCtxNoa': ['plan ctx noa', 'plan col ctx noa'],
         'colCtxOs': ['plan ctx os', 'plan col ctx os'],
         'colLantakurNoa': ['plan lantakur noa', 'plan col lantakur noa'],
         'colLantakurOs': ['plan lantakur os', 'plan col lantakur os'],
-        'fppbNoa': ['plan fppb', 'target fppb'],
-        'biometrikNoa': ['plan biometrik', 'target biometrik']
-        // Jika ingin simpan Aktual juga, tambahkan mapping disini
+        
+        'fppbNoa': ['plan fppb', 'target fppb', 'fppb noa'],
+        'biometrikNoa': ['plan biometrik', 'target biometrik', 'biometrik noa'],
+
+        // ACTUAL (Realisasi) - Optional if you want to sync actuals back too
+        'actualSwNoa': ['aktual sw cur noa', 'realisasi sw cur noa'],
+        'actualSwDisb': ['aktual sw cur disb', 'realisasi sw cur disb'],
+        'actualSwNextNoa': ['aktual sw next noa', 'realisasi sw next noa'],
+        'actualSwNextDisb': ['aktual sw next disb', 'realisasi sw next disb'],
+        'actualCtxNoa': ['aktual ctx noa', 'realisasi ctx noa'],
+        'actualCtxOs': ['aktual ctx os', 'realisasi ctx os'],
+        'actualLantakurNoa': ['aktual lantakur noa', 'realisasi lantakur noa'],
+        'actualLantakurOs': ['aktual lantakur os', 'realisasi lantakur os'],
+        'actualFppbNoa': ['aktual fppb', 'realisasi fppb'],
+        'actualBiometrikNoa': ['aktual biometrik', 'realisasi biometrik']
       };
 
-      // Cari baris berdasarkan ID atau (Tanggal + CO)
+      // 1. Find Row Index (by ID or Date+CO)
       var rowIndex = -1;
       var data = sheet.getDataRange().getValues();
       
+      // Try finding by ID first
       if (p.id) {
         for (var i = 1; i < data.length; i++) {
           if (String(data[i][0]) == String(p.id)) { rowIndex = i + 1; break; }
         }
       }
       
+      // If not found, try Date + CO combination
       if (rowIndex === -1) {
-        // Cari kombinasi Tanggal & CO (index 1 dan 2 asumsi standar, tapi kita cari dinamis)
-        var idxTgl = headersLower.findIndex(function(h){ return h.includes('tanggal') || h.includes('date'); });
-        var idxCo = headersLower.findIndex(function(h){ return h.includes('co') || h.includes('petugas'); });
+        // Find column indices for Date and CO using fuzzy match
+        var idxTgl = headersLower.findIndex(function(h){ return h.indexOf('tanggal') > -1 || h.indexOf('date') > -1; });
+        var idxCo = headersLower.findIndex(function(h){ return h.indexOf('co') > -1 || h.indexOf('petugas') > -1; });
         
         if (idxTgl > -1 && idxCo > -1) {
            for (var i = 1; i < data.length; i++) {
               var rowDate = String(data[i][idxTgl]); 
               var rowCo = String(data[i][idxCo]);
-              if (rowDate === p.date && rowCo === p.coName) { rowIndex = i + 1; break; }
+              // Simple loose comparison
+              if (rowDate.indexOf(p.date) > -1 && rowCo.indexOf(p.coName) > -1) { rowIndex = i + 1; break; }
            }
         }
       }
 
-      // Jika masih tidak ketemu, Buat Baris Baru
+      // Create new row if not found
       if (rowIndex === -1) {
         sheet.appendRow([p.id]); 
         rowIndex = sheet.getLastRow();
       }
 
-      // Update Sel dengan FUZZY SEARCH Column
+      // 2. Write Data to Columns (Using Fuzzy Header Match)
       for (var key in map) {
-        if (p[key] !== undefined && p[key] !== null) {
-          var possibleKeywords = map[key];
+        // Only update if value is present in payload (allow 0)
+        if (p[key] !== undefined && p[key] !== null && p[key] !== '') {
+          var keywords = map[key];
           var colIndex = -1;
           
-          // Cari kolom yang mengandung salah satu keyword
+          // Search for column header that contains one of the keywords
           for (var c = 0; c < headersLower.length; c++) {
              var headerCell = headersLower[c];
-             for (var k = 0; k < possibleKeywords.length; k++) {
-                if (headerCell.indexOf(possibleKeywords[k]) > -1) {
+             for (var k = 0; k < keywords.length; k++) {
+                if (headerCell.indexOf(keywords[k]) > -1) {
                    colIndex = c + 1; 
                    break;
                 }
@@ -137,6 +156,7 @@ function doPost(e) {
           }
 
           if (colIndex > -1) {
+            // Force string to prevent formatting issues, or standard number if needed
             sheet.getRange(rowIndex, colIndex).setValue(p[key]);
           }
         }
