@@ -27,7 +27,7 @@ export const GLOBAL_CONFIG: SheetConfig = {
   
   // URL Deployment Web App Google Apps Script
   // Pastikan script sudah di-update dengan kode terbaru dari README.md dan di-deploy sebagai 'New Version'
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycbzbGMxnnueLVm1qENaXcf6I1frTB2VB1_eF_ZwDzUFmHKsz4DJKj5tF5mjTWKo3SgeawA/exec",
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycbyAnnIAWyy1YItAvFXJ2bTq8_qxx6DqQNxo9uNTDzjgwKG8a-IAjc4AOaIuJPtMuQxT/exec",
   
   // Pengaturan Logika Notifikasi Default
   prsThresholdDays: 1, // Alert muncul H-1 sebelum kumpulan
