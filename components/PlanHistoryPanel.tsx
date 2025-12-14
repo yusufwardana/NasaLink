@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp, Target, Percent } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -44,7 +44,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
     }).sort((a, b) => a.coName.localeCompare(b.coName));
   }, [plans, selectedDate, searchTerm]);
 
-  // Totals Calculation for Footer
+  // Totals Calculation for Summary & Footer
   const totals = useMemo(() => {
       const t = {
           swCurT: 0, swCurR: 0,
@@ -71,6 +71,36 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
           current.setDate(current.getDate() + days);
           setSelectedDate(getDateString(current));
       }
+  };
+
+  // --- SUB-COMPONENT: SUMMARY CARD ---
+  const SummaryCard = ({ label, target, actual, colorClass, bgClass, icon: Icon }: any) => {
+      const percent = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
+      const isAchieved = target > 0 && actual >= target;
+      
+      return (
+          <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex flex-col justify-between h-full relative overflow-hidden group">
+              <div className={`absolute top-0 right-0 p-2 rounded-bl-2xl opacity-10 ${bgClass} group-hover:opacity-20 transition-opacity`}>
+                  <Icon className={`w-8 h-8 ${colorClass}`} />
+              </div>
+              <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                  <div className="flex items-baseline gap-1">
+                      <span className={`text-xl font-black ${isAchieved ? 'text-emerald-600' : 'text-slate-800'}`}>{actual}</span>
+                      <span className="text-xs text-slate-400 font-medium">/ {target}</span>
+                  </div>
+              </div>
+              <div className="mt-3">
+                  <div className="flex justify-between items-center text-[9px] font-bold mb-1">
+                      <span className={isAchieved ? 'text-emerald-600' : 'text-slate-400'}>{percent.toFixed(0)}%</span>
+                      {target > actual && <span className="text-red-400">-{target - actual}</span>}
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-1000 ${isAchieved ? 'bg-emerald-500' : colorClass.replace('text-', 'bg-')}`} style={{ width: `${percent}%` }}></div>
+                  </div>
+              </div>
+          </div>
+      );
   };
 
   // Render Cell Helper
@@ -130,12 +160,50 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             </div>
         </div>
 
+        {/* SUMMARY SCOREBOARD */}
+        {filteredPlans.length > 0 && (
+            <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+                <SummaryCard 
+                    label="SW Cur (NOA)" 
+                    target={totals.swCurT} 
+                    actual={totals.swCurR} 
+                    colorClass="text-orange-500" 
+                    bgClass="bg-orange-500" 
+                    icon={Target} 
+                />
+                <SummaryCard 
+                    label="SW Next (NOA)" 
+                    target={totals.swNextT} 
+                    actual={totals.swNextR} 
+                    colorClass="text-blue-500" 
+                    bgClass="bg-blue-500" 
+                    icon={TrendingUp} 
+                />
+                <SummaryCard 
+                    label="Col CTX (NOA)" 
+                    target={totals.ctxT} 
+                    actual={totals.ctxR} 
+                    colorClass="text-red-500" 
+                    bgClass="bg-red-500" 
+                    icon={Percent} 
+                />
+                <SummaryCard 
+                    label="FPPB (NOA)" 
+                    target={totals.fppbT} 
+                    actual={totals.fppbR} 
+                    colorClass="text-purple-500" 
+                    bgClass="bg-purple-500" 
+                    icon={BarChart3} 
+                />
+            </div>
+        )}
+
         {/* Search */}
         <div className="mb-4 relative">
              <input 
                 type="text" 
                 placeholder="Cari Nama CO..." 
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 shadow-sm"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
              />
@@ -143,7 +211,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
         </div>
 
         {/* TABLE WRAPPER */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-220px)]">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-340px)]">
             <div className="overflow-auto flex-1 custom-scrollbar">
                 <table className="w-full text-xs min-w-[800px]">
                     <thead className="bg-slate-50 sticky top-0 z-10 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 shadow-sm">
