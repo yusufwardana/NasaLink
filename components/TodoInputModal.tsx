@@ -1,16 +1,19 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { DailyPlan, Contact } from '../types';
 import { Button } from './Button';
-import { X, Save, Calendar, Briefcase, ChevronRight, TrendingUp, AlertTriangle, Fingerprint, FileText, History, Sparkles, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
+import { X, Save, Calendar, ChevronRight, TrendingUp, AlertTriangle, FileText, Sparkles, CheckCircle2, Circle, AlertCircle, BarChart2, Target } from 'lucide-react';
 
 interface TodoInputModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (plan: DailyPlan) => Promise<void>;
   availableCos: string[];
-  dailyPlans: DailyPlan[]; // Added to access history
+  dailyPlans: DailyPlan[]; // Access history/existing plans
   contacts: Contact[]; // Full contact list to filter from
 }
+
+type InputMode = 'plan' | 'actual';
 
 export const TodoInputModal: React.FC<TodoInputModalProps> = ({ 
   isOpen, 
@@ -21,19 +24,30 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   contacts
 }) => {
   const [step, setStep] = useState(1);
+  const [mode, setMode] = useState<InputMode>('plan');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autofillSource, setAutofillSource] = useState<string | null>(null);
+  
+  // Selection State
   const [selectedCtxIds, setSelectedCtxIds] = useState<Set<string>>(new Set());
   const [selectedLantakurIds, setSelectedLantakurIds] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState<Partial<DailyPlan>>({
-      date: new Date().toLocaleDateString('id-ID'), 
+      id: '',
+      date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }), 
       coName: '',
+      // Targets
       swCurrentNoa: '', swCurrentDisb: '',
       swNextNoa: '', swNextDisb: '',
       colCtxNoa: '', colCtxOs: '',
       colLantakurNoa: '', colLantakurOs: '',
-      fppbNoa: '', biometrikNoa: ''
+      fppbNoa: '', biometrikNoa: '',
+      // Actuals
+      actualSwNoa: '', actualSwDisb: '',
+      actualSwNextNoa: '', actualSwNextDisb: '',
+      actualCtxNoa: '', actualCtxOs: '',
+      actualLantakurNoa: '', actualLantakurOs: '',
+      actualFppbNoa: '', actualBiometrikNoa: ''
   });
 
   // --- HELPERS ---
@@ -47,140 +61,138 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
       return (num / 1000).toFixed(0) + ' Rb';
   };
 
-  // --- FILTER LOGIC FOR CTX/MENUNGGAK ---
+  const normalizeDate = (d: string) => {
+      // Convert D/M/YYYY or DD/MM/YYYY to consistent format
+      const parts = d.split('/');
+      if (parts.length === 3) {
+          return parts.map(p => p.padStart(2, '0')).join('/');
+      }
+      return d;
+  };
+
+  // --- FILTER LOGIC FOR CHECKLISTS ---
   const relevantCtxContacts = useMemo(() => {
       if (!formData.coName) return [];
-      
       return contacts.filter(c => {
-          // 1. Must match CO
           if (c.co !== formData.coName) return false;
-          
-          // 2. Must be Active
           const flag = (c.flag || '').toLowerCase();
-          const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
-          if (isInactive) return false;
-
-          // 3. Must be specifically CTX
+          if (flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('inactive')) return false;
           const flagMenunggak = (c.flagMenunggak || '').toLowerCase();
           return flagMenunggak.includes('ctx');
-          
-      }).sort((a, b) => parseInt(a.dpd || '0') - parseInt(b.dpd || '0')); // Sort by DPD desc
+      }).sort((a, b) => parseInt(a.dpd || '0') - parseInt(b.dpd || '0'));
   }, [contacts, formData.coName]);
 
-  // --- FILTER LOGIC FOR LANTAKUR ---
   const relevantLantakurContacts = useMemo(() => {
     if (!formData.coName) return [];
-    
     return contacts.filter(c => {
-        // 1. Must match CO
         if (c.co !== formData.coName) return false;
-        
-        // 2. Must be Active
         const flag = (c.flag || '').toLowerCase();
-        const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
-        if (isInactive) return false;
-
-        // 3. Must be Lantakur
-        const flagLantakur = (c.flagLantakur || '').toLowerCase();
-        return flagLantakur.includes('lantakur');
-    }).sort((a, b) => {
-        // Sort by PRS Date (Closest to Today)
-        const todayDay = new Date().getDate();
-        
-        const getPrsScore = (dateStr?: string) => {
-             if (!dateStr) return 999;
-             // Handle "15" format
-             if (dateStr.match(/^\d{1,2}$/)) {
-                 const d = parseInt(dateStr, 10);
-                 // Calculate distance (handling month wrap roughly)
-                 let dist = d - todayDay;
-                 if (dist < 0) dist += 30; // Assume next month
-                 return dist;
-             }
-             return 999;
-        };
-
-        return getPrsScore(a.tglPrs) - getPrsScore(b.tglPrs);
+        if (flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('inactive')) return false;
+        return (c.flagLantakur || '').toLowerCase().includes('lantakur');
     });
   }, [contacts, formData.coName]);
 
 
-  // --- AUTO CALCULATION EFFECTS ---
-  
-  // 1. CTX
+  // --- AUTO CALCULATION FROM CHECKLIST ---
+  // Calculates Total selected and updates EITHER Plan OR Actual based on current `mode`
   useEffect(() => {
-      if (selectedCtxIds.size > 0) {
+      // CTX Calc
+      if (selectedCtxIds.size >= 0) { // Run even if 0 to clear
           const selectedContacts = relevantCtxContacts.filter(c => selectedCtxIds.has(c.id));
           const totalNoa = selectedContacts.length;
           const totalOs = selectedContacts.reduce((sum, c) => sum + parseMoney(c.os), 0);
           
           setFormData(prev => ({
               ...prev,
-              colCtxNoa: totalNoa.toString(),
-              colCtxOs: totalOs.toString()
+              [mode === 'plan' ? 'colCtxNoa' : 'actualCtxNoa']: totalNoa > 0 ? totalNoa.toString() : '',
+              [mode === 'plan' ? 'colCtxOs' : 'actualCtxOs']: totalOs > 0 ? totalOs.toString() : ''
           }));
       }
-  }, [selectedCtxIds, relevantCtxContacts]);
+  }, [selectedCtxIds, relevantCtxContacts, mode]);
 
-  // 2. Lantakur
   useEffect(() => {
-      if (selectedLantakurIds.size > 0) {
+      // Lantakur Calc
+      if (selectedLantakurIds.size >= 0) {
           const selectedContacts = relevantLantakurContacts.filter(c => selectedLantakurIds.has(c.id));
           const totalNoa = selectedContacts.length;
           const totalOs = selectedContacts.reduce((sum, c) => sum + parseMoney(c.os), 0);
           
           setFormData(prev => ({
               ...prev,
-              colLantakurNoa: totalNoa.toString(),
-              colLantakurOs: totalOs.toString()
+              [mode === 'plan' ? 'colLantakurNoa' : 'actualLantakurNoa']: totalNoa > 0 ? totalNoa.toString() : '',
+              [mode === 'plan' ? 'colLantakurOs' : 'actualLantakurOs']: totalOs > 0 ? totalOs.toString() : ''
           }));
       }
-  }, [selectedLantakurIds, relevantLantakurContacts]);
+  }, [selectedLantakurIds, relevantLantakurContacts, mode]);
+
+
+  // --- LOAD EXISTING DATA ---
+  const loadExistingData = (date: string, co: string) => {
+      if (!date || !co) return;
+      
+      const normDate = normalizeDate(date);
+      
+      // Find exact match for Date + CO
+      const existingPlan = dailyPlans.find(p => 
+          normalizeDate(p.date) === normDate && 
+          p.coName.toLowerCase() === co.toLowerCase()
+      );
+
+      if (existingPlan) {
+          setFormData({ ...existingPlan }); // Load everything (Plan + Actuals)
+          setAutofillSource(`Data Tersimpan (ID: ${existingPlan.id})`);
+      } else {
+          // No exact match for today.
+          // If in PLAN mode, try to autofill TARGETS from latest previous plan
+          const previousPlans = dailyPlans
+            .filter(p => p.coName.toLowerCase() === co.toLowerCase())
+            .sort((a, b) => b.id.localeCompare(a.id)); // Assuming ID is time-sortable or use Date parse
+          
+          if (previousPlans.length > 0) {
+              const last = previousPlans[0];
+              setFormData(prev => ({
+                  ...prev,
+                  id: '', // New ID for new date
+                  swCurrentNoa: last.swCurrentNoa,
+                  swCurrentDisb: last.swCurrentDisb,
+                  swNextNoa: last.swNextNoa,
+                  swNextDisb: last.swNextDisb,
+                  // Reset Actuals
+                  actualSwNoa: '', actualSwDisb: '', 
+                  actualCtxNoa: '', actualCtxOs: '',
+                  // ... reset others ...
+              }));
+              setAutofillSource(`Salin Target dari tgl ${last.date}`);
+          } else {
+              // Fresh start
+              setAutofillSource(null);
+              setFormData(prev => ({
+                  ...prev,
+                  id: '',
+                  swCurrentNoa: '', swCurrentDisb: '',
+                  // ... clear ...
+              }));
+          }
+      }
+  };
+
+  // Trigger load when Date or CO changes
+  useEffect(() => {
+      if (formData.date && formData.coName) {
+          loadExistingData(formData.date, formData.coName);
+      }
+  }, [formData.date, formData.coName]);
 
 
   if (!isOpen) return null;
 
   const handleChange = (field: keyof DailyPlan, value: string) => {
-      // Only allow numbers for numeric fields
-      if (field !== 'coName' && field !== 'date' && field !== 'notes') {
+      // Allow only numbers for numeric fields
+      if (field !== 'coName' && field !== 'date' && field !== 'notes' && field !== 'id') {
           const numeric = value.replace(/[^0-9]/g, '');
           setFormData(prev => ({ ...prev, [field]: numeric }));
       } else {
           setFormData(prev => ({ ...prev, [field]: value }));
-      }
-  };
-
-  const handleCoChange = (coName: string) => {
-      setFormData(prev => ({ ...prev, coName }));
-      setAutofillSource(null);
-      setSelectedCtxIds(new Set()); // Reset checklist
-      setSelectedLantakurIds(new Set()); // Reset checklist
-
-      if (!coName) return;
-
-      // SMART DETECT: Find latest plan for this CO
-      const history = dailyPlans
-        .filter(p => p.coName === coName)
-        // Sort by ID descending (Assuming ID contains timestamp as implemented: Date.now())
-        .sort((a, b) => (b.id > a.id ? 1 : -1));
-
-      if (history.length > 0) {
-          const latest = history[0];
-          setFormData(prev => ({
-              ...prev,
-              swCurrentNoa: latest.swCurrentNoa,
-              swCurrentDisb: latest.swCurrentDisb,
-              swNextNoa: latest.swNextNoa,
-              swNextDisb: latest.swNextDisb,
-              // Only autofill Collection if NOT calculated dynamically
-              colCtxNoa: latest.colCtxNoa,
-              colCtxOs: latest.colCtxOs,
-              colLantakurNoa: latest.colLantakurNoa,
-              colLantakurOs: latest.colLantakurOs,
-              fppbNoa: latest.fppbNoa,
-              biometrikNoa: latest.biometrikNoa
-          }));
-          setAutofillSource(latest.date);
       }
   };
 
@@ -201,34 +213,26 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
   const handleSubmit = async () => {
       if (!formData.coName) {
           alert("Mohon pilih Nama CO terlebih dahulu.");
-          setStep(1);
           return;
       }
 
       setIsSubmitting(true);
       try {
+          // Construct Payload
+          // Use existing ID if available (Update), else create new
           const finalPlan: DailyPlan = {
-              id: Date.now().toString(),
+              ...(formData as DailyPlan),
+              id: formData.id || `${Date.now()}-${Math.floor(Math.random()*1000)}`,
               date: formData.date || new Date().toLocaleDateString('id-ID'),
-              coName: formData.coName,
-              swCurrentNoa: formData.swCurrentNoa || '0',
-              swCurrentDisb: formData.swCurrentDisb || '0',
-              swNextNoa: formData.swNextNoa || '0',
-              swNextDisb: formData.swNextDisb || '0',
-              colCtxNoa: formData.colCtxNoa || '0',
-              colCtxOs: formData.colCtxOs || '0',
-              colLantakurNoa: formData.colLantakurNoa || '0',
-              colLantakurOs: formData.colLantakurOs || '0',
-              fppbNoa: formData.fppbNoa || '0',
-              biometrikNoa: formData.biometrikNoa || '0'
           };
           
           await onSave(finalPlan);
           onClose();
-          // Reset
+          
+          // Cleanup
           setStep(1);
+          setMode('plan');
           setFormData({ ...formData, coName: '' }); 
-          setAutofillSource(null);
           setSelectedCtxIds(new Set());
           setSelectedLantakurIds(new Set());
       } catch (e) {
@@ -238,272 +242,247 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
       }
   };
 
+  const renderInputPair = (label: string, fieldNoa: keyof DailyPlan, fieldVal: keyof DailyPlan) => (
+      <div className={`p-3 rounded-xl border ${mode === 'plan' ? 'bg-slate-50 border-slate-200' : 'bg-white border-orange-200 shadow-sm'}`}>
+          <p className={`text-[10px] font-bold mb-1 uppercase ${mode === 'plan' ? 'text-slate-400' : 'text-orange-600'}`}>
+              {label} ({mode === 'plan' ? 'Target' : 'Aktual'})
+          </p>
+          <div className="flex gap-2">
+              <div className="flex-1">
+                  <input 
+                      type="tel"
+                      className="w-full bg-transparent font-bold text-slate-800 outline-none text-sm placeholder-slate-300"
+                      placeholder="Jml (NOA)"
+                      value={formData[fieldNoa] || ''}
+                      onChange={e => handleChange(fieldNoa, e.target.value)}
+                  />
+                  <div className="h-0.5 w-full bg-slate-200 mt-1"></div>
+              </div>
+              <div className="flex-[1.5]">
+                  <input 
+                      type="tel"
+                      className="w-full bg-transparent font-bold text-slate-800 outline-none text-sm placeholder-slate-300 text-right"
+                      placeholder="Nominal (Rp)"
+                      value={formData[fieldVal] || ''}
+                      onChange={e => handleChange(fieldVal, e.target.value)}
+                  />
+                  <div className="h-0.5 w-full bg-slate-200 mt-1"></div>
+              </div>
+          </div>
+      </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <div>
-                <h2 className="text-xl font-bold text-slate-800">Rencana Harian CO</h2>
-                <p className="text-xs text-slate-500">Input target aktivitas harian Anda</p>
+        <div className="p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        {mode === 'plan' ? <Target className="w-5 h-5 text-blue-600" /> : <BarChart2 className="w-5 h-5 text-orange-600" />}
+                        {mode === 'plan' ? 'Input Rencana (Pagi)' : 'Update Realisasi (Sore)'}
+                    </h2>
+                </div>
+                <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+                    <X className="w-5 h-5" />
+                </button>
             </div>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200">
-                <X className="w-5 h-5" />
-            </button>
+
+            {/* Mode Toggle */}
+            <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200">
+                <button 
+                    onClick={() => setMode('plan')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'plan' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                >
+                    TARGET
+                </button>
+                <button 
+                    onClick={() => setMode('actual')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'actual' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400'}`}
+                >
+                    REALISASI (AKTUAL)
+                </button>
+            </div>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-5 overflow-y-auto custom-scrollbar">
             
-            {/* Step 1: Identitas & SW */}
+            {/* Identity Section (Always Visible on Step 1) */}
             {step === 1 && (
-                <div className="space-y-5 animate-fade-in-up">
-                    <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-center gap-3">
-                         <Calendar className="w-5 h-5 text-blue-600" />
-                         <div className="flex-1">
-                             <label className="text-[10px] uppercase font-bold text-blue-400 block">Tanggal Rencana</label>
-                             <input 
-                                type="text" 
-                                value={formData.date} 
-                                onChange={e => handleChange('date', e.target.value)}
-                                className="bg-transparent font-bold text-blue-800 outline-none w-full"
-                                placeholder="DD/MM/YYYY"
-                             />
-                         </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Nama Petugas (CO)</label>
-                        <select 
-                            className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/50 outline-none"
-                            value={formData.coName}
-                            onChange={e => handleCoChange(e.target.value)}
-                        >
-                            <option value="">-- Pilih Nama Anda --</option>
-                            {availableCos.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        {autofillSource && (
-                            <div className="flex items-center gap-1.5 mt-2 text-[10px] text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded-lg border border-emerald-100 animate-fade-in-up">
-                                <Sparkles className="w-3 h-3" />
-                                Data otomatis diisi dari history tgl {autofillSource}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="border-t border-slate-100 pt-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <TrendingUp className="w-4 h-4 text-emerald-500" />
-                            <h3 className="font-bold text-slate-700">Target Survey (SW)</h3>
+                <div className="space-y-4 animate-fade-in-up">
+                    <div className="flex gap-3">
+                        <div className="w-1/3">
+                             <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tanggal</label>
+                             <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    value={formData.date} 
+                                    onChange={e => setFormData({...formData, date: e.target.value})}
+                                    className="bg-transparent font-bold text-slate-700 outline-none w-full text-xs"
+                                />
+                             </div>
                         </div>
+                        <div className="flex-1">
+                            <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Nama Petugas (CO)</label>
+                            <select 
+                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 text-xs focus:ring-2 focus:ring-orange-500/50 outline-none"
+                                value={formData.coName}
+                                onChange={e => setFormData({...formData, coName: e.target.value})}
+                            >
+                                <option value="">-- Pilih --</option>
+                                {availableCos.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {autofillSource && (
+                        <div className="text-[10px] text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100 flex items-center gap-2">
+                            <Sparkles className="w-3 h-3" /> {autofillSource}
+                        </div>
+                    )}
+
+                    <hr className="border-slate-100" />
+
+                    {/* METRICS INPUT */}
+                    <div className="space-y-3">
+                        <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-500" /> 
+                            Survey & Pencairan (SW)
+                        </h3>
                         
-                        {/* SW Bulan Ini */}
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                <p className="text-[10px] font-bold text-slate-400 mb-1">SW Bln INI (NOA)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-slate-800 outline-none text-lg"
-                                    placeholder="0"
-                                    value={formData.swCurrentNoa}
-                                    onChange={e => handleChange('swCurrentNoa', e.target.value)}
-                                />
-                            </div>
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                <p className="text-[10px] font-bold text-slate-400 mb-1">SW Bln INI (Disb)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-slate-800 outline-none text-lg"
-                                    placeholder="Rp 0"
-                                    value={formData.swCurrentDisb}
-                                    onChange={e => handleChange('swCurrentDisb', e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                         {/* SW Bulan Depan */}
-                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                <p className="text-[10px] font-bold text-slate-400 mb-1">SW Bln DEPAN (NOA)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-slate-800 outline-none text-lg"
-                                    placeholder="0"
-                                    value={formData.swNextNoa}
-                                    onChange={e => handleChange('swNextNoa', e.target.value)}
-                                />
-                            </div>
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                <p className="text-[10px] font-bold text-slate-400 mb-1">SW Bln DEPAN (Disb)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-slate-800 outline-none text-lg"
-                                    placeholder="Rp 0"
-                                    value={formData.swNextDisb}
-                                    onChange={e => handleChange('swNextDisb', e.target.value)}
-                                />
-                            </div>
-                        </div>
+                        {renderInputPair(
+                            "SW Bulan INI", 
+                            mode === 'plan' ? 'swCurrentNoa' : 'actualSwNoa',
+                            mode === 'plan' ? 'swCurrentDisb' : 'actualSwDisb'
+                        )}
+                        
+                        {renderInputPair(
+                            "SW Bulan DEPAN", 
+                            mode === 'plan' ? 'swNextNoa' : 'actualSwNextNoa',
+                            mode === 'plan' ? 'swNextDisb' : 'actualSwNextDisb'
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Step 2: Collection & Lainnya */}
+            {/* Step 2: Collection & Checklists */}
             {step === 2 && (
                 <div className="space-y-6 animate-fade-in-up">
                     
-                    {/* --- CTX SECTION --- */}
+                    {/* CTX Section */}
                     <div>
-                        <div className="flex items-center gap-2 mb-3">
-                            <AlertTriangle className="w-4 h-4 text-red-500" />
-                            <h3 className="font-bold text-slate-700">Target CTX (Menunggak)</h3>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                                <h3 className="font-bold text-slate-700 text-sm">Target CTX</h3>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${mode === 'plan' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                                Mode: {mode === 'plan' ? 'Input Rencana' : 'Input Hasil'}
+                            </span>
                         </div>
-                        
-                        {/* CTX CHECKLIST */}
-                        {relevantCtxContacts.length > 0 ? (
-                            <div className="mb-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+
+                        {/* Checklist */}
+                        {relevantCtxContacts.length > 0 && (
+                            <div className="mb-3 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                                 <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Checklist Nasabah CTX</p>
-                                    <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">{relevantCtxContacts.length} Org</span>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase">
+                                        {mode === 'plan' ? 'Siapa yg akan ditagih?' : 'Siapa yg SUDAH bayar?'}
+                                    </p>
                                 </div>
                                 <div className="max-h-32 overflow-y-auto divide-y divide-slate-100">
                                     {relevantCtxContacts.map(c => {
                                         const isSelected = selectedCtxIds.has(c.id);
                                         return (
-                                            <div 
-                                                key={c.id} 
-                                                onClick={() => toggleCtxContact(c.id)}
-                                                className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {isSelected ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> : <Circle className="w-4 h-4 text-slate-300 shrink-0" />}
+                                            <div key={c.id} onClick={() => toggleCtxContact(c.id)} className={`p-2.5 flex items-center justify-between cursor-pointer ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    {isSelected ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4 text-slate-300" />}
                                                     <div>
                                                         <p className={`text-xs font-bold ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>{c.name}</p>
-                                                        <p className="text-[10px] text-slate-500">{c.sentra} • <span className="text-red-500 font-bold">DPD: {c.dpd}</span></p>
+                                                        <p className="text-[9px] text-slate-500">{c.sentra} • <span className="text-red-500 font-bold">DPD: {c.dpd}</span></p>
                                                     </div>
                                                 </div>
-                                                <p className="text-xs font-bold text-slate-700">{formatShortIDR(parseMoney(c.os))}</p>
+                                                <p className="text-xs font-bold text-slate-600">{formatShortIDR(parseMoney(c.os))}</p>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
-                        ) : (
-                            <p className="text-xs text-slate-400 italic mb-3 ml-1">Tidak ada nasabah CTX untuk CO ini.</p>
                         )}
 
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                            <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (NOA)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-red-800 outline-none text-lg"
-                                    placeholder="0"
-                                    value={formData.colCtxNoa}
-                                    onChange={e => handleChange('colCtxNoa', e.target.value)}
-                                />
-                            </div>
-                            <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-400 mb-1">CTX (OS)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-red-800 outline-none text-lg"
-                                    placeholder="Rp 0"
-                                    value={formData.colCtxOs}
-                                    onChange={e => handleChange('colCtxOs', e.target.value)}
-                                />
-                            </div>
-                        </div>
+                        {renderInputPair(
+                            "CTX / Menunggak", 
+                            mode === 'plan' ? 'colCtxNoa' : 'actualCtxNoa',
+                            mode === 'plan' ? 'colCtxOs' : 'actualCtxOs'
+                        )}
                     </div>
 
-                    {/* --- LANTAKUR SECTION --- */}
-                    <div className="border-t border-slate-100 pt-4">
+                    {/* Lantakur Section */}
+                    <div className="pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-2 mb-3">
                             <AlertCircle className="w-4 h-4 text-amber-500" />
-                            <h3 className="font-bold text-slate-700">Target Lantakur</h3>
+                            <h3 className="font-bold text-slate-700 text-sm">Target Lantakur</h3>
                         </div>
 
-                         {/* LANTAKUR CHECKLIST */}
-                         {relevantLantakurContacts.length > 0 ? (
-                            <div className="mb-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                                <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Checklist Nasabah Lantakur</p>
-                                    <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-bold">{relevantLantakurContacts.length} Org</span>
+                        {relevantLantakurContacts.length > 0 && (
+                            <div className="mb-3 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="px-3 py-2 bg-slate-100 border-b border-slate-200">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase">
+                                        {mode === 'plan' ? 'Siapa yg akan diingatkan?' : 'Siapa yg SUDAH nambah saldo?'}
+                                    </p>
                                 </div>
                                 <div className="max-h-32 overflow-y-auto divide-y divide-slate-100">
                                     {relevantLantakurContacts.map(c => {
                                         const isSelected = selectedLantakurIds.has(c.id);
                                         return (
-                                            <div 
-                                                key={c.id} 
-                                                onClick={() => toggleLantakurContact(c.id)}
-                                                className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {isSelected ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" /> : <Circle className="w-4 h-4 text-slate-300 shrink-0" />}
-                                                    <div>
-                                                        <p className={`text-xs font-bold ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>{c.name}</p>
-                                                        <p className="text-[10px] text-slate-500">{c.sentra} • <span className="text-blue-500 font-bold">PRS: {c.tglPrs}</span></p>
+                                            <div key={c.id} onClick={() => toggleLantakurContact(c.id)} className={`p-2.5 flex items-center justify-between cursor-pointer ${isSelected ? 'bg-green-50' : 'hover:bg-white'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    {isSelected ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4 text-slate-300" />}
+                                                    <div className="overflow-hidden">
+                                                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-green-800' : 'text-slate-700'}`}>{c.name}</p>
+                                                        <p className="text-[9px] text-slate-500 truncate">{c.sentra}</p>
                                                     </div>
                                                 </div>
-                                                <p className="text-xs font-bold text-slate-700">{formatShortIDR(parseMoney(c.os))}</p>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
-                        ) : (
-                             <p className="text-xs text-slate-400 italic mb-3 ml-1">Tidak ada nasabah Lantakur.</p>
                         )}
 
-                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                                <p className="text-[10px] font-bold text-amber-600 mb-1">Lantakur (NOA)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-amber-800 outline-none text-lg"
-                                    placeholder="0"
-                                    value={formData.colLantakurNoa}
-                                    onChange={e => handleChange('colLantakurNoa', e.target.value)}
-                                />
-                            </div>
-                            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                                <p className="text-[10px] font-bold text-amber-600 mb-1">Lantakur (OS)</p>
-                                <input 
-                                    type="tel"
-                                    className="w-full bg-transparent font-bold text-amber-800 outline-none text-lg"
-                                    placeholder="Rp 0"
-                                    value={formData.colLantakurOs}
-                                    onChange={e => handleChange('colLantakurOs', e.target.value)}
-                                />
-                            </div>
-                        </div>
+                        {renderInputPair(
+                            "Lantakur", 
+                            mode === 'plan' ? 'colLantakurNoa' : 'actualLantakurNoa',
+                            mode === 'plan' ? 'colLantakurOs' : 'actualLantakurOs'
+                        )}
                     </div>
 
-                    <div className="border-t border-slate-100 pt-4">
+                    {/* Admin Section */}
+                    <div className="pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-2 mb-3">
                             <FileText className="w-4 h-4 text-purple-500" />
-                            <h3 className="font-bold text-slate-700">Administrasi</h3>
+                            <h3 className="font-bold text-slate-700 text-sm">Administrasi</h3>
                         </div>
-                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
-                                <p className="text-[10px] font-bold text-purple-500 mb-1">Input FPPB (NOA)</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <p className="text-[9px] font-bold text-purple-500 mb-1">FPPB (NOA)</p>
                                 <input 
                                     type="tel"
-                                    className="w-full bg-transparent font-bold text-purple-800 outline-none text-lg"
-                                    placeholder="0"
-                                    value={formData.fppbNoa}
-                                    onChange={e => handleChange('fppbNoa', e.target.value)}
+                                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-purple-700"
+                                    value={mode === 'plan' ? formData.fppbNoa : formData.actualFppbNoa}
+                                    onChange={e => handleChange(mode === 'plan' ? 'fppbNoa' : 'actualFppbNoa', e.target.value)}
                                 />
                             </div>
-                            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                                <p className="text-[10px] font-bold text-indigo-500 mb-1">Biometrik (NOA)</p>
+                            <div>
+                                <p className="text-[9px] font-bold text-purple-500 mb-1">Biometrik (NOA)</p>
                                 <input 
                                     type="tel"
-                                    className="w-full bg-transparent font-bold text-indigo-800 outline-none text-lg"
-                                    placeholder="0"
-                                    value={formData.biometrikNoa}
-                                    onChange={e => handleChange('biometrikNoa', e.target.value)}
+                                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-purple-700"
+                                    value={mode === 'plan' ? formData.biometrikNoa : formData.actualBiometrikNoa}
+                                    onChange={e => handleChange(mode === 'plan' ? 'biometrikNoa' : 'actualBiometrikNoa', e.target.value)}
                                 />
                             </div>
                         </div>
@@ -514,19 +493,21 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+        <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center gap-3">
             {step === 2 ? (
                 <>
-                     <Button variant="secondary" onClick={() => setStep(1)}>Kembali</Button>
-                     <Button onClick={handleSubmit} isLoading={isSubmitting} icon={<Save className="w-4 h-4" />}>
-                         Simpan Rencana
+                     <Button variant="secondary" onClick={() => setStep(1)} className="flex-1">Kembali</Button>
+                     <Button onClick={handleSubmit} isLoading={isSubmitting} icon={<Save className="w-4 h-4" />} className="flex-[2]">
+                         {mode === 'plan' ? 'Simpan Rencana' : 'Simpan Realisasi'}
                      </Button>
                 </>
             ) : (
                 <>
-                    <div></div>
+                    <div className="text-xs text-slate-400">
+                        Pastikan Tanggal & CO benar
+                    </div>
                     <Button onClick={() => setStep(2)} icon={<ChevronRight className="w-4 h-4" />}>
-                         Lanjut (Collection)
+                         Lanjut
                      </Button>
                 </>
             )}
