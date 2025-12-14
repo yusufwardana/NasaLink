@@ -5,21 +5,19 @@ import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { saveTemplatesToSheet } from '../services/sheetService';
-import { GLOBAL_CONFIG } from '../config';
 import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug, Table } from 'lucide-react';
 
 interface AdminPanelProps {
-  // Removed isOpen since it's a page now
-  onBack: () => void; // Renamed from onClose for clarity
+  onBack: () => void;
   templates: MessageTemplate[];
   onUpdateTemplates: (templates: MessageTemplate[]) => void;
   onResetData: () => void;
   onTestTemplate?: (templateId: string) => void;
   onBulkUpdateMode?: (mode: 'ai' | 'manual') => void;
   defaultTemplates?: MessageTemplate[];
+  currentConfig?: SheetConfig | null; // Pass current config from App
 }
 
-// Renamed to AdminPanel, but kept in AdminModal.tsx file to avoid file system errors
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
   onBack, 
   templates, 
@@ -27,14 +25,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onResetData,
   onTestTemplate,
   onBulkUpdateMode,
-  defaultTemplates
+  defaultTemplates,
+  currentConfig
 }) => {
   const [activeTab, setActiveTab] = useState<'templates' | 'features' | 'database'>('templates');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MessageTemplate>>({});
   
-  // Initialize with flexible defaults
-  const [sheetConfig, setSheetConfig] = useState<SheetConfig>(GLOBAL_CONFIG);
+  // Initialize with passed config or empty defaults
+  const [sheetConfig, setSheetConfig] = useState<SheetConfig>({
+      spreadsheetId: '',
+      sheetName: 'Data',
+      planSheetName: 'Plan',
+      googleScriptUrl: '',
+      geminiApiKey: '',
+      prsThresholdDays: 1,
+      refinancingLookaheadMonths: 1,
+      showHeroSection: true,
+      showStatsCards: true,
+      enableDebugMode: false
+  });
   
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
@@ -44,32 +54,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    // Load config on mount
-    setIsLoadingConfig(true);
+    // If we have a passed config from App.tsx (Supabase/IDB), use it
+    if (currentConfig) {
+        setSheetConfig(currentConfig);
+    }
     setIsCloudConnected(isSupabaseConfigured());
-    
-    const initConfig = async () => {
-        let config = { ...GLOBAL_CONFIG };
-        
-        try {
-            // 1. Load Local
-            const local = await getSheetConfig();
-            if (local) config = { ...config, ...local };
-            
-            // 2. Load Supabase (if configured, override local)
-            if (isSupabaseConfigured()) {
-                    const remote = await fetchSettingsFromSupabase();
-                    if (remote) config = { ...config, ...remote };
-            }
-        } catch (e) {
-            console.warn("Error loading admin config:", e);
-        }
-        
-        setSheetConfig(config);
-        setIsLoadingConfig(false);
-    };
-    initConfig();
-  }, []);
+  }, [currentConfig]);
 
   const handleSelectTemplate = (t: MessageTemplate) => {
       setSelectedTemplateId(t.id);
@@ -500,7 +490,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <p className="text-xs opacity-80 mt-1">
                             {isCloudConnected 
                                 ? 'Pengaturan akan disimpan otomatis ke Supabase (Server) & bisa diakses semua user.' 
-                                : 'Pengaturan hanya tersimpan di perangkat ini (Local Browser). Setup Supabase di config.ts untuk mengaktifkan.'}
+                                : 'Setup Supabase di config.ts untuk mengaktifkan sinkronisasi.'}
                         </p>
                     </div>
                 </div>

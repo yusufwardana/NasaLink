@@ -1,18 +1,16 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Contact } from '../types';
-import { GEMINI_CONFIG } from '../config';
 
 export const generateWhatsAppMessage = async (
   contact: Contact, 
   context: string,
   tone: 'formal' | 'casual' | 'friendly' = 'friendly',
-  overrideApiKey?: string
+  apiKey?: string
 ): Promise<string> => {
-  const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
-
   if (!apiKey) {
     console.error("Gemini API Key is missing.");
-    return "Error: API Key AI belum disetting. Mohon input API Key di menu Setting (Admin) atau hubungi administrator.";
+    return "Error: API Key AI belum disetting. Mohon input API Key di menu Admin (Database).";
   }
 
   try {
@@ -183,9 +181,8 @@ export const generateBroadcastMessage = async (
   context: string,
   targetAudience: string, // e.g. "Semua Nasabah Sentra Mawar"
   tone: 'formal' | 'casual' | 'friendly' = 'friendly',
-  overrideApiKey?: string
+  apiKey?: string
 ): Promise<string> => {
-  const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
   if (!apiKey) return "Error: API Key missing.";
 
   try {
@@ -220,8 +217,7 @@ export const generateBroadcastMessage = async (
   }
 };
 
-export const extractContactsFromText = async (rawText: string, overrideApiKey?: string): Promise<string> => {
-  const apiKey = overrideApiKey || GEMINI_CONFIG.apiKey;
+export const extractContactsFromText = async (rawText: string, apiKey?: string): Promise<string> => {
   if (!apiKey) return "[]";
 
   try {

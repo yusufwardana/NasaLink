@@ -13,11 +13,11 @@ import { DashboardPanel } from './components/DashboardPanel';
 import { ContactManagementPanel } from './components/ContactManagementPanel';
 import { TodoInputModal } from './components/TodoInputModal'; // New Import
 import { PlanHistoryPanel } from './components/PlanHistoryPanel'; // NEW IMPORT
+import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet, fetchPlansFromSheet, submitPlanToSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
-import { getSheetConfig } from './services/dbService';
-import { GLOBAL_CONFIG } from './config';
+import { getSheetConfig, saveSheetConfig } from './services/dbService';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
@@ -98,6 +98,19 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
   },
 ];
 
+const DEFAULT_EMPTY_CONFIG: SheetConfig = {
+    spreadsheetId: '',
+    sheetName: 'Data',
+    planSheetName: 'Plan',
+    googleScriptUrl: '',
+    geminiApiKey: '',
+    prsThresholdDays: 1,
+    refinancingLookaheadMonths: 1,
+    showHeroSection: true,
+    showStatsCards: true,
+    enableDebugMode: false
+};
+
 // Add 'plans' to View Type
 type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts' | 'login' | 'plans';
 
@@ -130,7 +143,7 @@ const App: React.FC = () => {
   const [isTodoModalOpen, setIsTodoModalOpen] = useState(false); // New Modal State
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
-  // Removed showLoginModal state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
   const [visibleCount, setVisibleCount] = useState(50);
   
@@ -157,33 +170,43 @@ const App: React.FC = () => {
     setIsLoadingData(true);
     setConfigError(false);
     try {
-        let finalConfig: SheetConfig = { ...GLOBAL_CONFIG };
+        let finalConfig: SheetConfig = { ...DEFAULT_EMPTY_CONFIG };
+        let configFound = false;
         
-        // 1. Try to load Local Config (User overrides)
-        try {
-            const localConfig = await getSheetConfig();
-            if (localConfig) {
-                 finalConfig = { ...finalConfig, ...localConfig };
-            }
-        } catch (e) {
-            console.warn("Failed to load local config", e);
-        }
+        // STRATEGY: 
+        // 1. Try Load from Supabase (Source of Truth)
+        // 2. Fallback to Local DB if Supabase fails (Offline)
+        // 3. If both empty -> Prompt User
 
-        // 2. Try to load Supabase Config (Server overrides, if exists)
         if (isSupabaseConfigured()) {
             try {
                 const supabaseSettings = await fetchSettingsFromSupabase();
                 if (supabaseSettings && supabaseSettings.spreadsheetId) {
                     finalConfig = { ...finalConfig, ...supabaseSettings };
+                    configFound = true;
+                    // Cache to Local DB for offline use
+                    await saveSheetConfig(finalConfig);
                 }
             } catch (err) {
-                console.warn("Failed to load settings from Supabase, using local/global config.", err);
+                console.warn("Supabase fetch failed (likely offline). Trying local DB.");
             }
+        }
+
+        if (!configFound) {
+             try {
+                const localConfig = await getSheetConfig();
+                if (localConfig && localConfig.spreadsheetId) {
+                     finalConfig = { ...finalConfig, ...localConfig };
+                     configFound = true;
+                }
+             } catch (e) {
+                 console.warn("Local DB fetch failed");
+             }
         }
         
         setActiveConfig(finalConfig);
 
-        if (finalConfig.spreadsheetId) {
+        if (configFound && finalConfig.spreadsheetId) {
             // Fetch Contacts
             try {
                 const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
@@ -201,6 +224,7 @@ const App: React.FC = () => {
                 console.error("Error fetching daily plans:", err);
             }
 
+            // Fetch Templates
             try {
                 if (isSupabaseConfigured()) {
                     const sbTemplates = await fetchTemplatesFromSupabase();
@@ -217,6 +241,7 @@ const App: React.FC = () => {
                 setTemplates(INITIAL_TEMPLATES_FALLBACK);
             }
         } else {
+            // No Config Found -> Go to Admin Login? Or just show empty state
             setConfigError(true);
             setTemplates(INITIAL_TEMPLATES_FALLBACK);
         }
@@ -526,7 +551,7 @@ const App: React.FC = () => {
   // --- Render Views ---
 
   if (activeView === 'login') return <AdminLoginPanel onBack={() => setActiveView('home')} onLogin={() => setActiveView('settings')} />;
-  if (activeView === 'settings') return <><AdminPanel onBack={() => setActiveView('home')} templates={templates} onUpdateTemplates={setTemplates} onResetData={async () => { await loadData(); setActiveView('home'); }} defaultTemplates={INITIAL_TEMPLATES_FALLBACK} onBulkUpdateMode={handleBulkUpdateMode} />{renderBottomNav()}</>;
+  if (activeView === 'settings') return <><AdminPanel onBack={() => setActiveView('home')} templates={templates} onUpdateTemplates={setTemplates} onResetData={async () => { await loadData(); setActiveView('home'); }} defaultTemplates={INITIAL_TEMPLATES_FALLBACK} onBulkUpdateMode={handleBulkUpdateMode} currentConfig={activeConfig} />{renderBottomNav()}</>;
   if (activeView === 'notifications') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><NotificationPanel items={upcomingEvents} onBack={() => setActiveView('home')} onRemind={(contact, type) => { let keywords: string[] = []; if (type === 'prs') { keywords = ['prs', 'kumpulan', 'besok']; } else if (type === 'payment') { const flag = (contact.flag || '').toLowerCase(); const status = (contact.status || '').toLowerCase(); const dpd = parseInt(contact.dpd || '0', 10); const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive'); const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak'); const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur'); if (isTrouble) { keywords = ['tagih', 'ctx', 'tunggak', 'bayar']; } else if (isLantakur) { keywords = ['lantakur', 'tabungan']; } else if (isInactive) { keywords = ['winback', 'gabung', 'tawar', 'cair']; } else { keywords = ['tawar', 'lanjut', 'cair', 'modal']; } } const found = templates.find(t => keywords.some(k => t.label.toLowerCase().includes(k))); setInitialTemplateId(found?.id || templates[0]?.id); setSelectedContact(contact); }} />{selectedContact && <MessageGeneratorModal contact={selectedContact} isOpen={!!selectedContact} onClose={() => setSelectedContact(null)} templates={templates} initialTemplateId={initialTemplateId} apiKey={activeConfig?.geminiApiKey} />}{renderBottomNav()}</div>;
   if (activeView === 'broadcast') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><BroadcastPanel contacts={contacts} templates={templates} onBack={() => setActiveView('home')} apiKey={activeConfig?.geminiApiKey} />{renderBottomNav()}</div>;
   if (activeView === 'dashboard') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -580,6 +605,21 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
+      
+      {configError && (
+          <div className="max-w-4xl mx-auto px-4 py-2 mt-2">
+              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                      <div>
+                          <p className="text-xs font-bold uppercase">Setup Diperlukan</p>
+                          <p className="text-xs opacity-80">Database belum dikonfigurasi.</p>
+                      </div>
+                  </div>
+                  <Button size="sm" variant="danger" onClick={handleAdminAuth}>Buka Admin</Button>
+              </div>
+          </div>
+      )}
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in-up">
           <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-3xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
@@ -676,6 +716,7 @@ const App: React.FC = () => {
       </main>
 
       <TodoInputModal isOpen={isTodoModalOpen} onClose={() => setIsTodoModalOpen(false)} onSave={handleSavePlan} availableCos={uniqueCos} dailyPlans={dailyPlans} contacts={contacts} />
+      <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={(newContacts) => setContacts([...contacts, ...newContacts])} apiKey={activeConfig?.geminiApiKey} />
       {renderBottomNav()}
     </div>
   );
