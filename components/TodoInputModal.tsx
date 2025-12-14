@@ -207,20 +207,27 @@ export const TodoInputModal: React.FC<TodoInputModalProps> = ({
 
       setIsSubmitting(true);
       try {
+          // Parse values to ensure they are clean (no undefined)
+          // We send them as strings, but clean ones.
+          const clean = (val?: string) => val || '0';
+
           const finalPlan: DailyPlan = {
               id: Date.now().toString(),
               date: formData.date || new Date().toLocaleDateString('id-ID'),
               coName: formData.coName,
-              swCurrentNoa: formData.swCurrentNoa || '0',
-              swCurrentDisb: formData.swCurrentDisb || '0',
-              swNextNoa: formData.swNextNoa || '0',
-              swNextDisb: formData.swNextDisb || '0',
-              colCtxNoa: formData.colCtxNoa || '0',
-              colCtxOs: formData.colCtxOs || '0',
-              colLantakurNoa: formData.colLantakurNoa || '0',
-              colLantakurOs: formData.colLantakurOs || '0',
-              fppbNoa: formData.fppbNoa || '0',
-              biometrikNoa: formData.biometrikNoa || '0'
+              
+              swCurrentNoa: clean(formData.swCurrentNoa),
+              swCurrentDisb: clean(formData.swCurrentDisb),
+              swNextNoa: clean(formData.swNextNoa),
+              swNextDisb: clean(formData.swNextDisb),
+              
+              colCtxNoa: clean(formData.colCtxNoa),
+              colCtxOs: clean(formData.colCtxOs),
+              colLantakurNoa: clean(formData.colLantakurNoa),
+              colLantakurOs: clean(formData.colLantakurOs),
+              
+              fppbNoa: clean(formData.fppbNoa),
+              biometrikNoa: clean(formData.biometrikNoa)
           };
           
           await onSave(finalPlan);
