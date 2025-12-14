@@ -69,6 +69,15 @@ const generateLookupKey = (date: string, co: string): string => {
     return `${d}_${c}`;
 };
 
+// Helper to check if a value string represents a non-zero number
+const isNonZero = (val?: string): boolean => {
+    if (!val) return false;
+    // Remove non-numeric (keep digits)
+    const clean = val.replace(/[^0-9]/g, '');
+    const num = parseInt(clean || '0', 10);
+    return num > 0;
+};
+
 // Helper to fetch CSV with retry mechanism
 const fetchSheetCsv = async (spreadsheetId: string, sheetName: string, retries = 1): Promise<string> => {
     // Add aggressive cache busting
@@ -291,41 +300,55 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
                 uniqueKey = generateLookupKey(date, co);
             }
             
-            // If we have a valid key (ID or Date+CO), we save the plan.
-            // Removed stricter checks because a plan might be created with just 0 values initially.
-            if (uniqueKey) {
-                const plan: DailyPlan = {
-                    id: uniqueKey,
-                    date: date,
-                    coName: co,
-                    
-                    // Targets (Plan - Columns 4-13)
-                    swCurrentNoa: getVal(pIdxSwCurNoa),
-                    swCurrentDisb: getVal(pIdxSwCurDisb),
-                    swNextNoa: getVal(pIdxSwNextNoa),
-                    swNextDisb: getVal(pIdxSwNextDisb),
-                    colCtxNoa: getVal(pIdxCtxNoa),
-                    colCtxOs: getVal(pIdxCtxOs),
-                    colLantakurNoa: getVal(pIdxLantakurNoa),
-                    colLantakurOs: getVal(pIdxLantakurOs),
-                    fppbNoa: getVal(pIdxFppb),
-                    biometrikNoa: getVal(pIdxBiometrik),
+            if (!uniqueKey) return; // Skip invalid row
 
-                    // Actuals (Realisasi - Columns 15-24)
-                    actualSwNoa: getVal(aIdxSwNoa),
-                    actualSwDisb: getVal(aIdxSwDisb),
-                    actualSwNextNoa: getVal(aIdxSwNextNoa),
-                    actualSwNextDisb: getVal(aIdxSwNextDisb),
-                    actualCtxNoa: getVal(aIdxCtxNoa),
-                    actualCtxOs: getVal(aIdxCtxOs),
-                    actualLantakurNoa: getVal(aIdxLantakurNoa),
-                    actualLantakurOs: getVal(aIdxLantakurOs),
-                    actualFppbNoa: getVal(aIdxFppb),
-                    actualBiometrikNoa: getVal(aIdxBiometrik)
-                };
+            const plan: DailyPlan = {
+                id: uniqueKey || `plan-${index}-${Date.now()}`,
+                date: date,
+                coName: co,
+                
+                // Targets (Plan - Columns 4-13)
+                swCurrentNoa: getVal(pIdxSwCurNoa),
+                swCurrentDisb: getVal(pIdxSwCurDisb),
+                swNextNoa: getVal(pIdxSwNextNoa),
+                swNextDisb: getVal(pIdxSwNextDisb),
+                colCtxNoa: getVal(pIdxCtxNoa),
+                colCtxOs: getVal(pIdxCtxOs),
+                colLantakurNoa: getVal(pIdxLantakurNoa),
+                colLantakurOs: getVal(pIdxLantakurOs),
+                fppbNoa: getVal(pIdxFppb),
+                biometrikNoa: getVal(pIdxBiometrik),
 
-                // Add to Map (Overwrites previous entry if same key -> effectively getting the latest)
-                uniquePlansMap.set(uniqueKey, plan);
+                // Actuals (Realisasi - Columns 15-24)
+                actualSwNoa: getVal(aIdxSwNoa),
+                actualSwDisb: getVal(aIdxSwDisb),
+                actualSwNextNoa: getVal(aIdxSwNextNoa),
+                actualSwNextDisb: getVal(aIdxSwNextDisb),
+                actualCtxNoa: getVal(aIdxCtxNoa),
+                actualCtxOs: getVal(aIdxCtxOs),
+                actualLantakurNoa: getVal(aIdxLantakurNoa),
+                actualLantakurOs: getVal(aIdxLantakurOs),
+                actualFppbNoa: getVal(aIdxFppb),
+                actualBiometrikNoa: getVal(aIdxBiometrik)
+            };
+
+            // INTELLIGENT FILTERING:
+            // Only add if there is meaningful data (Target > 0 OR Actual > 0)
+            const hasTargets = 
+                isNonZero(plan.swCurrentNoa) || isNonZero(plan.swCurrentDisb) ||
+                isNonZero(plan.swNextNoa) || isNonZero(plan.swNextDisb) ||
+                isNonZero(plan.colCtxNoa) || isNonZero(plan.colLantakurNoa) ||
+                isNonZero(plan.fppbNoa) || isNonZero(plan.biometrikNoa);
+
+            const hasActuals = 
+                isNonZero(plan.actualSwNoa) || isNonZero(plan.actualSwDisb) ||
+                isNonZero(plan.actualSwNextNoa) || isNonZero(plan.actualSwNextDisb) ||
+                isNonZero(plan.actualCtxNoa) || isNonZero(plan.actualLantakurNoa) ||
+                isNonZero(plan.actualFppbNoa) || isNonZero(plan.actualBiometrikNoa);
+
+            if (hasTargets || hasActuals) {
+                 // Add to Map (Overwrites previous entry if same key -> effectively getting the latest)
+                 uniquePlansMap.set(uniqueKey, plan);
             }
         });
 
