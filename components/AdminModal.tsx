@@ -3,8 +3,9 @@ import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
+import { saveTemplatesToSheet } from '../services/sheetService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug } from 'lucide-react';
 
 interface AdminPanelProps {
   // Removed isOpen since it's a page now
@@ -36,6 +37,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -212,6 +214,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           alert("Gagal menyimpan konfigurasi.");
       } finally {
           setIsLoadingConfig(false);
+      }
+  };
+
+  // --- NEW: Backup to Sheet ---
+  const handleBackupToSheet = async () => {
+      if (!sheetConfig.googleScriptUrl) {
+          alert("URL Apps Script belum disetting di bawah.");
+          return;
+      }
+      setIsBackingUp(true);
+      try {
+          // Pass debug mode
+          await saveTemplatesToSheet(sheetConfig.googleScriptUrl, templates, sheetConfig.enableDebugMode);
+          alert("Backup berhasil! Cek sheet 'Templates' di Google Sheet Anda.");
+      } catch (e) {
+          console.error(e);
+          alert("Gagal backup ke Sheet.");
+      } finally {
+          setIsBackingUp(false);
       }
   };
 
@@ -440,6 +461,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 </div>
 
+                {/* 3. System Debugging (NEW) */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm border-l-4 border-l-red-500">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Bug className="w-5 h-5 text-red-500" />
+                        System Debugging
+                    </h3>
+                     <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl">
+                        <div>
+                            <span className="block text-sm font-bold text-slate-700">Aktifkan Log Apps Script</span>
+                            <span className="text-xs text-slate-500">Jika aktif, Script akan menulis error detail ke sheet "SystemLogs".</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={sheetConfig.enableDebugMode || false} onChange={e => setSheetConfig({...sheetConfig, enableDebugMode: e.target.checked})} />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                        </label>
+                    </div>
+                </div>
+
                 <div className="flex justify-end pt-4">
                     <Button onClick={handleSaveSheetConfig} isLoading={isLoadingConfig} icon={<Save className="w-4 h-4" />}>
                         Simpan Pengaturan
@@ -463,6 +502,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 : 'Pengaturan hanya tersimpan di perangkat ini (Local Browser). Setup Supabase di config.ts untuk mengaktifkan.'}
                         </p>
                     </div>
+                </div>
+
+                {/* NEW: TEMPLATE BACKUP CARD */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                        <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                        Backup Template
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-4">Simpan seluruh template pesan yang ada di aplikasi saat ini ke dalam Google Sheet (Tab "Templates") untuk backup.</p>
+                    
+                    <Button 
+                        onClick={handleBackupToSheet} 
+                        isLoading={isBackingUp}
+                        variant="secondary"
+                        className="w-full justify-center border-green-200 hover:bg-green-50 text-green-700"
+                        icon={<Save className="w-4 h-4" />}
+                    >
+                        Backup Template ke Sheet
+                    </Button>
                 </div>
 
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">

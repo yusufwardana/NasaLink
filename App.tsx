@@ -409,8 +409,8 @@ const App: React.FC = () => {
      if (activeConfig?.googleScriptUrl) {
          // UI Optimistic Update
          setDailyPlans(prev => [...prev, plan]);
-         // Background Save
-         await submitPlanToSheet(activeConfig.googleScriptUrl, plan);
+         // Background Save - Pass Debug Mode Flag
+         await submitPlanToSheet(activeConfig.googleScriptUrl, plan, activeConfig.enableDebugMode);
      } else {
          alert("Script URL belum disetting di Admin panel. Data tidak akan tersimpan ke Sheet.");
      }

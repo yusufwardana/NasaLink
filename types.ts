@@ -60,6 +60,9 @@ export interface SheetConfig {
   // UI Settings
   showHeroSection?: boolean; // Toggle Welcome Banner
   showStatsCards?: boolean; // Toggle Top Stats
+
+  // System
+  enableDebugMode?: boolean; // Toggle Apps Script Logging
 }
 
 // --- NEW INTERFACE FOR DAILY PLAN ---
