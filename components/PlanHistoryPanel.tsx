@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp, Target, Percent, Fingerprint } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -44,15 +44,14 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
     }).sort((a, b) => a.coName.localeCompare(b.coName));
   }, [plans, selectedDate, searchTerm]);
 
-  // Totals Calculation for Summary & Footer
+  // Totals Calculation for Footer
   const totals = useMemo(() => {
       const t = {
           swCurT: 0, swCurR: 0,
           swNextT: 0, swNextR: 0,
           ctxT: 0, ctxR: 0,
           parT: 0, parR: 0,
-          fppbT: 0, fppbR: 0,
-          bioT: 0, bioR: 0 // Added Biometrik Totals
+          fppbT: 0, fppbR: 0
       };
       filteredPlans.forEach(p => {
           t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
@@ -60,7 +59,6 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
           t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
           t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
           t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
-          t.bioT += parseNum(p.biometrikNoa); t.bioR += parseNum(p.actualBiometrikNoa);
       });
       return t;
   }, [filteredPlans]);
@@ -75,65 +73,25 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       }
   };
 
-  // --- SUB-COMPONENT: SUMMARY CARD ---
-  const SummaryCard = ({ label, target, actual, colorClass, bgClass, icon: Icon }: any) => {
-      const percent = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
-      const isAchieved = target > 0 && actual >= target;
-      
-      return (
-          <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm flex flex-col justify-between h-full relative overflow-hidden group">
-              <div className={`absolute top-0 right-0 p-2 rounded-bl-2xl opacity-10 ${bgClass} group-hover:opacity-20 transition-opacity`}>
-                  <Icon className={`w-8 h-8 ${colorClass}`} />
-              </div>
-              <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-                  <div className="flex items-baseline gap-1">
-                      <span className={`text-xl font-black ${isAchieved ? 'text-emerald-600' : 'text-slate-800'}`}>{actual}</span>
-                      <span className="text-xs text-slate-400 font-medium">/ {target}</span>
-                  </div>
-              </div>
-              <div className="mt-3">
-                  <div className="flex justify-between items-center text-[9px] font-bold mb-1">
-                      <span className={isAchieved ? 'text-emerald-600' : 'text-slate-400'}>{percent.toFixed(0)}%</span>
-                      {target > actual && <span className="text-red-400">-{target - actual}</span>}
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-1000 ${isAchieved ? 'bg-emerald-500' : colorClass.replace('text-', 'bg-')}`} style={{ width: `${percent}%` }}></div>
-                  </div>
-              </div>
-          </div>
-      );
-  };
-
-  // Render Cell Helper with GAP Indicator
+  // Render Cell Helper
   const MetricCell = ({ target, actual, label, hideLabel = true }: { target: string, actual?: string, label: string, hideLabel?: boolean }) => {
       const t = parseNum(target);
       const a = parseNum(actual);
-      const gap = a - t;
       const isAchieved = t > 0 && a >= t;
       const isZero = t === 0 && a === 0;
 
       if (isZero) return <div className="text-center text-slate-300">-</div>;
 
       return (
-          <div className="flex flex-col items-center justify-center h-full w-full p-1 relative group">
+          <div className="flex flex-col items-center justify-center h-full w-full p-1">
               {!hideLabel && <span className="text-[9px] text-slate-400 mb-0.5 uppercase">{label}</span>}
-              <div className="flex items-baseline gap-1 relative z-10">
+              <div className="flex items-baseline gap-1">
                   <span className={`font-bold text-xs ${isAchieved ? 'text-emerald-600' : 'text-slate-700'}`}>
                       {a}
                   </span>
                   <span className="text-[9px] text-slate-400">/ {t}</span>
               </div>
-              
-              {/* Gap Indicator (Show red deficit or green surplus) */}
-              {t > 0 && gap !== 0 && (
-                   <div className={`text-[8px] font-bold px-1 rounded-sm mt-0.5 ${gap < 0 ? 'text-red-500 bg-red-50' : 'text-emerald-500 bg-emerald-50'}`}>
-                       {gap > 0 ? `+${gap}` : gap}
-                   </div>
-              )}
-
-              {/* Progress Bar (Visible if no Gap text or as subtle background) */}
-              {t > 0 && gap === 0 && (
+              {t > 0 && (
                 <div className="w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
                     <div className={`h-full rounded-full ${isAchieved ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${Math.min((a/t)*100, 100)}%` }}></div>
                 </div>
@@ -172,51 +130,12 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             </div>
         </div>
 
-        {/* SUMMARY SCOREBOARD */}
-        {filteredPlans.length > 0 && (
-            <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-                <SummaryCard 
-                    label="SW Cur (NOA)" 
-                    target={totals.swCurT} 
-                    actual={totals.swCurR} 
-                    colorClass="text-orange-500" 
-                    bgClass="bg-orange-500" 
-                    icon={Target} 
-                />
-                <SummaryCard 
-                    label="SW Next (NOA)" 
-                    target={totals.swNextT} 
-                    actual={totals.swNextR} 
-                    colorClass="text-blue-500" 
-                    bgClass="bg-blue-500" 
-                    icon={TrendingUp} 
-                />
-                <SummaryCard 
-                    label="Col CTX (NOA)" 
-                    target={totals.ctxT} 
-                    actual={totals.ctxR} 
-                    colorClass="text-red-500" 
-                    bgClass="bg-red-500" 
-                    icon={Percent} 
-                />
-                {/* Changed to Biometrik to prioritize */}
-                <SummaryCard 
-                    label="Biometrik" 
-                    target={totals.bioT} 
-                    actual={totals.bioR} 
-                    colorClass="text-indigo-500" 
-                    bgClass="bg-indigo-500" 
-                    icon={Fingerprint} 
-                />
-            </div>
-        )}
-
         {/* Search */}
         <div className="mb-4 relative">
              <input 
                 type="text" 
                 placeholder="Cari Nama CO..." 
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 shadow-sm"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
              />
@@ -224,7 +143,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
         </div>
 
         {/* TABLE WRAPPER */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-340px)]">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-220px)]">
             <div className="overflow-auto flex-1 custom-scrollbar">
                 <table className="w-full text-xs min-w-[800px]">
                     <thead className="bg-slate-50 sticky top-0 z-10 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 shadow-sm">
@@ -327,9 +246,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                 <td className="p-2 text-center font-bold text-purple-600 w-[10%]">
                                     {totals.fppbR}/{totals.fppbT}
                                 </td>
-                                <td className="p-2 text-center font-bold text-indigo-600 w-[10%]">
-                                    {totals.bioR}/{totals.bioT}
-                                </td>
+                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
                             </tr>
                         </tfoot>
                     </table>

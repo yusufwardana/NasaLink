@@ -3,7 +3,6 @@ import { SheetConfig } from './types';
 // ============================================================================
 // KONFIGURASI SUPABASE (DATABASE ADMIN & TEMPLATE)
 // ============================================================================
-// Isi dengan URL dan Key project Supabase Anda untuk fitur Admin Sync
 export const SUPABASE_CONFIG = {
   url: "https://bimnpfyhhhhmrjgziaod.supabase.co", 
   key: "sb_publishable_pI6yN-Hh9zdun7Ish6P_Yw_PFb7l8-8" 
@@ -12,7 +11,6 @@ export const SUPABASE_CONFIG = {
 // ============================================================================
 // KONFIGURASI GEMINI AI
 // ============================================================================
-// API Key diambil dari Environment Variable (.env)
 export const GEMINI_CONFIG = {
   apiKey: process.env.API_KEY || "" 
 };
@@ -20,23 +18,16 @@ export const GEMINI_CONFIG = {
 // ============================================================================
 // KONFIGURASI GLOBAL DEFAULT
 // ============================================================================
-// NOTE: Nilai di bawah ini akan ditimpa oleh data dari Supabase jika tersedia.
-export const GLOBAL_CONFIG: SheetConfig = {
-  // Biarkan kosong agar sistem memaksa pengambilan dari Supabase / Admin Settings
-  spreadsheetId: "", 
-  sheetName: "Data",
-  
-  // URL Deployment Web App Google Apps Script
-  googleScriptUrl: "",
-  
-  // Pengaturan Logika Notifikasi Default
-  prsThresholdDays: 1, // Alert muncul H-1 sebelum kumpulan
-  refinancingLookaheadMonths: 1, // Alert muncul untuk nasabah jatuh tempo bulan ini & depan
-  
-  // Pengaturan Tampilan
-  showHeroSection: true,
-  showStatsCards: true,
 
-  // System
-  enableDebugMode: false
+export const GLOBAL_CONFIG: SheetConfig = {
+  // GANTI DENGAN ID SHEET ANDA
+  spreadsheetId: "1_WUgnl_JPHKRyzdEwjqufPMkwmZ1zDTgvQ1kVcWIDq0", 
+  sheetName: "Data",
+  googleScriptUrl: "https://script.google.com/macros/s/AKfycbx8WXSSX9zdfSlYLv2xw7NUc9913NyIYmindb6pocJx8VdBrfABxnaa8dbe-nKsEqmGFw/exec",
+  
+  // Default Logic Settings
+  prsThresholdDays: 1, // H-1
+  refinancingLookaheadMonths: 1, // Sampai Bulan Depan
+  showHeroSection: true,
+  showStatsCards: true
 };

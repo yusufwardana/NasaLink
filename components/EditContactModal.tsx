@@ -43,7 +43,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
       // 2. Kirim data ke Google Sheets di Background (Fire & Forget)
       if (sheetConfig?.googleScriptUrl) {
            // Tidak perlu await (blocking), biarkan berjalan di background
-           updatePhoneInSheet(sheetConfig.googleScriptUrl, formData.name, formData.phone, sheetConfig.enableDebugMode)
+           updatePhoneInSheet(sheetConfig.googleScriptUrl, formData.name, formData.phone)
              .catch(err => {
                 console.error("Background sync failed:", err);
                 // Opsional: Bisa tambahkan toast notifikasi error global nanti

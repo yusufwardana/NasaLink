@@ -1,5 +1,4 @@
 
-
 export interface Contact {
   id: string;
   name: string;       // Map from 'NASABAH'
@@ -61,40 +60,43 @@ export interface SheetConfig {
   // UI Settings
   showHeroSection?: boolean; // Toggle Welcome Banner
   showStatsCards?: boolean; // Toggle Top Stats
-
-  // System
-  enableDebugMode?: boolean; // Toggle Script Logging
 }
 
-// --- NEW INTERFACE FOR DAILY PLAN (24 Columns Match) ---
+// --- NEW INTERFACE FOR DAILY PLAN ---
 export interface DailyPlan {
-  id: string;         // Col 1
-  date: string;       // Col 2 (Format DD/MM/YYYY)
-  coName: string;     // Col 3
+  id: string;
+  date: string;       // Format DD/MM/YYYY
+  coName: string;
   
-  // PLAN / TARGET (Columns 4-13)
+  // 1. Survey Wawancara (SW)
   swCurrentNoa: string;
   swCurrentDisb: string;
   swNextNoa: string;
   swNextDisb: string;
+
+  // 2. Collection
   colCtxNoa: string;
   colCtxOs: string;
   colLantakurNoa: string; // Lancar Tabungan Kurang
   colLantakurOs: string;
+
+  // 3. Other
   fppbNoa: string;
   biometrikNoa: string;
   
   notes?: string;
 
-  // ACTUAL / REALISASI (Columns 15-24)
+  // --- NEW: ACTUAL / REALISASI ---
   actualSwNoa?: string;
   actualSwDisb?: string;
-  actualSwNextNoa?: string; 
-  actualSwNextDisb?: string;
+  actualSwNextNoa?: string; // NEW
+  actualSwNextDisb?: string; // NEW
   actualCtxNoa?: string;
   actualCtxOs?: string;
   actualLantakurNoa?: string;
   actualLantakurOs?: string;
+  
+  // Added based on request
   actualFppbNoa?: string;
   actualBiometrikNoa?: string;
 }
