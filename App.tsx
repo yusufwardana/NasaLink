@@ -17,7 +17,7 @@ import { fetchContactsFromSheet, fetchPlansFromSheet, submitPlanToSheet } from '
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
 import { getSheetConfig } from './services/dbService';
 import { GLOBAL_CONFIG } from './config';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart, Fingerprint } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -229,6 +229,12 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
+  // --- Helpers ---
+  const parseNum = (val?: string) => {
+      if (!val) return 0;
+      return parseInt(val.replace(/[^0-9]/g, '') || '0', 10);
+  };
+
   // ... (Notification Logic remains same) ...
   const upcomingEvents = useMemo(() => {
     const today = new Date();
@@ -380,9 +386,37 @@ const App: React.FC = () => {
       }).length;
   }, [contacts]);
   
-  const todaysPlan = useMemo(() => {
-      if (dailyPlans.length === 0) return null;
-      return dailyPlans[dailyPlans.length - 1];
+  // --- DAILY PERFORMANCE AGGREGATION ---
+  const todaysPerformance = useMemo(() => {
+      if (!dailyPlans || dailyPlans.length === 0) return null;
+      
+      // Get plans for today (assuming sorted or filter by date)
+      // Here we just aggregate ALL plans from the latest date in the list
+      const latestDate = dailyPlans[dailyPlans.length - 1].date;
+      const todaysPlans = dailyPlans.filter(p => p.date === latestDate);
+
+      const t = {
+          date: latestDate,
+          swTarget: 0, swActual: 0,
+          collTarget: 0, collActual: 0,
+          bioTarget: 0, bioActual: 0
+      };
+
+      todaysPlans.forEach(p => {
+          // SW (Cur + Next)
+          t.swTarget += (parseNum(p.swCurrentNoa) + parseNum(p.swNextNoa));
+          t.swActual += (parseNum(p.actualSwNoa) + parseNum(p.actualSwNextNoa));
+          
+          // Collection (CTX + Lantakur)
+          t.collTarget += (parseNum(p.colCtxNoa) + parseNum(p.colLantakurNoa));
+          t.collActual += (parseNum(p.actualCtxNoa) + parseNum(p.actualLantakurNoa));
+
+          // Biometrik
+          t.bioTarget += parseNum(p.biometrikNoa);
+          t.bioActual += parseNum(p.actualBiometrikNoa);
+      });
+
+      return t;
   }, [dailyPlans]);
 
   const handleSyncSheet = async () => {
@@ -592,30 +626,82 @@ const App: React.FC = () => {
                  </button>
             </div>
 
-            {todaysPlan && (
+            {/* 0. LIVE PERFORMANCE CARD (NEW) */}
+            {todaysPerformance && (
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-500" /> Rencana Hari Ini</h3>
-                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-mono text-slate-500">{todaysPlan.date}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            <h4 className="font-bold text-slate-800">Live Realisasi ({todaysPerformance.date})</h4>
+                        </div>
+                        <button onClick={() => setActiveView('plans')} className="text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-slate-500 font-medium transition-colors">
+                            Lihat Detail
+                        </button>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[9px] text-slate-400 uppercase font-bold">SW</p>
-                            <p className="font-black text-slate-700">{todaysPlan.swCurrentNoa}</p>
-                        </div>
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[9px] text-slate-400 uppercase font-bold">CTX</p>
-                            <p className="font-black text-slate-700">{todaysPlan.colCtxNoa}</p>
-                        </div>
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[9px] text-slate-400 uppercase font-bold">Par</p>
-                            <p className="font-black text-slate-700">{todaysPlan.colLantakurNoa}</p>
-                        </div>
-                    </div>
-                    <div className="mt-3 text-center">
-                         <button onClick={() => setActiveView('plans')} className="text-xs text-blue-600 font-bold hover:underline">
-                             Lihat Detail Realisasi
-                         </button>
+
+                    <div className="space-y-4">
+                         {/* Pillar 1: Sales */}
+                         <div>
+                            <div className="flex justify-between items-end mb-1">
+                                <div className="flex items-center gap-1.5">
+                                    <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
+                                    <span className="text-xs font-bold text-slate-600 uppercase">Total SW (NOA)</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-sm font-black ${todaysPerformance.swActual >= todaysPerformance.swTarget ? 'text-emerald-600' : 'text-slate-800'}`}>{todaysPerformance.swActual}</span>
+                                    <span className="text-[10px] text-slate-400 font-medium">/ {todaysPerformance.swTarget}</span>
+                                </div>
+                            </div>
+                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                    className={`h-full rounded-full transition-all duration-1000 ${todaysPerformance.swActual >= todaysPerformance.swTarget ? 'bg-emerald-500' : 'bg-orange-500'}`} 
+                                    style={{ width: `${Math.min((todaysPerformance.swActual / (todaysPerformance.swTarget || 1)) * 100, 100)}%` }}
+                                ></div>
+                            </div>
+                         </div>
+                         
+                         {/* Pillar 2: Collection */}
+                         <div>
+                             <div className="flex justify-between items-end mb-1">
+                                <div className="flex items-center gap-1.5">
+                                    <AlertOctagon className="w-3.5 h-3.5 text-red-500" />
+                                    <span className="text-xs font-bold text-slate-600 uppercase">Collection (CTX+Par)</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-sm font-black ${todaysPerformance.collActual >= todaysPerformance.collTarget ? 'text-emerald-600' : 'text-slate-800'}`}>{todaysPerformance.collActual}</span>
+                                    <span className="text-[10px] text-slate-400 font-medium">/ {todaysPerformance.collTarget}</span>
+                                </div>
+                            </div>
+                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                    className={`h-full rounded-full transition-all duration-1000 ${todaysPerformance.collActual >= todaysPerformance.collTarget ? 'bg-emerald-500' : 'bg-red-500'}`} 
+                                    style={{ width: `${Math.min((todaysPerformance.collActual / (todaysPerformance.collTarget || 1)) * 100, 100)}%` }}
+                                ></div>
+                            </div>
+                         </div>
+
+                         {/* Pillar 3: Admin */}
+                         <div>
+                             <div className="flex justify-between items-end mb-1">
+                                <div className="flex items-center gap-1.5">
+                                    <Fingerprint className="w-3.5 h-3.5 text-indigo-500" />
+                                    <span className="text-xs font-bold text-slate-600 uppercase">Biometrik</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-sm font-black ${todaysPerformance.bioActual >= todaysPerformance.bioTarget ? 'text-emerald-600' : 'text-slate-800'}`}>{todaysPerformance.bioActual}</span>
+                                    <span className="text-[10px] text-slate-400 font-medium">/ {todaysPerformance.bioTarget}</span>
+                                </div>
+                            </div>
+                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                    className={`h-full rounded-full transition-all duration-1000 ${todaysPerformance.bioActual >= todaysPerformance.bioTarget ? 'bg-emerald-500' : 'bg-indigo-500'}`} 
+                                    style={{ width: `${Math.min((todaysPerformance.bioActual / (todaysPerformance.bioTarget || 1)) * 100, 100)}%` }}
+                                ></div>
+                            </div>
+                         </div>
                     </div>
                 </div>
             )}
