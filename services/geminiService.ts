@@ -39,8 +39,7 @@ export const generateWhatsAppMessage = async (
     // Trouble Criteria
     const isTrouble = dpd > 0 || tunggakanRaw > 0 || status.includes('macet') || status.includes('menunggak') || flagMenunggak.includes('ctx') || flagMenunggak.includes('npf') || flagMenunggak.includes('xday');
     const isJatuhTempo = !!contact.tglJatuhTempo;
-    const prsContext = contact.tglPrs ? `pada jadwal kumpulan tanggal ${contact.tglPrs}` : 'pada jadwal kumpulan kemarin';
-
+    
     // Tentukan Strategi Komunikasi untuk AI
     let strategyGuide = "";
 
