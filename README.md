@@ -27,13 +27,11 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 ### 1. Konfigurasi Google Sheets (Data Nasabah)
 
 1. **Sheet "Data"**: Kolom (Baris 1): `CO`, `SENTRA`, `NASABAH`, `PLAFON`, `PRODUK`, `FLAG`, `TGL JATUH TEMPO`, `TGL PRS`, `STATUS`, `NOMER TELP`, `CATATAN`... (dan kolom lainnya).
-2. **Sheet "Plan"**: Kolom (Baris 1):
-   `ID`, `Tanggal`, `CO`, 
-   `Plan SW Cur NOA`, `Plan SW Cur Disb`, `Plan SW Next NOA`, `Plan SW Next Disb`, `Plan CTX NOA`, `Plan CTX OS`, `Plan Lantakur NOA`, `Plan Lantakur OS`, `Plan FPPB`, `Plan Biometrik`,
-   `Aktual SW Cur NOA`, `Aktual SW Cur Disb`, `Aktual SW Next NOA`, `Aktual SW Next Disb`, `Aktual CTX NOA`, `Aktual CTX OS`, `Aktual Lantakur NOA`, `Aktual Lantakur OS`, `Aktual FPPB`, `Aktual Biometrik`
+2. **Sheet "Plan"**: Kolom (Baris 1): `ID`, `Tanggal`, `CO`... (Plan & Aktual).
+3. **Sheet "Templates"**: (Akan dibuat otomatis oleh script jika belum ada).
 
-3. Buka **Extensions** > **Apps Script**.
-4. Copy-Paste kode berikut untuk mengaktifkan fitur update No HP & Save Plan:
+4. Buka **Extensions** > **Apps Script**.
+5. Copy-Paste kode berikut untuk mengaktifkan fitur update No HP, Save Plan, & Save Templates:
 
 ```javascript
 function doPost(e) {
@@ -70,12 +68,10 @@ function doPost(e) {
       var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var headersLower = headers.map(function(h) { return h.toLowerCase().trim(); });
       
-      // Mapping Field App -> Header Sheet (Sesuaikan dengan nama kolom di Sheet Anda)
       var map = {
         'id': ['id', 'key'],
         'date': ['tanggal', 'date', 'tgl'],
         'coName': ['co', 'petugas'],
-        // PLAN
         'swCurrentNoa': ['plan sw cur noa'],
         'swCurrentDisb': ['plan sw cur disb'],
         'swNextNoa': ['plan sw next noa'],
@@ -86,52 +82,38 @@ function doPost(e) {
         'colLantakurOs': ['plan lantakur os', 'plan col lantakur os'],
         'fppbNoa': ['plan fppb'],
         'biometrikNoa': ['plan biometrik']
-        // Jika ingin simpan Aktual juga, tambahkan mapping disini
       };
 
-      // Cari baris berdasarkan ID atau (Tanggal + CO)
       var rowIndex = -1;
       var data = sheet.getDataRange().getValues();
       
-      // Coba cari by ID unik dulu
       if (p.id) {
         for (var i = 1; i < data.length; i++) {
           if (String(data[i][0]) == String(p.id)) { rowIndex = i + 1; break; }
         }
       }
       
-      // Jika tidak ketemu ID, cari kombinasi Tanggal + CO
       if (rowIndex === -1) {
         for (var i = 1; i < data.length; i++) {
-          // Asumsi kol 1 = Tanggal, kol 2 = CO (index 0 based: 1, 2)
-          // Sesuaikan index ini jika posisi kolom berbeda
           var rowDate = String(data[i][headersLower.indexOf('tanggal')]); 
           var rowCo = String(data[i][headersLower.indexOf('co')]);
-          
-          if (rowDate === p.date && rowCo === p.coName) {
-             rowIndex = i + 1; break;
-          }
+          if (rowDate === p.date && rowCo === p.coName) { rowIndex = i + 1; break; }
         }
       }
 
-      // Jika masih tidak ketemu, Buat Baris Baru
       if (rowIndex === -1) {
-        sheet.appendRow([p.id]); // Init row dengan ID
+        sheet.appendRow([p.id]); 
         rowIndex = sheet.getLastRow();
       }
 
-      // Update Sel
       for (var key in map) {
         if (p[key] !== undefined) {
           var possibleHeaders = map[key];
           var colIndex = -1;
-          
-          // Cari index kolom yang cocok
           for (var h = 0; h < possibleHeaders.length; h++) {
              var idx = headersLower.indexOf(possibleHeaders[h]);
              if (idx > -1) { colIndex = idx + 1; break; }
           }
-
           if (colIndex > -1) {
             sheet.getRange(rowIndex, colIndex).setValue(p[key]);
           }
@@ -140,6 +122,44 @@ function doPost(e) {
       
       SpreadsheetApp.flush();
       return ContentService.createTextOutput(JSON.stringify({ "result": "success", "row": rowIndex }));
+    }
+
+    // --- FITUR 3: BACKUP TEMPLATES TO SHEET ---
+    if (payload.action === 'save_templates') {
+      var sheetName = 'Templates';
+      var sheet = doc.getSheetByName(sheetName);
+      if (!sheet) {
+        sheet = doc.insertSheet(sheetName);
+      }
+      
+      // Clear existing to avoid duplicates/mess
+      sheet.clear();
+      
+      var templates = payload.templates;
+      if (!templates || templates.length === 0) return ContentService.createTextOutput(JSON.stringify({ "result": "empty" }));
+
+      // Set Header
+      var headers = [['ID', 'Label', 'Type', 'Prompt', 'Content', 'Icon']];
+      
+      // Map Data
+      var rows = templates.map(function(t) {
+        return [
+          t.id || '',
+          t.label || '',
+          t.type || 'ai',
+          t.promptContext || '',
+          t.content || '',
+          t.icon || '📝'
+        ];
+      });
+      
+      var allData = headers.concat(rows);
+      
+      // Write All
+      sheet.getRange(1, 1, allData.length, 6).setValues(allData);
+      
+      SpreadsheetApp.flush();
+      return ContentService.createTextOutput(JSON.stringify({ "result": "success", "count": rows.length }));
     }
 
     return ContentService.createTextOutput(JSON.stringify({ "result": "error", "msg": "Unknown action" }));
@@ -151,7 +171,7 @@ function doPost(e) {
   }
 }
 ```
-5. **Deploy** sebagai "Web App" -> Access: "Anyone". Salin URL-nya.
+6. **Deploy** ulang sebagai "Web App" -> **New Version** -> Access: "Anyone".
 
 ### 2. Konfigurasi Supabase (Admin Settings)
 
