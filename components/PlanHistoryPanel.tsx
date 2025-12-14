@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2 } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -33,7 +33,6 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
   };
 
   // Helper to Normalize Date String (Remove leading zeros to compare safely)
-  // e.g., '01/01/2025' becomes '1/1/2025'
   const normalizeForMatch = (d: string) => {
       if (!d) return '';
       return d.split('/').map(p => parseInt(p, 10)).join('/');
@@ -56,17 +55,26 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
   const totals = useMemo(() => {
       const t = {
           swCurT: 0, swCurR: 0,
+          swCurDisbT: 0, swCurDisbR: 0,
           swNextT: 0, swNextR: 0,
+          swNextDisbT: 0, swNextDisbR: 0,
           ctxT: 0, ctxR: 0,
           parT: 0, parR: 0,
-          fppbT: 0, fppbR: 0
+          fppbT: 0, fppbR: 0,
+          bioT: 0, bioR: 0
       };
       filteredPlans.forEach(p => {
           t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
+          t.swCurDisbT += parseNum(p.swCurrentDisb); t.swCurDisbR += parseNum(p.actualSwDisb);
+          
           t.swNextT += parseNum(p.swNextNoa); t.swNextR += parseNum(p.actualSwNextNoa);
+          t.swNextDisbT += parseNum(p.swNextDisb); t.swNextDisbR += parseNum(p.actualSwNextDisb);
+          
           t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
           t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
+          
           t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
+          t.bioT += parseNum(p.biometrikNoa); t.bioR += parseNum(p.actualBiometrikNoa);
       });
       return t;
   }, [filteredPlans]);
@@ -81,28 +89,40 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       }
   };
 
-  // Render Cell Helper
-  const MetricCell = ({ target, actual, label, hideLabel = true }: { target: string, actual?: string, label: string, hideLabel?: boolean }) => {
+  // --- ENHANCED METRIC CELL ---
+  const MetricCell = ({ target, actual, isMoney = false }: { target: string, actual?: string, isMoney?: boolean }) => {
       const t = parseNum(target);
       const a = parseNum(actual);
-      const isAchieved = t > 0 && a >= t;
-      const isZero = t === 0 && a === 0;
-
-      if (isZero) return <div className="text-center text-slate-300">-</div>;
+      
+      const isTargetSet = t > 0;
+      const isAchieved = isTargetSet && a >= t;
+      const progress = isTargetSet ? Math.min((a / t) * 100, 100) : 0;
+      
+      // If no target and no actual, show dash
+      if (!isTargetSet && a === 0) return <div className="text-center text-slate-300">-</div>;
 
       return (
-          <div className="flex flex-col items-center justify-center h-full w-full p-1">
-              {!hideLabel && <span className="text-[9px] text-slate-400 mb-0.5 uppercase">{label}</span>}
+          <div className="flex flex-col items-center justify-center h-full w-full py-1">
               <div className="flex items-baseline gap-1">
                   <span className={`font-bold text-xs ${isAchieved ? 'text-emerald-600' : 'text-slate-700'}`}>
                       {a}
                   </span>
-                  <span className="text-[9px] text-slate-400">/ {t}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                      / {t}
+                  </span>
               </div>
-              {t > 0 && (
-                <div className="w-10 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                    <div className={`h-full rounded-full ${isAchieved ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${Math.min((a/t)*100, 100)}%` }}></div>
+              
+              {/* Progress Bar */}
+              {isTargetSet ? (
+                <div className="w-12 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden relative">
+                    <div 
+                        className={`h-full rounded-full transition-all duration-500 ${isAchieved ? 'bg-emerald-500' : 'bg-orange-400'}`} 
+                        style={{ width: `${progress}%` }}
+                    ></div>
                 </div>
+              ) : (
+                /* Placeholder to keep height consistent */
+                <div className="w-12 h-1.5 mt-1"></div>
               )}
           </div>
       );
@@ -124,7 +144,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                         Monitoring Realisasi
                         <BarChart3 className="w-5 h-5 text-blue-600" />
                     </h2>
-                    <p className="text-xs text-slate-500">Tabel Kinerja Harian Petugas</p>
+                    <p className="text-xs text-slate-500">Target vs Aktual Harian</p>
                 </div>
             </div>
 
@@ -153,14 +173,14 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
         {/* TABLE WRAPPER */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-220px)]">
             <div className="overflow-auto flex-1 custom-scrollbar">
-                <table className="w-full text-xs min-w-[800px]">
+                <table className="w-full text-xs min-w-[900px]">
                     <thead className="bg-slate-50 sticky top-0 z-10 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 shadow-sm">
                         <tr>
-                            <th className="p-3 text-left sticky left-0 bg-slate-50 border-r border-slate-200 w-[120px] z-20">Petugas (CO)</th>
+                            <th className="p-3 text-left sticky left-0 bg-slate-50 border-r border-slate-200 w-[140px] z-20">Petugas (CO)</th>
                             <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (NOA)</th>
-                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (Disb)</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (Jt)</th>
                             <th className="p-2 text-center border-r border-slate-100">SW Next (NOA)</th>
-                            <th className="p-2 text-center border-r border-slate-200">SW Next (Disb)</th>
+                            <th className="p-2 text-center border-r border-slate-200">SW Next (Jt)</th>
                             <th className="p-2 text-center border-r border-slate-100 bg-red-50/30 text-red-600">CTX (Bayar)</th>
                             <th className="p-2 text-center border-r border-slate-200 bg-amber-50/30 text-amber-600">Lantakur</th>
                             <th className="p-2 text-center border-r border-slate-100 bg-purple-50/30 text-purple-600">FPPB</th>
@@ -182,46 +202,42 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                             <div className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-[10px] text-slate-500">
                                                 {idx + 1}
                                             </div>
-                                            <span className="truncate max-w-[100px]" title={plan.coName}>{plan.coName}</span>
+                                            <div className="min-w-0">
+                                                <div className="truncate max-w-[100px]" title={plan.coName}>{plan.coName}</div>
+                                            </div>
                                         </div>
                                     </td>
                                     
                                     {/* SW CURRENT */}
                                     <td className="border-r border-slate-100 bg-orange-50/10">
-                                        <MetricCell target={plan.swCurrentNoa} actual={plan.actualSwNoa} label="NOA" />
+                                        <MetricCell target={plan.swCurrentNoa} actual={plan.actualSwNoa} />
                                     </td>
                                     <td className="border-r border-slate-100 bg-orange-50/10">
-                                        <div className="text-center">
-                                             <div className="text-[10px] text-slate-500">{plan.actualSwDisb || 0}</div>
-                                             <div className="text-[9px] text-slate-400 border-t border-slate-100 mt-0.5 pt-0.5">{plan.swCurrentDisb || 0}</div>
-                                        </div>
+                                        <MetricCell target={plan.swCurrentDisb} actual={plan.actualSwDisb} />
                                     </td>
 
                                     {/* SW NEXT */}
                                     <td className="border-r border-slate-100">
-                                        <MetricCell target={plan.swNextNoa} actual={plan.actualSwNextNoa} label="NOA" />
+                                        <MetricCell target={plan.swNextNoa} actual={plan.actualSwNextNoa} />
                                     </td>
                                     <td className="border-r border-slate-200">
-                                        <div className="text-center">
-                                             <div className="text-[10px] text-slate-500">{plan.actualSwNextDisb || 0}</div>
-                                             <div className="text-[9px] text-slate-400 border-t border-slate-100 mt-0.5 pt-0.5">{plan.swNextDisb || 0}</div>
-                                        </div>
+                                        <MetricCell target={plan.swNextDisb} actual={plan.actualSwNextDisb} />
                                     </td>
 
                                     {/* COLLECTION */}
                                     <td className="border-r border-slate-100 bg-red-50/10">
-                                        <MetricCell target={plan.colCtxNoa} actual={plan.actualCtxNoa} label="CTX" />
+                                        <MetricCell target={plan.colCtxNoa} actual={plan.actualCtxNoa} />
                                     </td>
                                     <td className="border-r border-slate-200 bg-amber-50/10">
-                                        <MetricCell target={plan.colLantakurNoa} actual={plan.actualLantakurNoa} label="Lantakur" />
+                                        <MetricCell target={plan.colLantakurNoa} actual={plan.actualLantakurNoa} />
                                     </td>
 
                                     {/* ADMIN */}
                                     <td className="border-r border-slate-100 bg-purple-50/10">
-                                        <MetricCell target={plan.fppbNoa} actual={plan.actualFppbNoa} label="FPPB" />
+                                        <MetricCell target={plan.fppbNoa} actual={plan.actualFppbNoa} />
                                     </td>
                                     <td className="bg-indigo-50/10">
-                                        <MetricCell target={plan.biometrikNoa} actual={plan.actualBiometrikNoa} label="BIO" />
+                                        <MetricCell target={plan.biometrikNoa} actual={plan.actualBiometrikNoa} />
                                     </td>
                                 </tr>
                             ))
@@ -233,28 +249,38 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             {/* Sticky Footer Totals */}
             {filteredPlans.length > 0 && (
                 <div className="bg-slate-50 border-t border-slate-200 p-2 overflow-x-auto">
-                    <table className="w-full text-xs min-w-[800px]">
+                    <table className="w-full text-xs min-w-[900px]">
                         <tfoot>
                             <tr>
-                                <td className="font-bold text-slate-700 w-[120px] p-2">TOTAL</td>
+                                <td className="font-bold text-slate-700 w-[140px] p-2 pl-3">TOTAL TIM</td>
+                                
                                 <td className="p-2 text-center font-bold text-orange-600 w-[10%]">
                                     {totals.swCurR}/{totals.swCurT}
                                 </td>
-                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
+                                <td className="p-2 text-center font-bold text-orange-600 w-[10%]">
+                                    {totals.swCurDisbR}/{totals.swCurDisbT}
+                                </td>
+                                
                                 <td className="p-2 text-center font-bold text-slate-600 w-[10%]">
                                     {totals.swNextR}/{totals.swNextT}
                                 </td>
-                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
-                                <td className="p-2 text-center font-bold text-red-600 w-[12%]">
+                                <td className="p-2 text-center font-bold text-slate-600 w-[10%]">
+                                    {totals.swNextDisbR}/{totals.swNextDisbT}
+                                </td>
+                                
+                                <td className="p-2 text-center font-bold text-red-600 w-[10%]">
                                     {totals.ctxR}/{totals.ctxT}
                                 </td>
-                                <td className="p-2 text-center font-bold text-amber-600 w-[12%]">
+                                <td className="p-2 text-center font-bold text-amber-600 w-[10%]">
                                     {totals.parR}/{totals.parT}
                                 </td>
+                                
                                 <td className="p-2 text-center font-bold text-purple-600 w-[10%]">
                                     {totals.fppbR}/{totals.fppbT}
                                 </td>
-                                <td className="p-2 text-center text-slate-400 w-[10%]">-</td>
+                                <td className="p-2 text-center font-bold text-indigo-600 w-[10%]">
+                                    {totals.bioR}/{totals.bioT}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>
