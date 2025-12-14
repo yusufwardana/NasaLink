@@ -15,8 +15,9 @@ import { TodoInputModal } from './components/TodoInputModal'; // New Import
 import { PlanHistoryPanel } from './components/PlanHistoryPanel'; // NEW IMPORT
 import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
-import { fetchContactsFromSheet, fetchPlansFromSheet, submitPlanToSheet } from './services/sheetService';
-import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase } from './services/supabaseService';
+import { fetchContactsFromSheet } from './services/sheetService';
+// UPDATED: Import Supabase Plan functions
+import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase } from './services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from './services/dbService';
 import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart } from 'lucide-react';
 
@@ -207,7 +208,7 @@ const App: React.FC = () => {
         setActiveConfig(finalConfig);
 
         if (configFound && finalConfig.spreadsheetId) {
-            // Fetch Contacts
+            // Fetch Contacts from Google Sheets
             try {
                 const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
                 setContacts(liveContacts);
@@ -215,13 +216,16 @@ const App: React.FC = () => {
                 console.error("Error fetching live contacts from Sheet:", err);
             }
             
-            // Fetch Plans (NEW: Now uses configured Plan Sheet Name)
-            try {
-                const planSheet = finalConfig.planSheetName || 'Plan';
-                const livePlans = await fetchPlansFromSheet(finalConfig.spreadsheetId, planSheet);
-                setDailyPlans(livePlans);
-            } catch (err) {
-                console.error("Error fetching daily plans:", err);
+            // Fetch Plans from SUPABASE (Changed from Sheets)
+            if (isSupabaseConfigured()) {
+                try {
+                    const dbPlans = await fetchPlansFromSupabase();
+                    setDailyPlans(dbPlans);
+                } catch (err: any) {
+                    console.error("Error fetching plans from Supabase:", err.message || err);
+                }
+            } else {
+                console.warn("Supabase not configured, plans not loaded.");
             }
 
             // Fetch Templates
@@ -464,7 +468,7 @@ const App: React.FC = () => {
   };
 
   const handleSavePlan = async (plan: DailyPlan) => {
-     if (activeConfig?.googleScriptUrl) {
+     if (isSupabaseConfigured()) {
          // UI Optimistic Update
          setDailyPlans(prev => {
              // If update existing ID
@@ -474,10 +478,15 @@ const App: React.FC = () => {
              return [...prev, plan];
          });
          
-         // Background Save - Pass Debug Mode Flag
-         await submitPlanToSheet(activeConfig.googleScriptUrl, plan, activeConfig.enableDebugMode);
+         // Background Save to Supabase (Replaces Sheets)
+         try {
+             await savePlanToSupabase(plan);
+         } catch (e: any) {
+             console.error("Background Save Error:", e.message || e);
+             alert("Gagal menyimpan ke Database Server.");
+         }
      } else {
-         alert("Script URL belum disetting di Admin panel. Data tidak akan tersimpan ke Sheet.");
+         alert("Database Supabase belum dikonfigurasi.");
      }
   };
 
@@ -721,4 +730,5 @@ const App: React.FC = () => {
     </div>
   );
 };
+
 export default App;
