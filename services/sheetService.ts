@@ -51,10 +51,14 @@ const parseCSV = (text: string): string[][] => {
   return result;
 };
 
-// Helper to find column index loosely
-const findColIndex = (headers: string[], keywords: string[]): number => {
+// IMPROVED: Helper to find column index with Exclusion support
+// excludes: array of strings that MUST NOT be present in the header
+const findColIndex = (headers: string[], keywords: string[], excludes: string[] = []): number => {
     return headers.findIndex(h => {
         const hClean = h.toLowerCase().trim();
+        // Check exclusions first
+        if (excludes.some(ex => hClean.includes(ex))) return false;
+        // Check keywords
         return keywords.some(k => hClean.includes(k.toLowerCase().trim()));
     });
 };
@@ -66,15 +70,6 @@ const generateLookupKey = (date: string, co: string): string => {
     const d = date.trim().toLowerCase().replace(/\s+/g, '');
     const c = co.trim().toLowerCase().replace(/\s+/g, ' ');
     return `${d}_${c}`;
-};
-
-// Helper to check if a value string represents a non-zero number
-const isNonZero = (val?: string): boolean => {
-    if (!val) return false;
-    // Remove non-numeric (keep digits)
-    const clean = val.replace(/[^0-9]/g, '');
-    const num = parseInt(clean || '0', 10);
-    return num > 0;
 };
 
 // Helper: Normalize Date from Sheet to DD/MM/YYYY
@@ -203,18 +198,19 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
         const name = getVal(idxName);
         const rawPhone = getVal(idxPhone);
         const sentra = getVal(idxSentra) || 'Pusat';
+        const phone = rawPhone ? rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, '') : ''; 
         
         // Validation: Must have at least a Name to be a valid contact
         if (!name || name === 'Tanpa Nama') return null;
 
-        const phone = rawPhone ? rawPhone.replace(/'/g, '').replace(/[^0-9+]/g, '') : ''; 
-        
         let flag = getVal(idxFlag);
         if (!flag) flag = 'Active'; 
 
-        // Generate Stable ID based on Content instead of Random Date
-        // This prevents re-renders and logic loss when Syncing
-        const stableId = `contact-${btoa(name + sentra).substring(0, 15)}-${index}`;
+        // Generate Stable ID based on Content + Phone + Sentra
+        // This ensures ID persists even if rows are sorted (unlike using Index)
+        const uniqueString = `${name}-${phone}-${sentra}`.replace(/\s+/g, '').toLowerCase();
+        // Use a simple hash-like approach or base64 for ID
+        const stableId = `c-${btoa(uniqueString).substring(0, 16)}`;
 
         return {
             id: stableId,
@@ -301,23 +297,25 @@ export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: stri
         // --- PREPARE HEADERS & INDICES ---
         const pHeaders = planRows[0].map(h => h.toLowerCase().trim().replace(/[\r\n]+/g, ' '));
         
-        // Plan Columns (Targets)
+        // Plan Columns (Targets) - WE MUST EXCLUDE 'ACTUAL' TO AVOID FALSE POSITIVES
+        const excludeActual = ['aktual', 'actual', 'realisasi'];
+
         const pIdxId = findColIndex(pHeaders, ['id', 'plan id', 'plan_id', 'key']);
         const pIdxDate = findColIndex(pHeaders, ['tanggal', 'date', 'tgl']);
         const pIdxCo = findColIndex(pHeaders, ['co', 'petugas', 'nama co']);
         
-        const pIdxSwCurNoa = findColIndex(pHeaders, ['plan sw cur noa', 'sw cur noa', 'sw bulan ini noa']);
-        const pIdxSwCurDisb = findColIndex(pHeaders, ['plan sw cur disb', 'sw cur disb', 'sw bulan ini disb']);
-        const pIdxSwNextNoa = findColIndex(pHeaders, ['plan sw next noa', 'sw next noa', 'sw bulan depan noa']);
-        const pIdxSwNextDisb = findColIndex(pHeaders, ['plan sw next disb', 'sw next disb', 'sw bulan depan disb']);
-        const pIdxCtxNoa = findColIndex(pHeaders, ['plan ctx noa', 'col ctx noa', 'ctx noa']);
-        const pIdxCtxOs = findColIndex(pHeaders, ['plan ctx os', 'col ctx os', 'ctx os']);
-        const pIdxLantakurNoa = findColIndex(pHeaders, ['plan lantakur noa', 'col lantakur noa', 'lantakur noa']);
-        const pIdxLantakurOs = findColIndex(pHeaders, ['plan lantakur os', 'col lantakur os', 'lantakur os']);
-        const pIdxFppb = findColIndex(pHeaders, ['plan fppb', 'fppb', 'fppb noa']);
-        const pIdxBiometrik = findColIndex(pHeaders, ['plan biometrik', 'biometrik', 'bio']);
+        const pIdxSwCurNoa = findColIndex(pHeaders, ['plan sw cur noa', 'sw cur noa', 'sw bulan ini noa'], excludeActual);
+        const pIdxSwCurDisb = findColIndex(pHeaders, ['plan sw cur disb', 'sw cur disb', 'sw bulan ini disb'], excludeActual);
+        const pIdxSwNextNoa = findColIndex(pHeaders, ['plan sw next noa', 'sw next noa', 'sw bulan depan noa'], excludeActual);
+        const pIdxSwNextDisb = findColIndex(pHeaders, ['plan sw next disb', 'sw next disb', 'sw bulan depan disb'], excludeActual);
+        const pIdxCtxNoa = findColIndex(pHeaders, ['plan ctx noa', 'col ctx noa', 'ctx noa'], excludeActual);
+        const pIdxCtxOs = findColIndex(pHeaders, ['plan ctx os', 'col ctx os', 'ctx os'], excludeActual);
+        const pIdxLantakurNoa = findColIndex(pHeaders, ['plan lantakur noa', 'col lantakur noa', 'lantakur noa'], excludeActual);
+        const pIdxLantakurOs = findColIndex(pHeaders, ['plan lantakur os', 'col lantakur os', 'lantakur os'], excludeActual);
+        const pIdxFppb = findColIndex(pHeaders, ['plan fppb', 'fppb', 'fppb noa'], excludeActual);
+        const pIdxBiometrik = findColIndex(pHeaders, ['plan biometrik', 'biometrik', 'bio'], excludeActual);
 
-        // Plan Columns (Actuals)
+        // Plan Columns (Actuals) - NO Exclusions needed
         const pIdxActSwNoa = findColIndex(pHeaders, ['aktual sw cur noa', 'actual sw cur noa', 'realisasi sw cur noa']);
         const pIdxActSwDisb = findColIndex(pHeaders, ['aktual sw cur disb', 'actual sw cur disb']);
         const pIdxActSwNextNoa = findColIndex(pHeaders, ['aktual sw next noa', 'actual sw next noa']);
