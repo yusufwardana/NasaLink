@@ -158,7 +158,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                         Monitoring Realisasi
                         <BarChart3 className="w-5 h-5 text-blue-600" />
                     </h2>
-                    <p className="text-xs text-slate-500">Data Real dari Sheet "Plan"</p>
+                    <p className="text-xs text-slate-500">DFAR & DQAR</p>
                 </div>
             </div>
 
@@ -191,10 +191,10 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                     <thead className="bg-slate-50 sticky top-0 z-10 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 shadow-sm">
                         <tr>
                             <th className="p-3 text-left sticky left-0 bg-slate-50 border-r border-slate-200 w-[140px] z-20">Petugas (CO)</th>
-                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (NOA)</th>
-                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW Cur (Jt)</th>
-                            <th className="p-2 text-center border-r border-slate-100">SW Next (NOA)</th>
-                            <th className="p-2 text-center border-r border-slate-200">SW Next (Jt)</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW M-0(NOA)</th>
+                            <th className="p-2 text-center border-r border-slate-100 bg-orange-50/30">SW M-0 (Jt)</th>
+                            <th className="p-2 text-center border-r border-slate-100">SW M+1 (NOA)</th>
+                            <th className="p-2 text-center border-r border-slate-200">SW M+1 (Jt)</th>
                             <th className="p-2 text-center border-r border-slate-100 bg-red-50/30 text-red-600">CTX (Bayar)</th>
                             <th className="p-2 text-center border-r border-slate-200 bg-amber-50/30 text-amber-600">Lantakur</th>
                             <th className="p-2 text-center border-r border-slate-100 bg-purple-50/30 text-purple-600">FPPB</th>
