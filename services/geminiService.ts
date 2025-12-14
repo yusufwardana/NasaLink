@@ -36,140 +36,77 @@ export const generateWhatsAppMessage = async (
     // Deteksi Status
     const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive');
     
-    // Trouble Criteria: DPD > 0 OR Tunggakan > 0 OR Flag Menunggak indicates trouble
+    // Trouble Criteria
     const isTrouble = dpd > 0 || tunggakanRaw > 0 || status.includes('macet') || status.includes('menunggak') || flagMenunggak.includes('ctx') || flagMenunggak.includes('npf') || flagMenunggak.includes('xday');
-    
     const isJatuhTempo = !!contact.tglJatuhTempo;
-    
-    // Context Helper: Tanggal PRS
     const prsContext = contact.tglPrs ? `pada jadwal kumpulan tanggal ${contact.tglPrs}` : 'pada jadwal kumpulan kemarin';
 
     // Tentukan Strategi Komunikasi untuk AI
     let strategyGuide = "";
 
     if (isTrouble) {
-        // KONDISI 1: NASABAH BERMASALAH (COLLECTION)
-        
-        // Cek tingkat keparahan berdasarkan DPD atau Flag Menunggak
         if (dpd <= 3 && dpd > 0 && !flagMenunggak.includes('npf')) {
-             // Sub-Kondisi: EARLY COLLECTION (Baru Telat)
-             strategyGuide = `
-             STRATEGI: EARLY COLLECTION (SOFT REMINDER)
-             - Nasabah ini BARU TELAT ${dpd} hari.
-             - MASALAH: Belum membayar angsuran sebesar ${tunggakanStr} yang seharusnya masuk ${prsContext}.
-             - Pendekatan: SANGAT SOPAN & POSITIF THINKING (Husnuzon).
-             - Asumsikan nasabah LUPA hadir atau LUPA titip angsuran saat kumpulan tanggal ${contact.tglPrs || 'tersebut'}.
-             - "Assalamualaikum Ibu, mohon maaf mengganggu. Sekadar mengingatkan angsuran tanggal ${contact.tglPrs || 'kemarin'} sebesar ${tunggakanStr} belum masuk..."
-             - Hindari nada menagih yang keras/mengancam.
-             `;
+             strategyGuide = `STRATEGI: EARLY COLLECTION (SOFT REMINDER). Nasabah telat ${dpd} hari. Tagih ${tunggakanStr} dengan sangat SOPAN & POSITIF. Asumsikan lupa.`;
         } else if (flagMenunggak.includes('npf') || dpd > 30) {
-            // Sub-Kondisi: NPF / MACET PARAH
-             strategyGuide = `
-             STRATEGI: HARD COLLECTION (PENAGIHAN SERIUS)
-             - Nasabah ini BERMASALAH BERAT (Flag: ${contact.flagMenunggak}, DPD: ${dpd}).
-             - Total Tunggakan: ${tunggakanStr}.
-             - MASALAH UTAMA: Tidak ada pembayaran sejak jadwal PRS tanggal ${contact.tglPrs || 'lalu'}.
-             - Fokus: DESAK PEMBAYARAN SEGERA.
-             - Ingatkan kewajiban angsuran yang tertunggak dari jadwal PRS tersebut.
-             - Minta kepastian waktu bayar hari ini.
-             `;
+             strategyGuide = `STRATEGI: HARD COLLECTION. Nasabah MACET PARAH (DPD ${dpd}). Tagih ${tunggakanStr} dengan TEGAS. Minta kepastian bayar HARI INI.`;
         } else {
-             // Sub-Kondisi: STANDARD COLLECTION (CTX / XDAY)
-             strategyGuide = `
-             STRATEGI: COLLECTION (PENAGIHAN TEGAS)
-             - Nasabah ini statusnya ${contact.flagMenunggak || 'MENUNGGAK'}.
-             - DPD: ${dpd} Hari.
-             - POIN KUNCI: Tagih tunggakan sebesar ${tunggakanStr} yang belum terbayar dari jadwal kumpulan ${prsContext}.
-             - Fokus: Ingatkan kewajiban membayar dengan tegas namun tetap profesional.
-             - Tanyakan kendala kenapa tidak setor saat kumpulan tanggal ${contact.tglPrs || 'tersebut'}.
-             `;
+             strategyGuide = `STRATEGI: STANDARD COLLECTION. Status: ${contact.flagMenunggak}. Tagih ${tunggakanStr}. Ingatkan kewajiban & tanyakan kendala.`;
         }
     } else if (isInactive) {
-        // KONDISI 2: WINBACK (MANTAN NASABAH)
-        const lunasInfo = contact.tglLunas ? `sejak tanggal ${contact.tglLunas}` : "beberapa waktu lalu";
-        strategyGuide = `
-        STRATEGI: WINBACK (AJAK GABUNG KEMBALI)
-        - Nasabah ini statusnya SUDAH LUNAS / KELUAR (${lunasInfo}).
-        - Fokus: SILATURAHMI & RE-AKUISISI.
-        - Sapa sebagai kawan lama, tanyakan kabar usaha dan keluarganya.
-        - Informasikan bahwa BTPN Syariah terbuka jika beliau ingin mengajukan pembiayaan lagi.
-        `;
+        strategyGuide = `STRATEGI: WINBACK. Mantan nasabah (Lunas: ${contact.tglLunas || 'Lama'}). Sapa hangat, tanyakan kabar, tawarkan gabung kembali.`;
     } else if (isJatuhTempo) {
-        // KONDISI 3: REFINANCING (NASABAH LANCAR MAU LUNAS)
-        strategyGuide = `
-        STRATEGI: REFINANCING (TAWARAN TAMBAH MODAL)
-        - Nasabah ini LANCAR dan angsuran akan segera selesai (Jatuh Tempo: ${contact.tglJatuhTempo}).
-        - Fokus: APRESIASI & RETENSI.
-        - Ucapkan terima kasih karena angsurannya lancar.
-        - Tawarkan pencairan tahap berikutnya (Tambah Modal) untuk pengembangan usaha.
-        `;
+        strategyGuide = `STRATEGI: REFINANCING. Nasabah Lancar mau lunas. Ucapkan selamat, tawarkan tambah modal (Pencairan Tahap Lanjut).`;
     } else if (isLantakur) {
-        // KONDISI 4: LANTAKUR (Lancar Tabungan Kurang)
-        strategyGuide = `
-        STRATEGI: EDUKASI MENABUNG (LANTAKUR)
-        - Nasabah ini STATUS LANCAR, tetapi saldo tabungannya kurang dari 1x angsuran (Status: LANTAKUR).
-        - Fokus: EDUKASI & PERSIAPAN.
-        - Apresiasi kelancaran angsurannya selama ini.
-        - Ingatkan dengan halus pentingnya menambah saldo tabungan sukarela untuk dana cadangan/jaga-jaga jika berhalangan hadir.
-        - "Bu, sekadar mengingatkan, kalau ada rezeki lebih boleh ditambah tabungannya ya Bu untuk jaga-jaga..."
-        `;
+        strategyGuide = `STRATEGI: EDUKASI MENABUNG. Nasabah Lancar tapi tabungan kurang. Apresiasi angsuran, ajak tambah tabungan sukarela.`;
     } else {
-        // KONDISI 5: MAINTENANCE (UMUM)
-        strategyGuide = `
-        STRATEGI: RELATIONSHIP MAINTENANCE
-        - Fokus: Menjaga hubungan baik.
-        - Sapaan hangat, tanyakan kabar sentra/kelompok.
-        `;
+        strategyGuide = `STRATEGI: RELATIONSHIP MAINTENANCE. Sapaan hangat rutin untuk menjaga silaturahmi.`;
     }
 
     // --- 2. PREPARE DATA DETAIL ---
     let details = `
-      Nama Nasabah: ${contact.name}
-      Status/Flag: ${contact.flag}
+      Nama: ${contact.name}
+      Status: ${contact.flag} | ${contact.flagMenunggak || 'Lancar'}
       Sentra: ${contact.sentra || '-'}
-      CO (Petugas): ${contact.co || 'Admin'}
+      CO: ${contact.co || 'Admin'}
+      Produk: ${contact.produk || '-'}
+      Angsuran: ${contact.angsuran || '-'}
+      Tunggakan: ${contact.tunggakan || '-'}
+      Sisa OS: ${contact.os || '-'}
+      Tabungan: ${contact.saldoTabungan || '-'}
+      DPD: ${dpd} hari
+      Jatuh Tempo: ${contact.tglJatuhTempo || '-'}
+      Tgl PRS: ${contact.tglPrs || '-'}
     `;
-
-    if (contact.produk) details += `\n      Produk: ${contact.produk}`;
-    if (contact.plafon) details += `\n      Plafon Terakhir: ${contact.plafon}`;
-    if (contact.angsuran) details += `\n      Nominal Angsuran: ${contact.angsuran}`;
-    if (contact.tunggakan) details += `\n      Total Tunggakan: ${contact.tunggakan}`;
-    if (contact.os) details += `\n      Sisa Hutang (OS): ${contact.os}`;
-    if (contact.saldoTabungan) details += `\n      Saldo Tabungan: ${contact.saldoTabungan}`;
-    if (contact.dpd) details += `\n      Keterlambatan (DPD): ${dpd} hari`; 
-    if (contact.flagMenunggak) details += `\n      Status Kolektabilitas: ${contact.flagMenunggak}`;
-    if (contact.flagLantakur) details += `\n      Status Tabungan: ${contact.flagLantakur}`;
-    if (contact.tglJatuhTempo) details += `\n      Tanggal Jatuh Tempo: ${contact.tglJatuhTempo}`;
-    if (contact.tglLunas) details += `\n      Tanggal Pelunasan (Lunas): ${contact.tglLunas}`;
-    if (contact.tglPrs) details += `\n      Jadwal Kumpulan (PRS): ${contact.tglPrs}`;
 
     // --- 3. CONSTRUCT PROMPT ---
     const prompt = `
-      Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional, hangat, dan kekeluargaan.
-      Buatkan pesan WhatsApp (Bahasa Indonesia) yang personal.
+      Bertindaklah sebagai Community Officer (CO) BTPN Syariah yang profesional namun sangat kekeluargaan (khas ibu-ibu sentra).
+      Tugasmu: Buatkan pesan WhatsApp personal (Bahasa Indonesia).
 
       DATA NASABAH:
       ${details}
 
-      PANDUAN STRATEGI AI (WAJIB DIIKUTI):
+      PANDUAN STRATEGI:
       ${strategyGuide}
 
-      KONTEKS / TUJUAN PESAN DARI USER: 
+      INSTRUKSI USER: 
       "${context}"
       
       TONE: ${tone}
 
-      Panduan Gaya Bahasa BTPN Syariah:
-      - Gunakan sapaan "Ibu" diikuti nama nasabah.
-      - Bahasa percakapan yang luwes, tidak kaku seperti robot, khas ibu-ibu pengajian/sentra.
-      - Prinsip: Memberdayakan dan Tumbuh Bersama.
-      - Pesan singkat, padat, personal, tanpa subject line.
-      - Output hanya teks pesan saja.
+      Panduan Gaya Bahasa:
+      - Sapaan "Ibu {Nama}".
+      - Jangan kaku seperti robot. Gunakan bahasa lisan yang sopan, hangat, dan empati.
+      - Output HANYA teks pesan (tanpa subject/penjelasan).
     `;
 
+    // UPGRADE: Use Gemini 3 Pro with Thinking Mode
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 32768 },
+      }
     });
 
     return response.text || "Maaf, tidak dapat membuat pesan saat ini.";
@@ -181,7 +118,7 @@ export const generateWhatsAppMessage = async (
 
 export const generateBroadcastMessage = async (
   context: string,
-  targetAudience: string, // e.g. "Semua Nasabah Sentra Mawar"
+  targetAudience: string,
   tone: 'formal' | 'casual' | 'friendly' = 'friendly',
   overrideApiKey?: string
 ): Promise<string> => {
@@ -192,22 +129,18 @@ export const generateBroadcastMessage = async (
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
-      Bertindaklah sebagai Community Officer (CO) BTPN Syariah.
-      Buatkan SATU template pesan WhatsApp broadcast (Bahasa Indonesia) yang bersifat umum untuk dikirimkan ke banyak nasabah sekaligus.
-      
-      TARGET AUDIENCE: ${targetAudience}
-      TUJUAN PESAN: ${context}
-      TONE: ${tone}
+      Bertindaklah sebagai CO BTPN Syariah. Buatkan SATU template pesan Broadcast WhatsApp.
+      Target: ${targetAudience}
+      Tujuan: ${context}
+      Tone: ${tone}
 
-      INSTRUKSI PENTING:
-      1. Ini adalah pesan untuk Broadcast Massal.
-      2. WAJIB gunakan placeholder "{name}" (persis, huruf kecil, kurung kurawal) di mana nama nasabah seharusnya berada.
-         Contoh: "Assalamualaikum Ibu {name}, semoga sehat selalu..."
-      3. JANGAN gunakan nama spesifik orang, JANGAN gunakan sapaan spesifik selain "{name}".
-      4. Gaya bahasa hangat, sopan, khas ibu-ibu pengajian/sentra.
-      5. Output hanya teks pesan saja.
+      Aturan:
+      1. WAJIB gunakan placeholder "{name}" untuk nama nasabah.
+      2. Bahasa hangat, sopan, merangkul.
+      3. Output HANYA teks pesan.
     `;
 
+    // Broadcast uses fast model
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -226,28 +159,15 @@ export const extractContactsFromText = async (rawText: string, overrideApiKey?: 
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-
-    const prompt = `
-      Ekstrak data kontak dari teks mentah berikut ini dan ubah menjadi format JSON Array.
-      Setiap objek harus memiliki properti: "name", "phone" (format +62), "flag" (Gold/Silver/Platinum/Prospect), "sentra", "plafon".
-      
-      Teks Mentah:
-      ${rawText}
-
-      Output hanya JSON valid saja.
-    `;
+    const prompt = `Ekstrak data kontak (JSON Array) dari teks ini. Properti: name, phone (format 62), flag, sentra. Teks:\n${rawText}`;
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: {
-            responseMimeType: "application/json"
-        }
+        config: { responseMimeType: "application/json" }
     });
-    
     return response.text || "[]";
   } catch (error) {
-    console.error("Error parsing contacts:", error);
     return "[]";
   }
 }
