@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
@@ -5,7 +6,7 @@ import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupab
 import { getSheetConfig, saveSheetConfig } from '../services/dbService';
 import { saveTemplatesToSheet } from '../services/sheetService';
 import { GLOBAL_CONFIG } from '../config';
-import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug } from 'lucide-react';
+import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug, Table } from 'lucide-react';
 
 interface AdminPanelProps {
   // Removed isOpen since it's a page now
@@ -547,6 +548,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 onChange={e => setSheetConfig({...sheetConfig, googleScriptUrl: e.target.value})}
                             />
                         </div>
+                        
+                        {/* NEW: PLAN SHEET NAME CONFIG */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
+                                Nama Tab Plan <Table className="w-3 h-3" />
+                            </label>
+                            <input 
+                                type="text" 
+                                className="w-full border border-slate-200 rounded-xl p-3 text-sm text-slate-800 font-bold text-orange-600 focus:ring-2 focus:ring-orange-500/50 outline-none"
+                                value={sheetConfig.planSheetName || 'Plan'}
+                                onChange={e => setSheetConfig({...sheetConfig, planSheetName: e.target.value})}
+                                placeholder="Plan"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">Default: "Plan". Ganti jika Anda membuat sheet baru (misal: "Plan 2025").</p>
+                        </div>
+
                         <div className="border-t border-slate-100 pt-4 mt-4">
                             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
                                 Gemini API Key <Key className="w-3 h-3" />
