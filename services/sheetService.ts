@@ -216,6 +216,85 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
   return contacts;
 };
 
+export const fetchPlansFromSheet = async (spreadsheetId: string, sheetName: string = 'Plan'): Promise<DailyPlan[]> => {
+    const { headers, rows } = await fetchAndParseSheet(spreadsheetId, sheetName);
+    if (rows.length === 0) return [];
+
+    // Map Headers based on Apps Script Structure
+    const map = {
+        id: findColIndex(headers, ['id', 'key']),
+        date: findColIndex(headers, ['tanggal', 'date', 'tgl']),
+        coName: findColIndex(headers, ['co', 'petugas']),
+        
+        // Target
+        swCurrentNoa: findColIndex(headers, ['plan sw cur noa']),
+        swCurrentDisb: findColIndex(headers, ['plan sw cur disb']),
+        swNextNoa: findColIndex(headers, ['plan sw next noa']),
+        swNextDisb: findColIndex(headers, ['plan sw next disb']),
+        colCtxNoa: findColIndex(headers, ['plan ctx noa']),
+        colCtxOs: findColIndex(headers, ['plan ctx os']),
+        colLantakurNoa: findColIndex(headers, ['plan lantakur noa']),
+        colLantakurOs: findColIndex(headers, ['plan lantakur os']),
+        fppbNoa: findColIndex(headers, ['plan fppb']),
+        biometrikNoa: findColIndex(headers, ['plan biometrik']),
+
+        // Actual
+        actualSwNoa: findColIndex(headers, ['aktual sw cur noa', 'actual sw cur noa']),
+        actualSwDisb: findColIndex(headers, ['aktual sw cur disb', 'actual sw cur disb']),
+        actualSwNextNoa: findColIndex(headers, ['aktual sw next noa', 'actual sw next noa']),
+        actualSwNextDisb: findColIndex(headers, ['aktual sw next disb', 'actual sw next disb']),
+        actualCtxNoa: findColIndex(headers, ['aktual ctx noa', 'actual ctx noa']),
+        actualCtxOs: findColIndex(headers, ['aktual ctx os', 'actual ctx os']),
+        actualLantakurNoa: findColIndex(headers, ['aktual lantakur noa', 'actual lantakur noa']),
+        actualLantakurOs: findColIndex(headers, ['aktual lantakur os', 'actual lantakur os']),
+        actualFppbNoa: findColIndex(headers, ['aktual fppb', 'actual fppb']),
+        actualBiometrikNoa: findColIndex(headers, ['aktual biometrik', 'actual biometrik']),
+    };
+
+    const plans: DailyPlan[] = [];
+
+    for (const row of rows) {
+        const getVal = (idx: number) => (idx !== -1 && row[idx]) ? row[idx] : '0';
+        const rawDate = (map.date !== -1 && row[map.date]) ? row[map.date] : '';
+        const coName = (map.coName !== -1 && row[map.coName]) ? row[map.coName] : 'Unknown';
+
+        // Skip invalid rows
+        if (!rawDate || !coName) continue;
+
+        plans.push({
+            id: getVal(map.id) || `${rawDate}-${coName}`,
+            date: normalizeSheetDate(rawDate),
+            coName: coName,
+            
+            // Targets
+            swCurrentNoa: getVal(map.swCurrentNoa),
+            swCurrentDisb: getVal(map.swCurrentDisb),
+            swNextNoa: getVal(map.swNextNoa),
+            swNextDisb: getVal(map.swNextDisb),
+            colCtxNoa: getVal(map.colCtxNoa),
+            colCtxOs: getVal(map.colCtxOs),
+            colLantakurNoa: getVal(map.colLantakurNoa),
+            colLantakurOs: getVal(map.colLantakurOs),
+            fppbNoa: getVal(map.fppbNoa),
+            biometrikNoa: getVal(map.biometrikNoa),
+
+            // Actuals
+            actualSwNoa: getVal(map.actualSwNoa),
+            actualSwDisb: getVal(map.actualSwDisb),
+            actualSwNextNoa: getVal(map.actualSwNextNoa),
+            actualSwNextDisb: getVal(map.actualSwNextDisb),
+            actualCtxNoa: getVal(map.actualCtxNoa),
+            actualCtxOs: getVal(map.actualCtxOs),
+            actualLantakurNoa: getVal(map.actualLantakurNoa),
+            actualLantakurOs: getVal(map.actualLantakurOs),
+            actualFppbNoa: getVal(map.actualFppbNoa),
+            actualBiometrikNoa: getVal(map.actualBiometrikNoa),
+        });
+    }
+
+    return plans;
+};
+
 export const fetchTemplatesFromSheet = async (spreadsheetId: string, sheetName: string = 'Templates'): Promise<MessageTemplate[]> => {
     const { headers, rows } = await fetchAndParseSheet(spreadsheetId, sheetName, 2);
     if (rows.length === 0) return [];
