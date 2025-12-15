@@ -13,7 +13,7 @@ import { TodoInputModal } from './components/TodoInputModal';
 import { PlanHistoryPanel } from './components/PlanHistoryPanel'; 
 import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
-import { fetchContactsFromSheet, submitPlanToSheet, fetchPlansFromSheet } from './services/sheetService';
+import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase } from './services/supabaseService';
 import { getSheetConfig, saveSheetConfig, getAllTemplates, saveBulkTemplates } from './services/dbService';
 import { Home, Bell, Radio, Settings, Trophy, RefreshCw, AlertTriangle, ClipboardList, Calendar, BarChart3, TrendingUp, Contact as ContactIcon, ChevronRight, Briefcase } from 'lucide-react';
@@ -120,7 +120,7 @@ const App: React.FC = () => {
                 console.error("Sheet fetch error:", err);
             }
             
-            // B. Plans from Supabase (Priority)
+            // B. Plans from Supabase
             if (isSupabaseConfigured()) {
                 try {
                     const dbPlans = await fetchPlansFromSupabase();
@@ -306,42 +306,8 @@ const App: React.FC = () => {
 
   const handleSyncSheet = async () => {
     setIsSyncing(true);
-    try {
-        if (!activeConfig?.spreadsheetId) {
-            await loadData();
-            return;
-        }
-
-        // 1. Fetch Contacts (Existing)
-        const liveContacts = await fetchContactsFromSheet(activeConfig.spreadsheetId, activeConfig.sheetName);
-        setContacts(liveContacts);
-
-        // 2. Fetch Plans from Sheet (NEW: 2-Way Sync Read)
-        const sheetPlans = await fetchPlansFromSheet(activeConfig.spreadsheetId, activeConfig.planSheetName || 'Plan');
-        
-        // 3. Update Local State
-        if (sheetPlans.length > 0) {
-            setDailyPlans(sheetPlans);
-            
-            // 4. Update Supabase (Sync Sheet -> Supabase)
-            if (isSupabaseConfigured()) {
-                // Upsert all fetched plans to Supabase to ensure it matches Sheet
-                await Promise.all(sheetPlans.map(p => savePlanToSupabase(p)));
-            }
-        } else {
-            // Fallback to Supabase if sheet is empty or fail
-             if (isSupabaseConfigured()) {
-                const dbPlans = await fetchPlansFromSupabase();
-                setDailyPlans(dbPlans);
-            }
-        }
-
-    } catch (e) {
-        console.error("Sync failed:", e);
-        alert("Gagal sinkronisasi data. Periksa koneksi internet.");
-    } finally {
-        setIsSyncing(false);
-    }
+    await loadData();
+    setIsSyncing(false);
   };
 
   const handleUpdateContact = (updatedContact: Contact) => {
@@ -353,23 +319,14 @@ const App: React.FC = () => {
   };
 
   const handleSavePlan = async (plan: DailyPlan) => {
-     // 1. Save to State
-     setDailyPlans(prev => {
-         const idx = prev.findIndex(p => p.id === plan.id);
-         return idx >= 0 ? prev.map((p, i) => i === idx ? plan : p) : [...prev, plan];
-     });
-
-     // 2. Save to Supabase (Database)
      if (isSupabaseConfigured()) {
+         setDailyPlans(prev => {
+             const idx = prev.findIndex(p => p.id === plan.id);
+             return idx >= 0 ? prev.map((p, i) => i === idx ? plan : p) : [...prev, plan];
+         });
          await savePlanToSupabase(plan);
      } else {
-         console.warn("Database Supabase belum dikonfigurasi.");
-     }
-
-     // 3. Save to Google Sheet (NEW: 2-Way Sync Write)
-     if (activeConfig?.googleScriptUrl) {
-         // Fire and forget to avoid blocking UI
-         submitPlanToSheet(activeConfig.googleScriptUrl, plan, activeConfig.enableDebugMode);
+         alert("Database belum dikonfigurasi.");
      }
   };
 
