@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
 import { saveTemplatesToSupabase, fetchSettingsFromSupabase, saveSettingsToSupabase, isSupabaseConfigured } from '../services/supabaseService';
-import { getSheetConfig, saveSheetConfig } from '../services/dbService';
+import { getSheetConfig, saveSheetConfig, saveBulkTemplates } from '../services/dbService';
 import { saveTemplatesToSheet } from '../services/sheetService';
 import { X, Plus, Trash2, Check, LayoutTemplate, Database, AlertTriangle, Save, PlayCircle, Bot, Type, Info, Layers, ChevronRight, Wand2, Eye, Key, Loader2, ArrowLeft, RefreshCw, Sliders, Monitor, Zap, Cloud, Wifi, WifiOff, FileSpreadsheet, Bug, Table, UserCircle2 } from 'lucide-react';
 
@@ -103,18 +103,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       updatedTemplates = [...templates, newTemplate];
     }
     
+    // Update State
     onUpdateTemplates(updatedTemplates);
+    setIsSavingTemplates(true);
 
-    if (isSupabaseConfigured()) {
-        setIsSavingTemplates(true);
-        try {
+    try {
+        // 1. Save Locally (Critical for offline)
+        await saveBulkTemplates(updatedTemplates);
+
+        // 2. Sync to Cloud
+        if (isSupabaseConfigured()) {
             await saveTemplatesToSupabase(updatedTemplates);
-        } catch (e) {
-            console.error("Failed to sync templates to Supabase:", e);
-            alert("Gagal menyimpan ke Supabase.");
-        } finally {
-            setIsSavingTemplates(false);
         }
+    } catch (e) {
+        console.error("Failed to sync templates:", e);
+        alert("Template disimpan di lokal, namun gagal sync ke cloud.");
+    } finally {
+        setIsSavingTemplates(false);
     }
   };
 
@@ -125,16 +130,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       onUpdateTemplates(remaining);
       setSelectedTemplateId(null);
       setEditForm({});
-
-      if (isSupabaseConfigured()) {
-        setIsSavingTemplates(true);
-        try {
-            await saveTemplatesToSupabase(remaining);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsSavingTemplates(false);
-        }
+      
+      setIsSavingTemplates(true);
+      try {
+          await saveBulkTemplates(remaining); // Local
+          if (isSupabaseConfigured()) {
+            await saveTemplatesToSupabase(remaining); // Cloud
+          }
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsSavingTemplates(false);
       }
     }
   };
@@ -143,17 +149,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!defaultTemplates) return;
       if (window.confirm("PERINGATAN: Ini akan menghapus semua template yang ada dan menggantinya dengan Template Standar (Termasuk Penagihan CTX). Lanjutkan?")) {
           onUpdateTemplates(defaultTemplates);
-          if (isSupabaseConfigured()) {
-              setIsSavingTemplates(true);
-              try {
-                  await saveTemplatesToSupabase(defaultTemplates);
+          setIsSavingTemplates(true);
+          try {
+              await saveBulkTemplates(defaultTemplates); // Local
+              if (isSupabaseConfigured()) {
+                  await saveTemplatesToSupabase(defaultTemplates); // Cloud
                   alert("Template berhasil direset ke standar.");
-              } catch (e) {
-                  console.error(e);
-                  alert("Gagal reset database.");
-              } finally {
-                  setIsSavingTemplates(false);
               }
+          } catch (e) {
+              console.error(e);
+              alert("Gagal reset database.");
+          } finally {
+              setIsSavingTemplates(false);
           }
       }
   };

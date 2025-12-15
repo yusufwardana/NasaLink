@@ -15,7 +15,7 @@ import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase } from './services/supabaseService';
-import { getSheetConfig, saveSheetConfig } from './services/dbService';
+import { getSheetConfig, saveSheetConfig, getAllTemplates, saveBulkTemplates } from './services/dbService';
 import { Home, Bell, Radio, Settings, Trophy, RefreshCw, AlertTriangle, ClipboardList, Calendar, BarChart3, TrendingUp, Contact as ContactIcon, ChevronRight, Briefcase } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE DEFAULT
@@ -79,17 +79,23 @@ const App: React.FC = () => {
         let finalConfig: SheetConfig = { ...DEFAULT_EMPTY_CONFIG };
         let configFound = false;
         
+        // 1. CONFIGURATION LOADING
+        // Try Supabase first (Source of Truth)
         if (isSupabaseConfigured()) {
             try {
                 const supabaseSettings = await fetchSettingsFromSupabase();
                 if (supabaseSettings && supabaseSettings.spreadsheetId) {
                     finalConfig = { ...finalConfig, ...supabaseSettings };
                     configFound = true;
+                    // Cache config locally
                     await saveSheetConfig(finalConfig);
                 }
-            } catch (err) {}
+            } catch (err) {
+                console.warn("Supabase config fetch failed, falling back to local.");
+            }
         }
 
+        // Try Local DB if Supabase failed or empty
         if (!configFound) {
              try {
                 const localConfig = await getSheetConfig();
@@ -97,12 +103,16 @@ const App: React.FC = () => {
                      finalConfig = { ...finalConfig, ...localConfig };
                      configFound = true;
                 }
-             } catch (e) {}
+             } catch (e) {
+                 console.warn("Local config fetch failed.");
+             }
         }
         
         setActiveConfig(finalConfig);
 
+        // 2. DATA LOADING (If Config Exists)
         if (configFound && finalConfig.spreadsheetId) {
+            // A. Contacts from Sheet
             try {
                 const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
                 setContacts(liveContacts);
@@ -110,18 +120,54 @@ const App: React.FC = () => {
                 console.error("Sheet fetch error:", err);
             }
             
+            // B. Plans from Supabase
             if (isSupabaseConfigured()) {
                 try {
                     const dbPlans = await fetchPlansFromSupabase();
                     setDailyPlans(dbPlans);
-                    
-                    const sbTemplates = await fetchTemplatesFromSupabase();
-                    setTemplates(sbTemplates.length > 0 ? sbTemplates : INITIAL_TEMPLATES_FALLBACK);
-                } catch (err) {}
-            } else {
-                setTemplates(INITIAL_TEMPLATES_FALLBACK);
+                } catch (err) {
+                    console.error("Plans fetch failed:", err);
+                }
             }
+
+            // C. Templates (Supabase -> Local -> Fallback)
+            let loadedTemplates: MessageTemplate[] = [];
+            
+            // Try Supabase
+            if (isSupabaseConfigured()) {
+                try {
+                    const sbTemplates = await fetchTemplatesFromSupabase();
+                    if (sbTemplates && sbTemplates.length > 0) {
+                        loadedTemplates = sbTemplates;
+                        // Cache to local DB for offline access
+                        await saveBulkTemplates(sbTemplates);
+                    }
+                } catch (err) {
+                    console.warn("Supabase templates fetch failed, trying local.");
+                }
+            }
+
+            // Try Local DB if Supabase failed or returned nothing
+            if (loadedTemplates.length === 0) {
+                try {
+                    const localTemplates = await getAllTemplates();
+                    if (localTemplates && localTemplates.length > 0) {
+                        loadedTemplates = localTemplates;
+                    }
+                } catch (err) {
+                    console.warn("Local templates fetch failed.");
+                }
+            }
+
+            // Fallback
+            if (loadedTemplates.length === 0) {
+                loadedTemplates = INITIAL_TEMPLATES_FALLBACK;
+            }
+
+            setTemplates(loadedTemplates);
+
         } else {
+            // No Config
             setConfigError(true);
             setTemplates(INITIAL_TEMPLATES_FALLBACK);
         }
@@ -287,6 +333,11 @@ const App: React.FC = () => {
   const handleBulkUpdateMode = async (mode: 'ai' | 'manual') => {
       const updated = templates.map(t => ({ ...t, type: mode }));
       setTemplates(updated);
+      
+      // Update Local DB
+      await saveBulkTemplates(updated);
+      
+      // Update Cloud
       if (isSupabaseConfigured()) await saveTemplatesToSupabase(updated);
   };
 
