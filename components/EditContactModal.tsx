@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
 import { updateContactData } from '../services/sheetService';
-import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText } from 'lucide-react';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText, Check } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -24,35 +24,48 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<Contact>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     if (contact) {
       setFormData({ ...contact });
+      setSaveStatus('idle');
     }
-  }, [contact]);
+  }, [contact, isOpen]);
 
   if (!isOpen || !contact) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name) {
-      // OPTIMISTIC UI UPDATE:
-      // 1. Langsung update tampilan (UI) agar user merasa instan
-      onSave(formData as Contact);
-      onClose();
+      setIsSaving(true);
+      
+      try {
+          // 1. UI Update (Immediate)
+          onSave(formData as Contact);
+          
+          // 2. Background Sync
+          if (sheetConfig?.googleScriptUrl) {
+               await updateContactData(
+                   sheetConfig.googleScriptUrl, 
+                   formData.name, 
+                   formData.phone || '', 
+                   formData.notes || '',
+                   sheetConfig.enableDebugMode
+               );
+          }
+          
+          setSaveStatus('success');
+          // Close after short delay to show success tick
+          setTimeout(() => {
+              onClose();
+              setIsSaving(false);
+          }, 800);
 
-      // 2. Kirim data ke Google Sheets di Background (Fire & Forget)
-      if (sheetConfig?.googleScriptUrl) {
-           // Update Contact Data (Phone AND Notes)
-           updateContactData(
-               sheetConfig.googleScriptUrl, 
-               formData.name, 
-               formData.phone || '', 
-               formData.notes || '',
-               sheetConfig.enableDebugMode
-           ).catch(err => {
-                console.error("Background sync failed:", err);
-           });
+      } catch (err) {
+          console.error("Save failed:", err);
+          setSaveStatus('error');
+          setIsSaving(false);
       }
     }
   };
@@ -64,68 +77,24 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
     });
   };
 
-  const handleDelete = () => {
-      if(window.confirm(`Yakin ingin menghapus nasabah ${contact.name}?`)) {
-          onDelete(contact.id);
-          onClose();
-      }
-  };
-
   const handlePickContact = async () => {
     const nav = navigator as any;
-
     if (!('contacts' in nav && 'select' in nav.contacts)) {
-        alert('Fitur "Ambil Kontak" tidak didukung oleh browser ini.\n\nTips: Gunakan Google Chrome pada HP Android untuk menggunakan fitur ini.');
+        alert('Fitur "Ambil Kontak" hanya tersedia di Google Chrome (Android/iOS).');
         return;
     }
-
     try {
-        const props = ['name', 'tel'];
-        const opts = { multiple: false };
-        
-        const contacts = await nav.contacts.select(props, opts);
-        
+        const contacts = await nav.contacts.select(['name', 'tel'], { multiple: false });
         if (contacts && contacts.length > 0) {
             const selected = contacts[0];
-            
-            // Note: We only update phone, as Name is locked now
             let newPhone = formData.phone;
-            let phoneFound = false;
-            
             if (selected.tel && selected.tel.length > 0) {
-                 const validPhone = selected.tel.find((t: any) => t && String(t).trim().length > 0);
-                 
-                 if (validPhone) {
-                     let rawPhone = String(validPhone);
-                     let cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
-                     newPhone = cleanPhone;
-                     phoneFound = true;
-                 }
+                 newPhone = String(selected.tel[0]).replace(/[^0-9+]/g, '');
             }
-
-            if (!phoneFound) {
-                alert("Kontak yang dipilih tidak memiliki nomor telepon yang terbaca.");
-            }
-            
-            setFormData(prev => ({
-                ...prev,
-                phone: newPhone
-            }));
+            setFormData(prev => ({ ...prev, phone: newPhone }));
         }
     } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        console.error("Contact picker error:", err);
-        let msg = 'Gagal membuka kontak.';
-        if (err instanceof Error) {
-             if (err.name === 'NotAllowedError') {
-                 msg = 'Izin akses kontak ditolak. Mohon izinkan akses di pengaturan browser atau popup izin.';
-             } else if (err.name === 'SecurityError') {
-                 msg = 'Fitur ini memerlukan koneksi HTTPS yang aman.';
-             } else {
-                 msg = `Error: ${err.message}`;
-             }
-        }
-        alert(msg);
+        console.error(err);
     }
   };
 
@@ -138,9 +107,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] relative">
-        {/* Top glow */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50"></div>
-
+        
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
           <h2 className="text-xl font-bold text-slate-800">Edit Kontak</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full p-2 transition-colors">
@@ -150,17 +117,16 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
           
-          {/* WARNING BANNER */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-3">
              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
              <div className="text-xs text-blue-800 leading-relaxed">
-                 <span className="font-bold">Mode Live Sheet:</span> Data utama dikunci sesuai Google Sheet. 
+                 <span className="font-bold">Mode Sinkronisasi:</span> 
                  {sheetConfig?.googleScriptUrl ? (
                      <span className="text-green-700 font-bold block mt-1 flex items-center gap-1">
-                        <Zap className="w-3 h-3" /> Auto-Sync Aktif: HP & Catatan tersimpan.
+                        <Zap className="w-3 h-3" /> Auto-Save ke Google Sheets aktif.
                      </span>
                  ) : (
-                     <span className="text-orange-700 block mt-1">⚠ Script Update Belum Dipasang: Perubahan hanya sementara di layar ini.</span>
+                     <span className="text-orange-700 block mt-1">⚠ Script belum dipasang. Data hanya tersimpan di HP ini.</span>
                  )}
              </div>
           </div>
@@ -177,7 +143,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-orange-600 mb-2 uppercase tracking-wider">Nomor WhatsApp (Bisa Diedit)</label>
+            <label className="block text-xs font-bold text-orange-600 mb-2 uppercase tracking-wider">Nomor WhatsApp</label>
             <div className="relative">
                 <input
                   type="text"
@@ -185,89 +151,54 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
                   required
                   value={formData.phone || ''}
                   onChange={handleChange}
-                  className="w-full p-3 pr-12 bg-white border border-orange-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all shadow-sm"
+                  className="w-full p-3 pr-12 bg-white border border-orange-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-orange-500/50 outline-none transition-all shadow-sm"
                   placeholder="08..."
                 />
                 <button
                     type="button"
                     onClick={handlePickContact}
-                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-orange-600 hover:bg-orange-100 rounded-lg transition-colors z-10 cursor-pointer"
-                    title="Ambil dari Kontak HP"
+                    className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center text-orange-600 hover:bg-orange-100 rounded-lg transition-colors z-10"
                 >
                     <ContactIcon className="w-5 h-5" />
                 </button>
             </div>
           </div>
 
-          {/* NEW: NOTES FIELD */}
           <div>
             <label className="block text-xs font-bold text-orange-600 mb-2 uppercase tracking-wider flex items-center gap-1">
-                <FileText className="w-3.5 h-3.5" /> Catatan / Keterangan (Bisa Diedit)
+                <FileText className="w-3.5 h-3.5" /> Catatan / Keterangan
             </label>
             <textarea
               name="notes"
               rows={3}
               value={formData.notes || ''}
               onChange={handleChange}
-              className="w-full p-3 bg-white border border-orange-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 outline-none transition-all shadow-sm text-sm"
-              placeholder="Contoh: Janji bayar tgl 25, Usaha lancar, dll..."
+              className="w-full p-3 bg-white border border-orange-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-orange-500/50 outline-none transition-all shadow-sm text-sm"
+              placeholder="Tambahkan catatan penting..."
             />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-              <div>
-                <LabelLocked label="Flag (Segmen)" />
-                <input
-                  type="text"
-                  name="flag"
-                  disabled
-                  value={formData.flag || ''}
-                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
-                />
-              </div>
-              <div>
-                <LabelLocked label="Sentra" />
-                <input
-                  type="text"
-                  name="sentra"
-                  disabled
-                  value={formData.sentra || ''}
-                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
-                />
-              </div>
-          </div>
-          
-          {/* BTPN Specific Fields */}
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
               <div>
-                <LabelLocked label="CO (Petugas)" />
-                <input
-                  type="text"
-                  name="co"
-                  disabled
-                  value={formData.co || ''}
-                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
-                />
+                <LabelLocked label="Sentra" />
+                <input type="text" disabled value={formData.sentra || ''} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500" />
               </div>
                <div>
-                <LabelLocked label="Tgl Jatuh Tempo" />
-                <input
-                  type="text"
-                  name="tglJatuhTempo"
-                  disabled
-                  value={formData.tglJatuhTempo || ''}
-                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed outline-none"
-                />
+                <LabelLocked label="Jatuh Tempo" />
+                <input type="text" disabled value={formData.tglJatuhTempo || ''} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500" />
               </div>
           </div>
           
            <div className="pt-5 flex justify-end items-center border-t border-slate-100 mt-2 gap-3">
-                <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Batal</Button>
                 <Button 
                     type="submit" 
-                    icon={<Save className="w-4 h-4" />}
+                    disabled={isSaving}
+                    isLoading={isSaving}
+                    icon={saveStatus === 'success' ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    className={saveStatus === 'success' ? 'bg-green-600 border-green-600' : ''}
                 >
-                    Simpan Perubahan
+                    {saveStatus === 'success' ? 'Tersimpan!' : 'Simpan'}
                 </Button>
           </div>
         </form>
