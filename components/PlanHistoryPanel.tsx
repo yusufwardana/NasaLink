@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyPlan } from '../types';
-import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, FilterX, TrendingUp, AlertTriangle, CheckCircle2, DollarSign } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, Search, ChevronLeft, ChevronRight, FilterX, TrendingUp, AlertTriangle, CheckCircle2, DollarSign, Wallet } from 'lucide-react';
 
 interface PlanHistoryPanelProps {
   plans: DailyPlan[];
@@ -67,17 +67,18 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
   // Totals Calculation for Footer & Header Scoreboard
   const totals = useMemo(() => {
       const t = {
-          swCurT: 0, swCurR: 0,
+          // SW M-0 (Nominal/Disb)
           swCurDisbT: 0, swCurDisbR: 0,
-          swNextT: 0, swNextR: 0,
+          // SW M+1 (Nominal/Disb)
           swNextDisbT: 0, swNextDisbR: 0,
           
-          ctxT: 0, ctxR: 0, 
+          // CTX (OS/Nominal)
           ctxOsT: 0, ctxOsR: 0,
           
-          parT: 0, parR: 0,
+          // Lantakur (OS/Nominal)
           parOsT: 0, parOsR: 0,
           
+          // Admin (NOA - Keep as Count)
           fppbT: 0, fppbR: 0,
           bioT: 0, bioR: 0
       };
@@ -85,18 +86,16 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       tableData.forEach(row => {
           if (row.plan) {
             const p = row.plan;
-            t.swCurT += parseNum(p.swCurrentNoa); t.swCurR += parseNum(p.actualSwNoa);
-            t.swCurDisbT += parseNum(p.swCurrentDisb); t.swCurDisbR += parseNum(p.actualSwDisb);
             
-            t.swNextT += parseNum(p.swNextNoa); t.swNextR += parseNum(p.actualSwNextNoa);
+            // SW Focus on DISBURSEMENT (Nominal)
+            t.swCurDisbT += parseNum(p.swCurrentDisb); t.swCurDisbR += parseNum(p.actualSwDisb);
             t.swNextDisbT += parseNum(p.swNextDisb); t.swNextDisbR += parseNum(p.actualSwNextDisb);
             
-            t.ctxT += parseNum(p.colCtxNoa); t.ctxR += parseNum(p.actualCtxNoa);
+            // Collection Focus on OS (Nominal)
             t.ctxOsT += parseNum(p.colCtxOs); t.ctxOsR += parseNum(p.actualCtxOs);
-            
-            t.parT += parseNum(p.colLantakurNoa); t.parR += parseNum(p.actualLantakurNoa);
             t.parOsT += parseNum(p.colLantakurOs); t.parOsR += parseNum(p.actualLantakurOs);
             
+            // Admin Focus on NOA (Count)
             t.fppbT += parseNum(p.fppbNoa); t.fppbR += parseNum(p.actualFppbNoa);
             t.bioT += parseNum(p.biometrikNoa); t.bioR += parseNum(p.actualBiometrikNoa);
           }
@@ -124,10 +123,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
       let percent = isTargetSet ? (a / t) * 100 : 0;
       if (percent > 100) percent = 100;
 
-      // Color Logic (Traffic Light)
-      // Normal: Higher is better (Sales). Invert: Lower is better (Cost/Loss) - but for Collection, usually Higher Collection is better, so normal logic applies unless tracking NPF amount rising.
-      // Here we assume "Actual" means "Amount Collected" or "People Paid", so Higher is Better.
-      
+      // Color Logic
       let colorClass = 'bg-slate-200';
       let textClass = 'text-slate-500';
       
@@ -192,14 +188,14 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                   <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${Math.min(pct, 100)}%` }}></div>
               </div>
               <div className="mt-1 text-[9px] text-slate-400 text-right">
-                  {formatCompactNumber(actual, label.includes('Rp'))} / {formatCompactNumber(target, label.includes('Rp'))}
+                  {formatCompactNumber(actual, true)} / {formatCompactNumber(target, true)}
               </div>
           </div>
       );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-2 pb-24 animate-fade-in-up">
+    <div className="max-w-4xl mx-auto px-2 pb-24 animate-fade-in-up">
         {/* Header Navigation */}
         <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 shadow-sm px-4 py-3 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 -mx-2">
             <div className="flex items-center gap-3">
@@ -211,7 +207,7 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                         Monitoring Realisasi
                         <BarChart3 className="w-5 h-5 text-blue-600" />
                     </h2>
-                    <p className="text-xs text-slate-500">Papan Skor Harian Tim</p>
+                    <p className="text-xs text-slate-500">Target vs Aktual (Fokus Nominal)</p>
                 </div>
             </div>
 
@@ -225,21 +221,27 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             </div>
         </div>
 
-        {/* SCOREBOARD (HERO) */}
+        {/* SCOREBOARD (HERO) - FOCUS NOMINAL */}
         {tableData.length > 0 && (
             <div className="mb-6 overflow-x-auto pb-2 scrollbar-hide">
                 <div className="flex gap-3 min-w-max px-1">
-                    <ScoreCard label="SW M-0 (NOA)" target={totals.swCurT} actual={totals.swCurR} color="border-orange-200" icon={TrendingUp} />
-                    <ScoreCard label="SW M-0 (Rp)" target={totals.swCurDisbT} actual={totals.swCurDisbR} color="border-orange-200" icon={DollarSign} />
+                    <ScoreCard label="SW M-0 (Disb)" target={totals.swCurDisbT} actual={totals.swCurDisbR} color="border-orange-200" icon={Wallet} />
+                    <ScoreCard label="CTX (OS)" target={totals.ctxOsT} actual={totals.ctxOsR} color="border-red-200" icon={DollarSign} />
+                    <ScoreCard label="Lantakur (OS)" target={totals.parOsT} actual={totals.parOsR} color="border-amber-200" icon={AlertTriangle} />
                     
                     <div className="w-px bg-slate-200 mx-1"></div>
                     
-                    <ScoreCard label="CTX (NOA)" target={totals.ctxT} actual={totals.ctxR} color="border-red-200" icon={AlertTriangle} />
-                    <ScoreCard label="CTX (Rp)" target={totals.ctxOsT} actual={totals.ctxOsR} color="border-red-200" icon={DollarSign} />
-                    
-                    <div className="w-px bg-slate-200 mx-1"></div>
-
-                    <ScoreCard label="FPPB" target={totals.fppbT} actual={totals.fppbR} color="border-purple-200" icon={CheckCircle2} />
+                    {/* Admin keeps count */}
+                    <div className={`p-3 rounded-xl border border-purple-200 bg-white shadow-sm flex-1 min-w-[100px]`}>
+                        <div className="flex justify-between items-start mb-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">FPPB (NOA)</span>
+                            <CheckCircle2 className="w-4 h-4 text-slate-400 opacity-50" />
+                        </div>
+                        <div className="flex items-end gap-1">
+                            <span className="text-xl font-black text-slate-700">{totals.fppbR}</span>
+                            <span className="text-[10px] text-slate-400 mb-1">/{totals.fppbT}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         )}
@@ -256,39 +258,35 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         </div>
 
-        {/* TABLE WRAPPER */}
+        {/* TABLE WRAPPER - SIMPLIFIED COLUMNS */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden flex flex-col h-[calc(100vh-320px)] ring-1 ring-black/5">
             <div className="overflow-auto flex-1 custom-scrollbar relative">
-                <table className="w-full text-xs min-w-[1200px] border-collapse">
+                <table className="w-full text-xs min-w-[800px] border-collapse">
                     <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 shadow-sm sticky top-0 z-20">
                         <tr>
-                            <th className="p-3 text-left sticky left-0 bg-slate-50 border-r border-slate-200 w-[150px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                            <th className="p-3 text-left sticky left-0 bg-slate-50 border-r border-slate-200 w-[140px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                 Petugas (CO)
                             </th>
                             
-                            {/* Group SW */}
-                            <th className="p-2 text-center border-r border-orange-100 bg-orange-50/50 text-orange-700 min-w-[100px]">SW M-0 (NOA)</th>
-                            <th className="p-2 text-center border-r border-orange-200 bg-orange-50/50 text-orange-700 min-w-[100px]">SW M-0 (Rp)</th>
-                            <th className="p-2 text-center border-r border-slate-200 min-w-[90px]">SW M+1 (NOA)</th>
-                            <th className="p-2 text-center border-r border-slate-300 min-w-[90px]">SW M+1 (Rp)</th>
+                            {/* Group SW - DISBURSEMENT ONLY */}
+                            <th className="p-2 text-center border-r border-orange-200 bg-orange-50/50 text-orange-700 min-w-[110px]">SW M-0 (Disb)</th>
+                            <th className="p-2 text-center border-r border-slate-300 min-w-[110px]">SW M+1 (Disb)</th>
                             
-                            {/* Group CTX */}
-                            <th className="p-2 text-center border-r border-red-100 bg-red-50/50 text-red-700 min-w-[100px]">CTX (NOA)</th>
-                            <th className="p-2 text-center border-r border-red-200 bg-red-50/50 text-red-700 min-w-[100px]">CTX (Rp)</th>
+                            {/* Group CTX - OS ONLY */}
+                            <th className="p-2 text-center border-r border-red-200 bg-red-50/50 text-red-700 min-w-[110px]">CTX (OS)</th>
                             
-                            {/* Group Lantakur */}
-                            <th className="p-2 text-center border-r border-amber-100 bg-amber-50/50 text-amber-700 min-w-[90px]">Lantakur (NOA)</th>
-                            <th className="p-2 text-center border-r border-amber-200 bg-amber-50/50 text-amber-700 min-w-[90px]">Lantakur (Rp)</th>
+                            {/* Group Lantakur - OS ONLY */}
+                            <th className="p-2 text-center border-r border-amber-200 bg-amber-50/50 text-amber-700 min-w-[110px]">Lantakur (OS)</th>
                             
-                            {/* Admin */}
-                            <th className="p-2 text-center border-r border-purple-200 bg-purple-50/50 text-purple-700 min-w-[80px]">FPPB</th>
-                            <th className="p-2 text-center bg-indigo-50/50 text-indigo-700 min-w-[80px]">Biometrik</th>
+                            {/* Admin - NOA */}
+                            <th className="p-2 text-center border-r border-purple-200 bg-purple-50/50 text-purple-700 min-w-[70px]">FPPB</th>
+                            <th className="p-2 text-center bg-indigo-50/50 text-indigo-700 min-w-[70px]">Bio</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {tableData.length === 0 ? (
                             <tr>
-                                <td colSpan={11} className="p-12 text-center">
+                                <td colSpan={7} className="p-12 text-center">
                                     <div className="flex flex-col items-center justify-center text-slate-300">
                                         <FilterX className="w-12 h-12 mb-3 opacity-50" />
                                         <p className="text-base font-bold text-slate-400">Tidak ada data Rencana.</p>
@@ -307,44 +305,32 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
                                                 {idx + 1}
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="truncate max-w-[110px]" title={row.coName}>{row.coName}</div>
+                                                <div className="truncate max-w-[100px]" title={row.coName}>{row.coName}</div>
                                             </div>
                                         </div>
                                     </td>
                                     
-                                    {/* SW M-0 */}
-                                    <td className="border-r border-orange-100 bg-orange-50/10 group-hover:bg-orange-100/20">
-                                        <MetricCell target={row.plan?.swCurrentNoa || '0'} actual={row.plan?.actualSwNoa} />
-                                    </td>
+                                    {/* SW M-0 (Disb) */}
                                     <td className="border-r border-orange-200 bg-orange-50/10 group-hover:bg-orange-100/20 border-r-2 border-r-slate-200/50">
                                         <MetricCell target={row.plan?.swCurrentDisb || '0'} actual={row.plan?.actualSwDisb} isCurrency />
                                     </td>
 
-                                    {/* SW M+1 */}
-                                    <td className="border-r border-slate-100">
-                                        <MetricCell target={row.plan?.swNextNoa || '0'} actual={row.plan?.actualSwNextNoa} />
-                                    </td>
+                                    {/* SW M+1 (Disb) */}
                                     <td className="border-r border-slate-300 border-r-2">
                                         <MetricCell target={row.plan?.swNextDisb || '0'} actual={row.plan?.actualSwNextDisb} isCurrency />
                                     </td>
 
-                                    {/* CTX */}
-                                    <td className="border-r border-red-100 bg-red-50/10 group-hover:bg-red-100/20">
-                                        <MetricCell target={row.plan?.colCtxNoa || '0'} actual={row.plan?.actualCtxNoa} />
-                                    </td>
+                                    {/* CTX (OS) */}
                                     <td className="border-r border-red-200 bg-red-50/10 group-hover:bg-red-100/20 border-r-2 border-r-slate-200/50">
                                         <MetricCell target={row.plan?.colCtxOs || '0'} actual={row.plan?.actualCtxOs} isCurrency />
                                     </td>
 
-                                    {/* Lantakur */}
-                                    <td className="border-r border-amber-100 bg-amber-50/10 group-hover:bg-amber-100/20">
-                                        <MetricCell target={row.plan?.colLantakurNoa || '0'} actual={row.plan?.actualLantakurNoa} />
-                                    </td>
+                                    {/* Lantakur (OS) */}
                                     <td className="border-r border-amber-200 bg-amber-50/10 group-hover:bg-amber-100/20 border-r-2 border-r-slate-200/50">
                                         <MetricCell target={row.plan?.colLantakurOs || '0'} actual={row.plan?.actualLantakurOs} isCurrency />
                                     </td>
 
-                                    {/* Admin */}
+                                    {/* Admin (NOA) */}
                                     <td className="border-r border-purple-100 bg-purple-50/10 group-hover:bg-purple-100/20">
                                         <MetricCell target={row.plan?.fppbNoa || '0'} actual={row.plan?.actualFppbNoa} />
                                     </td>
@@ -361,39 +347,27 @@ export const PlanHistoryPanel: React.FC<PlanHistoryPanelProps> = ({
             {/* Sticky Footer Totals */}
             {tableData.length > 0 && (
                 <div className="bg-white border-t border-slate-200 p-0 overflow-x-auto z-30 shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">
-                    <table className="w-full text-xs min-w-[1200px]">
+                    <table className="w-full text-xs min-w-[800px]">
                         <tfoot>
                             <tr className="bg-slate-50">
-                                <td className="font-bold text-slate-700 w-[150px] p-3 pl-3 sticky left-0 bg-slate-50 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase text-[10px]">Total Tim</td>
+                                <td className="font-bold text-slate-700 w-[140px] p-3 pl-3 sticky left-0 bg-slate-50 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] uppercase text-[10px]">Total Tim</td>
                                 
                                 {/* SW M-0 */}
                                 <td className="p-2 text-center font-black text-orange-700 bg-orange-50 border-r border-orange-200">
-                                    {totals.swCurR}/{totals.swCurT}
-                                </td>
-                                <td className="p-2 text-center font-black text-orange-700 bg-orange-50 border-r border-slate-300">
                                     {formatCompactNumber(totals.swCurDisbR, true)}/{formatCompactNumber(totals.swCurDisbT, true)}
                                 </td>
                                 
                                 {/* SW M+1 */}
-                                <td className="p-2 text-center font-bold text-slate-600 border-r border-slate-200">
-                                    {totals.swNextR}/{totals.swNextT}
-                                </td>
                                 <td className="p-2 text-center font-bold text-slate-600 border-r border-slate-300">
                                     {formatCompactNumber(totals.swNextDisbR, true)}/{formatCompactNumber(totals.swNextDisbT, true)}
                                 </td>
                                 
                                 {/* CTX */}
-                                <td className="p-2 text-center font-black text-red-700 bg-red-50 border-r border-red-200">
-                                    {totals.ctxR}/{totals.ctxT}
-                                </td>
                                 <td className="p-2 text-center font-black text-red-700 bg-red-50 border-r border-slate-300">
                                     {formatCompactNumber(totals.ctxOsR, true)}/{formatCompactNumber(totals.ctxOsT, true)}
                                 </td>
 
                                 {/* Lantakur */}
-                                <td className="p-2 text-center font-bold text-amber-700 bg-amber-50 border-r border-amber-200">
-                                    {totals.parR}/{totals.parT}
-                                </td>
                                 <td className="p-2 text-center font-bold text-amber-700 bg-amber-50 border-r border-slate-300">
                                     {formatCompactNumber(totals.parOsR, true)}/{formatCompactNumber(totals.parOsT, true)}
                                 </td>

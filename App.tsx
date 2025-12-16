@@ -432,12 +432,15 @@ const App: React.FC = () => {
 
       if (plansToday.length === 0) return null;
 
-      // AGGREGATE IF MULTIPLE
+      // AGGREGATE IF MULTIPLE (NOW AGGREGATING NOMINAL)
       const aggregated = plansToday.reduce((acc, curr) => ({
           ...acc,
-          swCurrentNoa: String((parseInt(acc.swCurrentNoa)||0) + (parseInt(curr.swCurrentNoa)||0)),
-          colCtxNoa: String((parseInt(acc.colCtxNoa)||0) + (parseInt(curr.colCtxNoa)||0)),
-          colLantakurNoa: String((parseInt(acc.colLantakurNoa)||0) + (parseInt(curr.colLantakurNoa)||0)),
+          // SW: Use Disbursement
+          swCurrentDisb: String((parseInt(acc.swCurrentDisb)||0) + (parseInt(curr.swCurrentDisb)||0)),
+          // Collection: Use OS
+          colCtxOs: String((parseInt(acc.colCtxOs)||0) + (parseInt(curr.colCtxOs)||0)),
+          // Lantakur: Use OS
+          colLantakurOs: String((parseInt(acc.colLantakurOs)||0) + (parseInt(curr.colLantakurOs)||0)),
           id: curr.id, 
           date: todayStr, // Ensure display date is standardized
           coName: 'Total Tim' 
@@ -445,6 +448,14 @@ const App: React.FC = () => {
 
       return aggregated;
   }, [dailyPlans]);
+
+  // Helper to format Millions (1.5jt)
+  const fmtMoney = (val: string) => {
+      const num = parseInt(val || '0', 10);
+      if (num === 0) return '0';
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'jt';
+      return (num / 1000).toFixed(0) + 'rb';
+  };
 
   const handleSyncSheet = async () => {
     setIsSyncing(true);
@@ -692,16 +703,16 @@ const App: React.FC = () => {
                 {todaysPlan ? (
                     <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[9px] text-slate-400 uppercase font-bold">SW</p>
-                            <p className="font-black text-slate-700">{todaysPlan.swCurrentNoa}</p>
+                            <p className="text-[9px] text-slate-400 uppercase font-bold">Est. Disb</p>
+                            <p className="font-black text-slate-700">{fmtMoney(todaysPlan.swCurrentDisb)}</p>
                         </div>
                         <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[9px] text-slate-400 uppercase font-bold">CTX</p>
-                            <p className="font-black text-slate-700">{todaysPlan.colCtxNoa}</p>
+                            <p className="text-[9px] text-slate-400 uppercase font-bold">Est. CTX OS</p>
+                            <p className="font-black text-slate-700">{fmtMoney(todaysPlan.colCtxOs)}</p>
                         </div>
                         <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[9px] text-slate-400 uppercase font-bold">Par</p>
-                            <p className="font-black text-slate-700">{todaysPlan.colLantakurNoa}</p>
+                            <p className="text-[9px] text-slate-400 uppercase font-bold">Lantakur OS</p>
+                            <p className="font-black text-slate-700">{fmtMoney(todaysPlan.colLantakurOs)}</p>
                         </div>
                     </div>
                 ) : (
