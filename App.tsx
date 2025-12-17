@@ -13,13 +13,14 @@ import { DashboardPanel } from './components/DashboardPanel';
 import { ContactManagementPanel } from './components/ContactManagementPanel';
 import { TodoInputModal } from './components/TodoInputModal'; // New Import
 import { PlanHistoryPanel } from './components/PlanHistoryPanel'; // NEW IMPORT
+import { MappingPanel } from './components/MappingPanel'; // NEW IMPORT
 import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
 import { fetchContactsFromSheet } from './services/sheetService';
 // UPDATED: Import Supabase Plan functions
 import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase } from './services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from './services/dbService';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart, UserCheck } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
@@ -51,6 +52,13 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     label: 'Tawaran Lanjut (Cair)', 
     type: 'ai', 
     promptContext: 'Nasabah ini sebentar lagi lunas (Jatuh Tempo). Berikan ucapan selamat atas kedisiplinannya. Tawarkan kesempatan untuk pengajuan pembiayaan kembali (tambah modal) untuk pengembangan usaha.', icon: '💰' 
+  },
+  { 
+    id: 'manual-last', 
+    label: 'Info Angsuran Terakhir', 
+    type: 'manual', 
+    content: 'Assalamualaikum Bu {name}. Alhamdulillah tidak terasa besok adalah jadwal angsuran terakhir (pelunasan) di sentra {sentra}. Terima kasih sudah amanah ya Bu. Ditunggu kehadirannya.', 
+    icon: '🏁' 
   },
   { 
     id: 'ai-winback', 
@@ -113,7 +121,7 @@ const DEFAULT_EMPTY_CONFIG: SheetConfig = {
 };
 
 // Add 'plans' to View Type
-type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts' | 'login' | 'plans';
+type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts' | 'login' | 'plans' | 'mapping';
 
 const App: React.FC = () => {
   // ... (State logic same as before) ...
@@ -534,7 +542,7 @@ const App: React.FC = () => {
                 <span className="text-[9px] font-medium">Beranda</span>
             </button>
             
-            <button onClick={() => setActiveView('dashboard')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' || activeView === 'plans' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={() => setActiveView('dashboard')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' || activeView === 'plans' || activeView === 'mapping' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <TrendingUp className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Kinerja</span>
             </button>
@@ -572,7 +580,7 @@ const App: React.FC = () => {
 
   if (activeView === 'login') return <AdminLoginPanel onBack={() => setActiveView('home')} onLogin={() => setActiveView('settings')} />;
   if (activeView === 'settings') return <><AdminPanel onBack={() => setActiveView('home')} templates={templates} onUpdateTemplates={setTemplates} onResetData={async () => { await loadData(); setActiveView('home'); }} defaultTemplates={INITIAL_TEMPLATES_FALLBACK} onBulkUpdateMode={handleBulkUpdateMode} currentConfig={activeConfig} />{renderBottomNav()}</>;
-  if (activeView === 'notifications') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><NotificationPanel items={upcomingEvents} onBack={() => setActiveView('home')} onRemind={(contact, type) => { let keywords: string[] = []; if (type === 'prs') { keywords = ['prs', 'kumpulan', 'besok']; } else if (type === 'payment') { const flag = (contact.flag || '').toLowerCase(); const status = (contact.status || '').toLowerCase(); const dpd = parseInt(contact.dpd || '0', 10); const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive'); const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak'); const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur'); if (isTrouble) { keywords = ['tagih', 'ctx', 'tunggak', 'bayar']; } else if (isLantakur) { keywords = ['lantakur', 'tabungan']; } else if (isInactive) { keywords = ['winback', 'gabung', 'tawar', 'cair']; } else { keywords = ['tawar', 'lanjut', 'cair', 'modal']; } } const found = templates.find(t => keywords.some(k => t.label.toLowerCase().includes(k))); setInitialTemplateId(found?.id || templates[0]?.id); setSelectedContact(contact); }} />{selectedContact && <MessageGeneratorModal contact={selectedContact} isOpen={!!selectedContact} onClose={() => setSelectedContact(null)} templates={templates} initialTemplateId={initialTemplateId} apiKey={activeConfig?.geminiApiKey} />}{renderBottomNav()}</div>;
+  if (activeView === 'notifications') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><NotificationPanel items={upcomingEvents} onBack={() => setActiveView('home')} onRemind={(contact, type) => { let keywords: string[] = []; if (type === 'prs') { keywords = ['prs', 'kumpulan', 'besok']; } else if (type === 'payment') { const flag = (contact.flag || '').toLowerCase(); const status = (contact.status || '').toLowerCase(); const dpd = parseInt(contact.dpd || '0', 10); const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive'); const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak'); const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur'); if (isTrouble) { keywords = ['tagih', 'ctx', 'tunggak', 'bayar']; } else if (isLantakur) { keywords = ['lantakur', 'tabungan']; } else if (isInactive) { keywords = ['winback', 'gabung', 'tawar', 'cair']; } else { keywords = ['tawar', 'lanjut', 'cair', 'modal', 'akhir']; } } const found = templates.find(t => keywords.some(k => t.label.toLowerCase().includes(k))); setInitialTemplateId(found?.id || templates[0]?.id); setSelectedContact(contact); }} />{selectedContact && <MessageGeneratorModal contact={selectedContact} isOpen={!!selectedContact} onClose={() => setSelectedContact(null)} templates={templates} initialTemplateId={initialTemplateId} apiKey={activeConfig?.geminiApiKey} />}{renderBottomNav()}</div>;
   if (activeView === 'broadcast') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><BroadcastPanel contacts={contacts} templates={templates} onBack={() => setActiveView('home')} apiKey={activeConfig?.geminiApiKey} />{renderBottomNav()}</div>;
   if (activeView === 'dashboard') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
       <div className="max-w-4xl mx-auto px-4 pt-4">
@@ -597,6 +605,38 @@ const App: React.FC = () => {
                 onBack={() => setActiveView('dashboard')}
                 availableCos={uniqueCos}
               />
+              {renderBottomNav()}
+          </div>
+      );
+  }
+
+  // --- NEW: MAPPING PANEL ---
+  if (activeView === 'mapping') {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
+              <MappingPanel 
+                  contacts={contacts} 
+                  onBack={() => setActiveView('home')} 
+                  config={activeConfig}
+                  onUpdateContact={handleUpdateContact}
+                  // CONNECT WHATSAPP GENERATOR
+                  onGenerateMessage={(c) => { 
+                      setSelectedContact(c); 
+                      // Try find Refinancing/Lanjut template first
+                      const t = templates.find(t => t.label.toLowerCase().includes('lanjut') || t.label.toLowerCase().includes('cair'));
+                      setInitialTemplateId(t?.id || templates[0]?.id);
+                  }}
+              />
+              {selectedContact && (
+                 <MessageGeneratorModal 
+                    contact={selectedContact} 
+                    isOpen={!!selectedContact} 
+                    onClose={() => setSelectedContact(null)} 
+                    templates={templates} 
+                    initialTemplateId={initialTemplateId} 
+                    apiKey={activeConfig?.geminiApiKey} 
+                 />
+              )}
               {renderBottomNav()}
           </div>
       );
@@ -680,7 +720,17 @@ const App: React.FC = () => {
                      <h3 className="font-bold text-slate-700 text-sm">Jadwal Harian</h3>
                      <p className="text-[10px] text-slate-400 mt-1">Cek Reminder</p>
                  </button>
-                 {/* NEW CARD: MONITORING REALISASI */}
+                 {/* NEW: MAPPING BUTTON */}
+                 <button onClick={() => setActiveView('mapping')} className="col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-teal-300 transition-all text-left group flex items-center justify-between">
+                     <div>
+                        <h3 className="font-bold text-slate-700 text-sm">Mapping Nasabah & Wording</h3>
+                        <p className="text-[10px] text-slate-400 mt-1">Status Lanjut 2026 + Share WA</p>
+                     </div>
+                     <div className="bg-teal-50 w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+                         <UserCheck className="w-5 h-5 text-teal-600" />
+                     </div>
+                 </button>
+                 {/* MONITORING CARD */}
                  <button onClick={() => setActiveView('plans')} className="col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left group flex items-center justify-between">
                      <div>
                         <h3 className="font-bold text-slate-700 text-sm">Monitoring Realisasi</h3>

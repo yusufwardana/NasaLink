@@ -93,14 +93,29 @@ export const generateWhatsAppMessage = async (
         - Informasikan bahwa BTPN Syariah terbuka jika beliau ingin mengajukan pembiayaan lagi.
         `;
     } else if (isJatuhTempo) {
-        // KONDISI 3: REFINANCING (NASABAH LANCAR MAU LUNAS)
-        strategyGuide = `
-        STRATEGI: REFINANCING (TAWARAN TAMBAH MODAL)
-        - Nasabah ini LANCAR dan angsuran akan segera selesai (Jatuh Tempo: ${contact.tglJatuhTempo}).
-        - Fokus: APRESIASI & RETENSI.
-        - Ucapkan terima kasih karena angsurannya lancar.
-        - Tawarkan pencairan tahap berikutnya (Tambah Modal) untuk pengembangan usaha.
-        `;
+        // KONDISI 3: REFINANCING / ANGSURAN TERAKHIR
+        const contextLower = context.toLowerCase();
+        const isLastInstallment = contextLower.includes('akhir') || contextLower.includes('pelunasan') || contextLower.includes('lunas');
+
+        if (isLastInstallment) {
+             strategyGuide = `
+             STRATEGI: ANGSURAN TERAKHIR (PELUNASAN)
+             - Nasabah ini akan segera LUNAS (Jatuh Tempo: ${contact.tglJatuhTempo}).
+             - Konteks: Mengingatkan jadwal angsuran TERAKHIR.
+             - Fokus: UCAPKAN TERIMA KASIH atas amanah & kerjasama selama ini.
+             - Berikan instruksi pelunasan dengan jelas.
+             - Jika nasabah "Lanjut", ingatkan untuk hadir tepat waktu proses pencairan tahap berikutnya.
+             - Jika nasabah "Istirahat", ucapkan doa semoga silaturahmi tetap terjalin.
+             `;
+        } else {
+             strategyGuide = `
+             STRATEGI: REFINANCING (TAWARAN TAMBAH MODAL)
+             - Nasabah ini LANCAR dan angsuran akan segera selesai (Jatuh Tempo: ${contact.tglJatuhTempo}).
+             - Fokus: APRESIASI & RETENSI.
+             - Ucapkan terima kasih karena angsurannya lancar.
+             - Tawarkan pencairan tahap berikutnya (Tambah Modal) untuk pengembangan usaha.
+             `;
+        }
     } else if (isLantakur) {
         // KONDISI 4: LANTAKUR (Lancar Tabungan Kurang)
         strategyGuide = `

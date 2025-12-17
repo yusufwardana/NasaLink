@@ -10,21 +10,22 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 - **AI Wording Generator:** Menggunakan **Gemini 2.5 Flash** untuk membuat pesan penagihan/penawaran super cerdas & manusiawi.
 - **Notifikasi Cerdas:** Peluang Refinancing & Jadwal PRS.
 - **Input Rencana Harian:** CO bisa input target & realisasi harian yang tersinkronisasi ke Sheet 'Plan'.
+- **Mapping Nasabah:** (New) Fitur untuk memetakan nasabah lanjut/tidak lanjut langsung ke sheet.
 - **System Debugging:** Fitur pencatatan log error ke sheet 'SystemLogs' untuk mempermudah perbaikan.
-- **Update Data:** Edit nomor HP dan Catatan (Notes) langsung dari aplikasi.
+- **Update Data:** Edit nomor HP, Catatan (Notes), dan Mapping langsung dari aplikasi.
 
 ## ⚙️ Setup & Instalasi
 
 ### 1. Konfigurasi Google Sheets (Data Nasabah)
 
-1. **Sheet "Data"**: Kolom (Baris 1): `CO`, `SENTRA`, `NASABAH`, `PLAFON`, `PRODUK`, `FLAG`, `TGL JATUH TEMPO`, `TGL PRS`, `STATUS`, `NOMER TELP`, `CATATAN`...
+1. **Sheet "Data"**: Kolom Wajib (Baris 1): `CO`, `SENTRA`, `NASABAH`, `FLAG`, `TGL JATUH TEMPO`, `NOMER TELP`, `CATATAN`, **`MAPPING`**.
 2. **Sheet "Plan"**: (Biarkan kosong, script akan otomatis membuat header).
-3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.6 - Support Notes Update):
+3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.8 - Support Clear Data & Mapping):
 
 ```javascript
 /**
  * B-CONNECT CRM BACKEND SCRIPT
- * Version: 3.6 (Updated Update Logic for Notes)
+ * Version: 3.8 (Fix: Support Clearing Data & Robust Mapping)
  */
 
 function doPost(e) {
@@ -184,7 +185,7 @@ function doPost(e) {
 
             if (colIndex > -1) {
                var val = p[key];
-               // UPDATED: Only force string for ID/CO, NOT for Date to keep it clean
+               // Force string for ID/CO to prevent auto-formatting
                if (key === 'id' || key === 'coName') {
                   val = "'" + val;
                }
@@ -204,8 +205,7 @@ function doPost(e) {
       return jsonResponse({ "result": "success", "row": rowIndex });
     }
 
-    // --- ACTION: UPDATE CONTACT (PHONE & NOTES) ---
-    // Updated from 'update_phone' to 'update_contact'
+    // --- ACTION: UPDATE CONTACT (PHONE, NOTES, MAPPING) ---
     if (payload.action === 'update_contact' || payload.action === 'update_phone') {
         var sheet = doc.getSheetByName('Data');
         if (!sheet) {
@@ -218,21 +218,32 @@ function doPost(e) {
              var headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
              var rowIdx = finder.getRow();
              
-             // 1. Update Phone
-             if (payload.phone) {
+             // 1. Update Phone (Support Clearing: Check undefined)
+             if (payload.phone !== undefined) {
                  var colIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/telp|phone|wa/); });
                  if (colIdx > -1) {
-                   sheet.getRange(rowIdx, colIdx + 1).setValue("'" + payload.phone);
+                   sheet.getRange(rowIdx, colIdx + 1).setValue("'" + payload.phone); // Force string
                    logToSheet("Updated phone for " + payload.name);
                  }
              }
              
-             // 2. Update Notes (New)
-             if (payload.notes) {
+             // 2. Update Notes
+             if (payload.notes !== undefined) {
                  var noteIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/catatan|note|keterangan/); });
                  if (noteIdx > -1) {
                    sheet.getRange(rowIdx, noteIdx + 1).setValue(payload.notes);
                    logToSheet("Updated notes for " + payload.name);
+                 }
+             }
+
+             // 3. Update Mapping
+             if (payload.mapping !== undefined) {
+                 var mapIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/mapping|keputusan|lanjut/); });
+                 if (mapIdx > -1) {
+                   sheet.getRange(rowIdx, mapIdx + 1).setValue(payload.mapping);
+                   logToSheet("Updated mapping for " + payload.name + " to " + payload.mapping);
+                 } else {
+                   logToSheet("Mapping column not found in headers");
                  }
              }
 
@@ -249,7 +260,7 @@ function doPost(e) {
           tSheet = doc.insertSheet('Templates');
           tSheet.appendRow(['ID', 'Label', 'Type', 'Prompt', 'Content', 'Icon']);
        } else {
-          tSheet.clearContents(); // Clear old backup
+          tSheet.clearContents();
           tSheet.appendRow(['ID', 'Label', 'Type', 'Prompt', 'Content', 'Icon']);
        }
        

@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Contact } from '../types';
-import { Phone, Pencil, MapPin, Wand2, UserCircle, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck, Users, Banknote, AlertTriangle } from 'lucide-react';
+import { Phone, Pencil, MapPin, Wand2, UserCircle, CheckCircle2, CreditCard, Box, Wallet, AlertOctagon, Landmark, CalendarCheck, Users, Banknote, AlertTriangle, UserCheck } from 'lucide-react';
 
 interface ContactCardProps {
   contact: Contact;
@@ -91,6 +92,19 @@ export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, on
              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getFlagStyle(contact.flag)}`}>
                 {contact.flag}
              </span>
+             
+             {/* MAPPING BADGE (NEW) */}
+             {contact.mapping && (
+                 <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                     contact.mapping === 'Lanjut' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
+                     contact.mapping === 'Istirahat' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                     'bg-amber-100 text-amber-700 border-amber-200'
+                 }`}>
+                     {contact.mapping === 'Lanjut' && <UserCheck className="w-3 h-3" />}
+                     {contact.mapping}
+                 </span>
+             )}
+
              {contact.flagMenunggak ? (
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getMenunggakStyle(contact.flagMenunggak)}`}>
                       {contact.flagMenunggak}

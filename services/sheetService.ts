@@ -163,6 +163,8 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
       tunggakan: findColIndex(headers, ['tunggakan', 'total tunggakan']),
       flagMenunggak: findColIndex(headers, ['flag menunggak', 'kolektabilitas', 'bucket']),
       flagLantakur: findColIndex(headers, ['flag lantakur', 'lantakur', 'tabungan kurang']),
+      // Mapping
+      mapping: findColIndex(headers, ['mapping', 'keputusan', 'lanjut']),
   };
 
   const contacts: Contact[] = [];
@@ -209,6 +211,8 @@ export const fetchContactsFromSheet = async (spreadsheetId: string, sheetName: s
           tunggakan: getVal(map.tunggakan),
           flagMenunggak: getVal(map.flagMenunggak),
           flagLantakur: getVal(map.flagLantakur),
+          // Mapping
+          mapping: getVal(map.mapping),
           lastInteraction: ''
       });
   }
@@ -276,12 +280,20 @@ export const saveTemplatesToSheet = async (scriptUrl: string, templates: Message
     });
 };
 
-export const updateContactData = async (scriptUrl: string, name: string, newPhone: string, newNotes: string, isDebug: boolean = false): Promise<void> => {
+export const updateContactData = async (
+    scriptUrl: string, 
+    name: string, 
+    newPhone?: string, 
+    newNotes?: string, 
+    newMapping?: string,
+    isDebug: boolean = false
+): Promise<void> => {
     await postToScript(scriptUrl, {
         action: 'update_contact',
         name: name,
         phone: newPhone,
         notes: newNotes,
+        mapping: newMapping, // ADDED MAPPING FIELD
         debug: isDebug
     });
 };

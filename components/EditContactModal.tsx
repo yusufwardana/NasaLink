@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
 import { updateContactData } from '../services/sheetService';
-import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText, Check } from 'lucide-react';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText, Check, Calendar, UserCheck } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -13,6 +13,15 @@ interface EditContactModalProps {
   onDelete: (id: string) => void;
   sheetConfig: SheetConfig | null;
 }
+
+const MAPPING_OPTIONS = [
+    'Lanjut', 
+    'Istirahat', 
+    'Bayar mundur', 
+    'Sakit', 
+    'Tidak boleh suami', 
+    'Loan sharing'
+];
 
 export const EditContactModal: React.FC<EditContactModalProps> = ({ 
   contact, 
@@ -51,6 +60,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
                    formData.name, 
                    formData.phone || '', 
                    formData.notes || '',
+                   formData.mapping || '', // Pass mapping if exists
                    sheetConfig.enableDebugMode
                );
           }
@@ -164,6 +174,29 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
             </div>
           </div>
 
+          {/* MAPPING DROPDOWN */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider flex items-center gap-1">
+                Keputusan Mapping <UserCheck className="w-3 h-3 text-slate-400" />
+            </label>
+            <div className="relative">
+                <select 
+                    name="mapping"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500/30 outline-none appearance-none"
+                    value={formData.mapping || ''}
+                    onChange={handleChange}
+                >
+                    <option value="">-- Belum Dipetakan --</option>
+                    {MAPPING_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-orange-600 mb-2 uppercase tracking-wider flex items-center gap-1">
                 <FileText className="w-3.5 h-3.5" /> Catatan / Keterangan
@@ -184,8 +217,18 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
                 <input type="text" disabled value={formData.sentra || ''} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500" />
               </div>
                <div>
-                <LabelLocked label="Jatuh Tempo" />
-                <input type="text" disabled value={formData.tglJatuhTempo || ''} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500" />
+                {/* UNLOCKED: TGL JATUH TEMPO */}
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider flex items-center gap-1">
+                    Jatuh Tempo <Calendar className="w-3 h-3 text-slate-400" />
+                </label>
+                <input 
+                    type="text" 
+                    name="tglJatuhTempo"
+                    value={formData.tglJatuhTempo || ''} 
+                    onChange={handleChange}
+                    placeholder="DD/MM/YYYY"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-orange-500/30 outline-none" 
+                />
               </div>
           </div>
           
