@@ -30,6 +30,9 @@ const MONTH_NAMES = [
 // Helper: Normalize strings to avoid mismatch due to trailing spaces
 const normalize = (str?: string) => (str || '').trim();
 
+// Helper delay
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export const MappingPanel: React.FC<MappingPanelProps> = ({ 
   contacts, 
   onBack,
@@ -49,6 +52,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   // Pending State (Draft changes before saving)
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 }); // Added Progress Tracking
   
   // --- HELPER: DATE PARSING ---
   const parseDateParts = (dateStr?: string) => {
@@ -97,7 +101,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   }, [activeContacts2026]);
 
   // 3. Extract Available COs (RESPONSIVE: Depends on Filter Month)
-  const availableCos = useMemo(() => {
+  const availableCos = useMemo((): string[] => {
       // If Month is selected, only show COs that have data in that month
       let source = activeContacts2026;
       
@@ -111,7 +115,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       }
 
       // Use Normalize to ensure cleanliness
-      const cos = new Set(source.map(c => normalize(c.co || 'Unassigned')));
+      const cos = new Set<string>(source.map(c => normalize(c.co || 'Unassigned')));
       return Array.from(cos).sort();
   }, [activeContacts2026, filterMonth]);
 
@@ -198,15 +202,16 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       }));
   };
 
-  // BATCH SAVE HANDLER (NEW LOGIC)
+  // BATCH SAVE HANDLER (NEW LOGIC WITH CHUNKING)
   const handleSaveChanges = async () => {
       const changesEntries = Object.entries(pendingChanges);
       if (changesEntries.length === 0) return;
 
       setIsSaving(true);
+      setSaveProgress({ current: 0, total: changesEntries.length });
       
       try {
-          // 1. Construct Batch Payload
+          // 1. Construct Full Payload
           const updatesPayload: { name: string, mapping: string }[] = [];
           
           changesEntries.forEach(([id, newMapping]) => {
@@ -221,12 +226,30 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
 
           const scriptUrl = config?.googleScriptUrl;
           if (updatesPayload.length > 0 && typeof scriptUrl === 'string' && scriptUrl.length > 0) {
-              // 2. Send SINGLE Batch Request
-              await updateContactMappingBatch(
-                  scriptUrl,
-                  updatesPayload,
-                  !!config?.enableDebugMode
-              );
+              const url = scriptUrl;
+              
+              // 2. CHUNKING STRATEGY (Pecah per 50 data agar GS tidak timeout)
+              const CHUNK_SIZE = 50;
+              
+              for (let i = 0; i < updatesPayload.length; i += CHUNK_SIZE) {
+                  const chunk = updatesPayload.slice(i, i + CHUNK_SIZE);
+                  
+                  await updateContactMappingBatch(
+                      url,
+                      chunk,
+                      !!config?.enableDebugMode
+                  );
+                  
+                  // Update Visual Progress
+                  setSaveProgress(prev => ({ ...prev, current: Math.min(prev.current + chunk.length, changesEntries.length) }));
+                  
+                  // Jeda sejenak agar server Google Sheets bisa "bernapas"
+                  if (i + CHUNK_SIZE < updatesPayload.length) {
+                      await delay(800); 
+                  }
+              }
+          } else if (!scriptUrl) {
+              alert("Perhatian: Script URL belum disetting. Data hanya tersimpan di aplikasi (hilang saat refresh).");
           }
 
           // 3. Update Local State (Optimistic)
@@ -239,13 +262,14 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
           });
 
           setPendingChanges({});
-          alert(`Berhasil mengirim ${updatesPayload.length} data ke server.`);
+          alert(`Selesai! ${updatesPayload.length} data berhasil diproses.`);
 
       } catch (e) {
           console.error("Batch save failed", e);
           alert("Gagal menyimpan data. Cek koneksi internet.");
       } finally {
           setIsSaving(false);
+          setSaveProgress({ current: 0, total: 0 });
       }
   };
 
@@ -459,7 +483,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                         className="bg-orange-500 hover:bg-orange-600 border-none shadow-lg shadow-orange-500/20 text-white min-w-[140px]"
                         icon={isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
                     >
-                        {isSaving ? `Menyimpan...` : 'Simpan Semua'}
+                        {isSaving ? `Menyimpan ${saveProgress.current}/${saveProgress.total}` : 'Simpan Semua'}
                     </Button>
                 </div>
             </div>

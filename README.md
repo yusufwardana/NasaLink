@@ -20,12 +20,12 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 
 1. **Sheet "Data"**: Kolom Wajib (Baris 1): `CO`, `SENTRA`, `NASABAH`, `FLAG`, `TGL JATUH TEMPO`, `NOMER TELP`, `CATATAN`, **`MAPPING`**.
 2. **Sheet "Plan"**: (Biarkan kosong, script akan otomatis membuat header).
-3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.9 - Support Batch Update):
+3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.9.1 - Case Insensitive Batch Update):
 
 ```javascript
 /**
  * B-CONNECT CRM BACKEND SCRIPT
- * Version: 3.9 (Fix: Batch Update for Reliability)
+ * Version: 3.9.1 (Fix: Case Insensitive Matching & Batch Stability)
  */
 
 function doPost(e) {
@@ -59,7 +59,7 @@ function doPost(e) {
        logToSheet("Incoming Request: " + payload.action);
     }
     
-    // --- ACTION: BATCH UPDATE MAPPING (NEW v3.9) ---
+    // --- ACTION: BATCH UPDATE MAPPING (NEW v3.9.1) ---
     // Update banyak baris sekaligus dalam satu request (Lebih cepat & stabil)
     if (payload.action === 'batch_update_mapping') {
         var sheet = doc.getSheetByName('Data');
@@ -71,6 +71,8 @@ function doPost(e) {
         // 1. Get Headers & Data
         var lastRow = sheet.getLastRow();
         var lastCol = sheet.getLastColumn();
+        if (lastRow < 2) return jsonResponse({ "result": "error", "msg": "Sheet empty" });
+
         var range = sheet.getRange(1, 1, lastRow, lastCol);
         var values = range.getValues();
         var headers = values[0].map(function(h) { return String(h).toLowerCase(); });
@@ -84,12 +86,14 @@ function doPost(e) {
             return jsonResponse({ "result": "error", "msg": "Columns missing" });
         }
 
-        // 3. Map Rows for O(1) Lookup
+        // 3. Map Rows for O(1) Lookup (Case Insensitive)
         var rowMap = {};
         for (var i = 1; i < values.length; i++) {
-            var rowName = String(values[i][nameIdx]).trim();
+            var rawName = String(values[i][nameIdx]);
+            var rowName = rawName ? rawName.trim().toLowerCase() : "";
             if (rowName) {
                 // Simpan index baris (0-based relative to values array)
+                // Jika duplikat, akan ambil yang terakhir (standar vlookup)
                 rowMap[rowName] = i; 
             }
         }
@@ -97,17 +101,21 @@ function doPost(e) {
         // 4. Process Updates
         var successCount = 0;
         updates.forEach(function(u) {
-            var targetRowIdx = rowMap[u.name];
-            if (targetRowIdx !== undefined) {
-                // Update Value in Memory Array first (optional if we want to write back whole block, but simple setValue is safer for concurrency if we use lock properly)
-                // Using individual setValue inside lock is safe. For extreme speed on 1000+ rows we'd rewrite whole sheet, but for <100 rows setValue is fine.
-                sheet.getRange(targetRowIdx + 1, mapIdx + 1).setValue(u.mapping);
-                successCount++;
+            if (u.name) {
+                var searchName = String(u.name).trim().toLowerCase();
+                var targetRowIdx = rowMap[searchName];
+                
+                if (targetRowIdx !== undefined) {
+                    // Update Cell Directly
+                    // targetRowIdx is index in 'values'. Row in sheet is +1 because values starts at row 1.
+                    sheet.getRange(targetRowIdx + 1, mapIdx + 1).setValue(u.mapping);
+                    successCount++;
+                }
             }
         });
 
         SpreadsheetApp.flush();
-        logToSheet("Batch update processed: " + successCount);
+        logToSheet("Batch update processed: " + successCount + "/" + updates.length);
         return jsonResponse({ "result": "success", "processed": successCount });
     }
 
