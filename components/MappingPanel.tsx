@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
@@ -28,7 +27,6 @@ const MONTH_NAMES = [
 ];
 
 const normalize = (str?: string) => (str || '').trim();
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const MappingPanel: React.FC<MappingPanelProps> = ({ 
   contacts, 
@@ -162,22 +160,33 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   };
 
   const handleLocalChange = (contactId: string, newValue: string) => {
+      // Validation: Only allow values from MAPPING_OPTIONS or empty string
+      if (newValue !== '' && !MAPPING_OPTIONS.includes(newValue)) {
+          console.warn(`Nilai mapping "${newValue}" tidak valid.`);
+          return;
+      }
+      
       setPendingChanges(prev => ({
           ...prev,
           [contactId]: newValue
       }));
   };
 
-  // SUPABASE BATCH SAVE
   const handleSaveChanges = async () => {
       const changesEntries = Object.entries(pendingChanges);
       if (changesEntries.length === 0) return;
+
+      // Final validation before sending to Supabase
+      const invalidEntries = changesEntries.filter(([, val]) => val !== '' && !MAPPING_OPTIONS.includes(val));
+      if (invalidEntries.length > 0) {
+          alert("Terdapat data mapping yang tidak valid. Mohon periksa kembali.");
+          return;
+      }
 
       setIsSaving(true);
       setSaveProgress({ current: 0, total: changesEntries.length });
       
       try {
-          // 1. Construct Full Payload
           const updatedContacts: Contact[] = [];
           
           changesEntries.forEach(([id, newMapping]) => {
@@ -190,19 +199,16 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
               }
           });
 
-          // 2. CHUNKING STRATEGY (Supabase is robust, but chunking is safe)
           const CHUNK_SIZE = 100;
-          
           for (let i = 0; i < updatedContacts.length; i += CHUNK_SIZE) {
               const chunk = updatedContacts.slice(i, i + CHUNK_SIZE);
-              
               await saveContactsBatchToSupabase(chunk);
-              
-              // Update Visual Progress
-              setSaveProgress(prev => ({ ...prev, current: Math.min(prev.current + chunk.length, changesEntries.length) }));
+              setSaveProgress(prev => ({ 
+                ...prev, 
+                current: Math.min(prev.current + chunk.length, changesEntries.length) 
+              }));
           }
 
-          // 3. Update Local State (App)
           updatedContacts.forEach(updated => {
               onUpdateContact(updated);
           });
@@ -223,7 +229,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-32 animate-fade-in-up relative">
-        {/* Header */}
         <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 shadow-sm px-4 py-3 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 -mx-4">
             <div className="flex items-center gap-3">
                 <button onClick={onBack} className="p-2 rounded-xl bg-white/50 hover:bg-white text-slate-500 hover:text-orange-600 border border-slate-200 shadow-sm transition-all">
@@ -241,9 +246,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
             </div>
         </div>
 
-        {/* Filters */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-4 space-y-3">
-            {/* ... (Filters UI code remains same) ... */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 mb-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <Filter className="w-3.5 h-3.5" /> Filter Data (2026)
@@ -256,7 +259,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Month Filter */}
                 <div className="relative">
                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <select 
@@ -264,7 +266,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                         value={filterMonth}
                         onChange={e => {
                             setFilterMonth(e.target.value);
-                            setFilterCo('All'); // Reset CO when month changes to prevent mismatch
+                            setFilterCo('All');
                         }}
                     >
                         <option value="All">Semua Bulan 2026</option>
@@ -275,7 +277,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
 
-                {/* CO Filter (Dependent) */}
                 <div className="relative">
                     <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <select 
@@ -289,7 +290,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
 
-                {/* Status Filter */}
                 <div className="relative">
                     <ListFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <select 
@@ -305,7 +305,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                 </div>
             </div>
 
-            {/* Search */}
             <div className="relative">
                 <input 
                     type="text" 
@@ -318,7 +317,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
             </div>
         </div>
 
-        {/* List (Paginasi) */}
         <div className="space-y-3">
             {filteredContacts.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
@@ -340,69 +338,49 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                                 <div className="flex items-center gap-2 mb-1">
                                     <h3 className="font-bold text-slate-800 text-sm truncate">{contact.name}</h3>
                                     {isChanged && (
-                                        <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-1.5 py-0.5 rounded">
-                                            Diedit
-                                        </span>
+                                        <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-1.5 py-0.5 rounded">Berubah</span>
                                     )}
                                 </div>
-                                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {contact.sentra}</span>
-                                    {contact.tglJatuhTempo ? (
-                                        <span className="font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                                            JT: {contact.tglJatuhTempo}
-                                        </span>
-                                    ) : (
-                                        <span className="text-slate-400 italic">No Tgl JT</span>
-                                    )}
-                                    <span>CO: {contact.co}</span>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3"/> {contact.sentra}</span>
+                                    <span className="flex items-center gap-1 font-bold text-orange-600"><CalendarDays className="w-3 h-3"/> {contact.tglJatuhTempo}</span>
                                 </div>
                             </div>
 
-                            {/* Action Buttons: Template & Dropdown */}
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <button 
-                                    onClick={() => onGenerateMessage(contact)}
-                                    className="p-2.5 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg border border-orange-200 transition-colors"
-                                    title="Buat Pesan WhatsApp"
-                                >
-                                    <Wand2 className="w-4 h-4" />
-                                </button>
-
-                                <div className="relative flex-1 sm:w-48">
+                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                                <div className="relative w-full sm:w-48">
                                     <select 
-                                        className={`w-full p-2.5 pl-3 pr-8 rounded-lg border text-sm font-bold appearance-none cursor-pointer transition-colors ${
-                                            currentValue 
-                                            ? (currentValue === 'Lanjut' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-300 text-slate-600')
-                                            : 'bg-slate-50 border-slate-200 text-slate-400'
+                                        className={`w-full p-2.5 pr-8 rounded-xl border text-xs font-bold outline-none appearance-none transition-all ${
+                                            currentValue === 'Lanjut' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                                            currentValue === 'Istirahat' ? 'bg-slate-50 border-slate-200 text-slate-500' :
+                                            currentValue ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-400'
                                         }`}
                                         value={currentValue}
                                         onChange={(e) => handleLocalChange(contact.id, e.target.value)}
-                                        disabled={isSaving}
                                     >
-                                        <option value="">-- Status --</option>
-                                        {MAPPING_OPTIONS.map(opt => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                        ))}
+                                        <option value="">-- Pilih Keputusan --</option>
+                                        {MAPPING_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                     </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                        <ChevronDown className={`w-4 h-4 ${currentValue ? 'text-emerald-500' : 'text-slate-400'}`} />
-                                    </div>
+                                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30 pointer-events-none" />
                                 </div>
+
+                                <button 
+                                    onClick={() => onGenerateMessage(contact)}
+                                    className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-orange-50 hover:border-orange-200 text-orange-600 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                                    title="Share Ke WhatsApp"
+                                >
+                                    <Wand2 className="w-4 h-4" />
+                                    <span className="sm:hidden text-xs font-bold">Wording AI</span>
+                                </button>
                             </div>
                         </div>
                     );
                 })}
-                
-                {/* Load More Button */}
+
                 {visibleCount < filteredContacts.length && (
-                    <div className="pt-4 flex justify-center">
-                        <Button 
-                            variant="secondary" 
-                            onClick={handleLoadMore}
-                            className="shadow-md text-xs font-bold"
-                            icon={<ChevronDown className="w-4 h-4" />}
-                        >
-                            Tampilkan Lebih Banyak ({filteredContacts.length - visibleCount})
+                    <div className="flex justify-center pt-4">
+                        <Button variant="secondary" onClick={handleLoadMore} icon={<RefreshCw className="w-4 h-4" />}>
+                            Tampilkan Lebih Banyak
                         </Button>
                     </div>
                 )}
@@ -410,27 +388,54 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
             )}
         </div>
 
-        {/* Floating Save Bar */}
         {pendingCount > 0 && (
-            <div className="fixed bottom-20 left-4 right-4 max-w-4xl mx-auto z-50 animate-fade-in-up">
-                <div className="bg-slate-800 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-700">
+            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg z-50 animate-bounce-in">
+                <div className="bg-orange-600 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-orange-500 ring-4 ring-orange-600/20">
                     <div className="flex items-center gap-3">
-                        <div className="bg-orange-500 w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg shadow-orange-500/50">
-                            {pendingCount}
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <Cloud className="w-5 h-5" />
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-white">Perubahan Belum Disimpan</p>
-                            <p className="text-xs text-slate-400">Pastikan simpan sebelum keluar.</p>
+                            <p className="text-sm font-black leading-tight">{pendingCount} Perubahan Mapping</p>
+                            <p className="text-[10px] text-orange-100 font-bold uppercase tracking-wider">Belum Disimpan Ke Database</p>
                         </div>
                     </div>
                     <Button 
-                        onClick={handleSaveChanges} 
+                        size="sm" 
+                        className="bg-white text-orange-700 hover:bg-orange-50 border-none font-black"
+                        onClick={handleSaveChanges}
                         isLoading={isSaving}
-                        className="bg-orange-500 hover:bg-orange-600 border-none shadow-lg shadow-orange-500/20 text-white min-w-[140px]"
-                        icon={isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
+                        icon={<Save className="w-4 h-4" />}
                     >
-                        {isSaving ? `Menyimpan ${saveProgress.current}/${saveProgress.total}` : 'Simpan Semua'}
+                        Simpan ({pendingCount})
                     </Button>
+                </div>
+            </div>
+        )}
+
+        {isSaving && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-6">
+                <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl border border-white/20">
+                    <div className="relative w-24 h-24 mx-auto">
+                        <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                        <div 
+                            className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"
+                        ></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                             <Cloud className="w-8 h-8 text-emerald-500" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800">Menyimpan Ke Cloud</h3>
+                        <p className="text-sm text-slate-500 mt-1">Sedang sinkronisasi {saveProgress.total} data mapping...</p>
+                    </div>
+                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
+                        <div 
+                            className="bg-emerald-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
+                            style={{ width: `${(saveProgress.current / saveProgress.total) * 100}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{saveProgress.current} / {saveProgress.total} Berhasil</p>
                 </div>
             </div>
         )}
