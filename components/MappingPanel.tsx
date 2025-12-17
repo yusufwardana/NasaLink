@@ -10,7 +10,7 @@ interface MappingPanelProps {
   onBack: () => void;
   config: SheetConfig | null;
   onUpdateContact: (contact: Contact) => void;
-  onGenerateMessage: (contact: Contact) => void; // NEW PROP
+  onGenerateMessage: (contact: Contact) => void;
 }
 
 const MAPPING_OPTIONS = [
@@ -29,6 +29,9 @@ const MONTH_NAMES = [
 
 // Helper: Normalize strings to avoid mismatch due to trailing spaces
 const normalize = (str?: string) => (str || '').trim();
+
+// Helper: Delay function to prevent flooding Google Apps Script
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const MappingPanel: React.FC<MappingPanelProps> = ({ 
   contacts, 
@@ -49,6 +52,9 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   // Pending State (Draft changes before saving)
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Progress State for Saving
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
 
   // --- HELPER: DATE PARSING ---
   const parseDateParts = (dateStr?: string) => {
@@ -199,41 +205,60 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   };
 
   const handleSaveChanges = async () => {
-      setIsSaving(true);
       const changesToProcess = Object.entries(pendingChanges);
+      if (changesToProcess.length === 0) return;
+
+      setIsSaving(true);
+      setSaveProgress({ current: 0, total: changesToProcess.length });
+      
       let successCount = 0;
 
       try {
-          const promises = changesToProcess.map(async ([id, newMapping]) => {
+          // PROCESS SEQUENTIALLY (Antrian) 
+          // Ini memastikan Google Sheet tidak menolak request karena 'Too many concurrent requests'
+          for (let i = 0; i < changesToProcess.length; i++) {
+              const [id, newMapping] = changesToProcess[i];
               const contact = contacts.find(c => c.id === id);
+              
               if (contact) {
                   // 1. Update Sheet
                   if (config?.googleScriptUrl) {
-                      await updateContactData(
-                          config.googleScriptUrl,
-                          contact.name,
-                          undefined, // phone
-                          undefined, // notes
-                          newMapping as string,
-                          config.enableDebugMode
-                      );
+                      try {
+                          await updateContactData(
+                              config.googleScriptUrl,
+                              contact.name,
+                              undefined, // phone
+                              undefined, // notes
+                              newMapping as string,
+                              config.enableDebugMode
+                          );
+                          // IMPORTANT: Add small delay between requests to allow GS lock to release
+                          await delay(500); 
+                      } catch (err) {
+                          console.error(`Failed to save ${contact.name}`, err);
+                          // Continue to next item even if one fails
+                      }
                   }
+                  
                   // 2. Update Local App State
                   const updated = { ...contact, mapping: newMapping as string };
                   onUpdateContact(updated);
                   successCount++;
               }
-          });
 
-          await Promise.all(promises);
+              // Update Progress UI
+              setSaveProgress(prev => ({ ...prev, current: i + 1 }));
+          }
+
           setPendingChanges({});
-          alert(`Berhasil menyimpan ${successCount} perubahan data.`);
+          alert(`Selesai! ${successCount} data berhasil disimpan ke database.`);
 
       } catch (e) {
           console.error("Batch save failed", e);
-          alert("Gagal menyimpan sebagian data. Cek koneksi internet.");
+          alert("Terjadi kesalahan. Sebagian data mungkin tersimpan.");
       } finally {
           setIsSaving(false);
+          setSaveProgress({ current: 0, total: 0 });
       }
   };
 
@@ -444,10 +469,10 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                     <Button 
                         onClick={handleSaveChanges} 
                         isLoading={isSaving}
-                        className="bg-orange-500 hover:bg-orange-600 border-none shadow-lg shadow-orange-500/20 text-white"
+                        className="bg-orange-500 hover:bg-orange-600 border-none shadow-lg shadow-orange-500/20 text-white min-w-[140px]"
                         icon={isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
                     >
-                        {isSaving ? 'Menyimpan...' : 'Simpan Semua'}
+                        {isSaving ? `Menyimpan ${saveProgress.current}/${saveProgress.total}` : 'Simpan Semua'}
                     </Button>
                 </div>
             </div>
