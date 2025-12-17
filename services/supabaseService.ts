@@ -41,21 +41,45 @@ const cleanNumber = (val: string | number | undefined): number => {
     return parseInt(val.replace(/[^0-9-]/g, '') || '0', 10);
 };
 
+/**
+ * Fetch all contacts using pagination ranges to bypass 1000-row limit
+ */
 export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
     if (!supabase) return [];
 
-    try {
-        const { data, error } = await supabase
-            .from('contacts')
-            .select('*')
-            .limit(10000); // Increased limit to 10k to be safe
+    let allRows: any[] = [];
+    let from = 0;
+    const step = 1000;
+    let isDone = false;
 
-        if (error) {
-            console.warn("Supabase fetch contacts error:", error.message);
-            return [];
+    try {
+        // Loop fetch until no more data is returned
+        while (!isDone) {
+            const { data, error } = await supabase
+                .from('contacts')
+                .select('*')
+                .range(from, from + step - 1); // Get rows e.g., 0-999, 1000-1999, etc.
+
+            if (error) {
+                console.warn("Supabase fetch contacts error at range", from, ":", error.message);
+                break;
+            }
+
+            if (data && data.length > 0) {
+                allRows = [...allRows, ...data];
+                from += step;
+                
+                // If the returned batch is smaller than step, it means we hit the end
+                if (data.length < step) {
+                    isDone = true;
+                }
+            } else {
+                isDone = true;
+            }
         }
 
-        return (data || []).map((row: any) => ({
+        // Map the accumulated rows to App Contact type
+        return allRows.map((row: any) => ({
             id: row.id,
             name: row.name,
             phone: row.phone || '',
