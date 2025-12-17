@@ -1,4 +1,5 @@
 
+
 export interface Contact {
   id: string;
   name: string;       // Map from 'NASABAH'
@@ -54,7 +55,6 @@ export interface SheetConfig {
   planSheetName?: string; // NEW: Configurable Plan Sheet Name
   templateSheetName?: string;
   googleScriptUrl?: string;
-  geminiApiKey?: string;
   
   // --- New Flexible Settings ---
   // Follow Up Logic

@@ -5,7 +5,6 @@ import { MessageTemplate, SheetConfig, DailyPlan, Contact } from '../types';
 
 let supabase: any = null;
 
-// Initialize Supabase Client
 if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.key) {
     try {
         supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
@@ -18,8 +17,6 @@ export const isSupabaseConfigured = () => {
     return !!supabase;
 };
 
-// --- HELPER: DATE CONVERSION ---
-// App uses DD/MM/YYYY, DB uses YYYY-MM-DD
 const toDbDate = (dateStr: string): string => {
     if (!dateStr) return new Date().toISOString().split('T')[0];
     const parts = dateStr.split('/');
@@ -38,17 +35,11 @@ const fromDbDate = (dateStr: string): string => {
     return dateStr;
 };
 
-// --- HELPER: NUMERIC CLEANING ---
 const cleanNumber = (val: string | number | undefined): number => {
     if (!val) return 0;
     if (typeof val === 'number') return val;
-    // Remove non-numeric chars except minus sign
     return parseInt(val.replace(/[^0-9-]/g, '') || '0', 10);
 };
-
-// ============================================================================
-// CONTACTS OPERATIONS (REPLACING GOOGLE SHEETS)
-// ============================================================================
 
 export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
     if (!supabase) return [];
@@ -57,16 +48,13 @@ export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
         const { data, error } = await supabase
             .from('contacts')
             .select('*')
-            // Optional: Limit or paginate if data is huge (e.g. > 5000 rows)
-            .limit(5000);
+            .limit(10000); // Increased limit to 10k to be safe
 
         if (error) {
             console.warn("Supabase fetch contacts error:", error.message);
             return [];
         }
 
-        // Map DB snake_case to App camelCase
-        // DB returns Numbers for numeric columns, convert back to String for App
         return (data || []).map((row: any) => ({
             id: row.id,
             name: row.name,
@@ -74,24 +62,20 @@ export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
             flag: row.flag || 'Active',
             sentra: row.sentra || '',
             co: row.co || '',
-            
-            // Financials (Convert Number -> String)
             plafon: String(row.plafon || 0),
             os: String(row.os || 0),
             angsuran: String(row.angsuran || 0),
             tunggakan: String(row.tunggakan || 0),
             saldoTabungan: String(row.saldo_tabungan || 0),
             dpd: String(row.dpd || 0),
-
             produk: row.produk || '',
-            tglJatuhTempo: row.tgl_jatuh_tempo || '', // Text format DD/MM/YYYY persisted
+            tglJatuhTempo: row.tgl_jatuh_tempo || '', 
             tglPrs: row.tgl_prs || '',
             status: row.status || '',
             notes: row.notes || '',
             appId: row.app_id || '',
             cif: row.cif || '',
             tglLunas: row.tgl_lunas || '',
-            
             flagMenunggak: row.flag_menunggak || '',
             flagLantakur: row.flag_lantakur || '',
             mapping: row.mapping || '',
@@ -106,8 +90,6 @@ export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
 export const saveContactToSupabase = async (contact: Contact): Promise<void> => {
     if (!supabase) throw new Error("Supabase not configured");
 
-    // Map App camelCase to DB snake_case
-    // Clean strings to Numbers for DB
     const dbRow = {
         id: contact.id,
         name: contact.name,
@@ -115,15 +97,12 @@ export const saveContactToSupabase = async (contact: Contact): Promise<void> => 
         flag: contact.flag,
         sentra: contact.sentra,
         co: contact.co,
-        
-        // Financials
         plafon: cleanNumber(contact.plafon),
         os: cleanNumber(contact.os),
         angsuran: cleanNumber(contact.angsuran),
         tunggakan: cleanNumber(contact.tunggakan),
         saldo_tabungan: cleanNumber(contact.saldoTabungan),
         dpd: cleanNumber(contact.dpd),
-
         produk: contact.produk,
         tgl_jatuh_tempo: contact.tglJatuhTempo,
         tgl_prs: contact.tglPrs,
@@ -132,7 +111,6 @@ export const saveContactToSupabase = async (contact: Contact): Promise<void> => 
         app_id: contact.appId,
         cif: contact.cif,
         tgl_lunas: contact.tglLunas,
-        
         flag_menunggak: contact.flagMenunggak,
         flag_lantakur: contact.flagLantakur,
         mapping: contact.mapping,
@@ -148,12 +126,10 @@ export const saveContactToSupabase = async (contact: Contact): Promise<void> => 
     }
 };
 
-// Batch Update (For Mapping & Import)
 export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<void> => {
     if (!supabase) throw new Error("Supabase not configured");
     if (contacts.length === 0) return;
 
-    // Convert all to snake_case & clean numbers
     const dbRows = contacts.map(contact => ({
         id: contact.id,
         name: contact.name,
@@ -161,15 +137,12 @@ export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<
         flag: contact.flag,
         sentra: contact.sentra,
         co: contact.co,
-        
-        // Financials
         plafon: cleanNumber(contact.plafon),
         os: cleanNumber(contact.os),
         angsuran: cleanNumber(contact.angsuran),
         tunggakan: cleanNumber(contact.tunggakan),
         saldo_tabungan: cleanNumber(contact.saldoTabungan),
         dpd: cleanNumber(contact.dpd),
-
         produk: contact.produk,
         tgl_jatuh_tempo: contact.tglJatuhTempo,
         tgl_prs: contact.tglPrs,
@@ -178,7 +151,6 @@ export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<
         app_id: contact.appId,
         cif: contact.cif,
         tgl_lunas: contact.tglLunas,
-        
         flag_menunggak: contact.flagMenunggak,
         flag_lantakur: contact.flagLantakur,
         mapping: contact.mapping,
@@ -207,11 +179,6 @@ export const deleteContactFromSupabase = async (id: string): Promise<void> => {
     }
 };
 
-
-// ============================================================================
-// DAILY PLANS
-// ============================================================================
-
 export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
     if (!supabase) return [];
 
@@ -222,11 +189,7 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
             .order('date', { ascending: false });
 
         if (error) {
-            if (error.code === '42P01') {
-                console.warn("Supabase Table 'daily_plans' belum dibuat.");
-            } else {
-                console.warn("Supabase fetch plans error:", error.message);
-            }
+            console.warn("Supabase fetch plans error:", error.message);
             return [];
         }
 
@@ -234,8 +197,6 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
             id: row.id,
             date: fromDbDate(row.date),
             coName: row.co_name,
-            
-            // Target
             swCurrentNoa: String(row.sw_current_noa || 0),
             swCurrentDisb: String(row.sw_current_disb || 0),
             swNextNoa: String(row.sw_next_noa || 0),
@@ -246,8 +207,6 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
             colLantakurOs: String(row.col_lantakur_os || 0),
             fppbNoa: String(row.fppb_noa || 0),
             biometrikNoa: String(row.biometrik_noa || 0),
-
-            // Actual
             actualSwNoa: String(row.actual_sw_noa || 0),
             actualSwDisb: String(row.actual_sw_disb || 0),
             actualSwNextNoa: String(row.actual_sw_next_noa || 0),
@@ -258,7 +217,6 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
             actualLantakurOs: String(row.actual_lantakur_os || 0),
             actualFppbNoa: String(row.actual_fppb_noa || 0),
             actualBiometrikNoa: String(row.actual_biometrik_noa || 0),
-
             notes: row.notes || ''
         }));
     } catch (e) {
@@ -276,8 +234,6 @@ export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
         id: plan.id,
         date: toDbDate(plan.date),
         co_name: plan.coName,
-
-        // Target
         sw_current_noa: num(plan.swCurrentNoa),
         sw_current_disb: num(plan.swCurrentDisb),
         sw_next_noa: num(plan.swNextNoa),
@@ -288,8 +244,6 @@ export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
         col_lantakur_os: num(plan.colLantakurOs),
         fppb_noa: num(plan.fppbNoa),
         biometrik_noa: num(plan.biometrikNoa),
-
-        // Actual
         actual_sw_noa: num(plan.actualSwNoa),
         actual_sw_disb: num(plan.actualSwDisb),
         actual_sw_next_noa: num(plan.actualSwNextNoa),
@@ -300,7 +254,6 @@ export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
         actual_lantakur_os: num(plan.actualLantakurOs),
         actual_fppb_noa: num(plan.actualFppbNoa),
         actual_biometrik_noa: num(plan.actualBiometrikNoa),
-
         notes: plan.notes
     };
 
@@ -316,8 +269,6 @@ export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
         console.warn("Supabase connection failed (savePlan):", e);
     }
 };
-
-// --- TEMPLATES ---
 
 export const fetchTemplatesFromSupabase = async (): Promise<MessageTemplate[]> => {
     if (!supabase) return [];
@@ -375,8 +326,6 @@ export const saveTemplatesToSupabase = async (templates: MessageTemplate[]): Pro
         console.warn("Supabase connection failed (saveTemplates):", e);
     }
 };
-
-// --- APP SETTINGS ---
 
 export const fetchSettingsFromSupabase = async (): Promise<Partial<SheetConfig> | null> => {
     if (!supabase) return null;

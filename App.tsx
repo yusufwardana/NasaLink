@@ -4,7 +4,6 @@ import { Contact, MessageTemplate, SheetConfig, DailyPlan } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { EditContactModal } from './components/EditContactModal';
-// UPDATED IMPORT: Use AdminPanel logic
 import { AdminPanel } from './components/AdminModal';
 import { AdminLoginPanel } from './components/AdminLoginModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
@@ -16,15 +15,11 @@ import { PlanHistoryPanel } from './components/PlanHistoryPanel';
 import { MappingPanel } from './components/MappingPanel'; 
 import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
-// REMOVED: fetchContactsFromSheet
 import { fetchContactsFromSupabase, fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase, saveContactsBatchToSupabase } from './services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from './services/dbService';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart, UserCheck, Cloud } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart, UserCheck, Cloud, LayoutGrid } from 'lucide-react';
 
-// REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
-  // ... (Template list remains same)
-  // --- KATEGORI 1: OPERASIONAL RUTIN ---
   { 
     id: '1', 
     label: 'Pengingat PRS (Besok)', 
@@ -45,7 +40,6 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     content: 'Assalamualaikum Bu {name}. Sekadar mengingatkan besok jadwal angsuran di sentra {sentra}. Semoga rezekinya lancar dan dimudahkan ya Bu.', 
     icon: '⏰' 
   },
-  // --- KATEGORI 2: BISNIS & PENCAIRAN (REFINANCING) ---
   { 
     id: '2', 
     label: 'Tawaran Lanjut (Cair)', 
@@ -72,14 +66,12 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     promptContext: 'Buat pesan sapaan hangat untuk calon nasabah (Prospek). Tanyakan kabar usaha ibunya. Jelaskan sedikit keuntungan bergabung dengan komunitas BTPN Syariah (modal usaha & pendampingan). Ajak untuk ikut melihat kegiatan sentra terdekat.', 
     icon: '🤝' 
   },
-  // --- KATEGORI 3: PENANGANAN MASALAH (COLLECTION) ---
   { 
     id: '6', 
     label: 'Penagihan Menunggak (CTX)', 
     type: 'ai', 
     promptContext: 'Buat pesan penagihan yang tegas dan profesional untuk nasabah menunggak (CTX). Tekankan urgensi pembayaran SEGERA hari ini. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk). Minta nasabah segera konfirmasi pembayaran.', icon: '⚠️' 
   },
-  // --- KATEGORI 4: HUBUNGAN & PERSONAL ---
   { 
     id: 'ai-doa', 
     label: 'Doa & Motivasi Usaha', 
@@ -93,7 +85,6 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     type: 'manual', 
     content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' 
   },
-  // --- KATEGORI 5: INFORMASI ---
   { 
     id: '3', 
     label: 'Undangan Resmi', 
@@ -108,7 +99,6 @@ const DEFAULT_EMPTY_CONFIG: SheetConfig = {
     sheetName: 'Data',
     planSheetName: 'Plan',
     googleScriptUrl: '',
-    geminiApiKey: '',
     prsThresholdDays: 1,
     refinancingLookaheadMonths: 1,
     showHeroSection: true,
@@ -116,11 +106,9 @@ const DEFAULT_EMPTY_CONFIG: SheetConfig = {
     enableDebugMode: false
 };
 
-// Add 'plans' to View Type
 type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard' | 'contacts' | 'login' | 'plans' | 'mapping';
 
 const App: React.FC = () => {
-  // ... (State logic same as before) ...
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]); 
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -132,12 +120,10 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
-  // Filters
   const [selectedSentra, setSelectedSentra] = useState<string>('');
   const [selectedCo, setSelectedCo] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   
-  // --- PERFORMANCE OPTIMIZATION: Deferred Values ---
   const deferredSentra = useDeferredValue(selectedSentra);
   const deferredCo = useDeferredValue(selectedCo);
   const deferredStatus = useDeferredValue(selectedStatus);
@@ -152,12 +138,6 @@ const App: React.FC = () => {
   
   const [visibleCount, setVisibleCount] = useState(50);
   
-  // Update indicator to show loading when ANY deferred value is lagging behind
-  const isFiltering = (searchTerm !== debouncedSearchTerm) || 
-                      (selectedSentra !== deferredSentra) || 
-                      (selectedCo !== deferredCo) || 
-                      (selectedStatus !== deferredStatus);
-
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -176,7 +156,6 @@ const App: React.FC = () => {
         let finalConfig: SheetConfig = { ...DEFAULT_EMPTY_CONFIG };
         let configFound = false;
         
-        // Load Settings from Supabase
         if (isSupabaseConfigured()) {
             try {
                 const supabaseSettings = await fetchSettingsFromSupabase();
@@ -190,7 +169,6 @@ const App: React.FC = () => {
             }
         }
 
-        // Fallback to local
         if (!configFound) {
              try {
                 const localConfig = await getSheetConfig();
@@ -205,9 +183,7 @@ const App: React.FC = () => {
         
         setActiveConfig(finalConfig);
 
-        // ALWAYS LOAD FROM SUPABASE NOW
         if (isSupabaseConfigured()) {
-            // 1. Contacts
             try {
                 const dbContacts = await fetchContactsFromSupabase();
                 setContacts(dbContacts);
@@ -215,7 +191,6 @@ const App: React.FC = () => {
                 console.error("Error fetching contacts from Supabase:", err);
             }
             
-            // 2. Plans
             try {
                 const dbPlans = await fetchPlansFromSupabase();
                 setDailyPlans(dbPlans);
@@ -223,7 +198,6 @@ const App: React.FC = () => {
                 console.error("Error fetching plans from Supabase:", err);
             }
 
-            // 3. Templates
             try {
                 const sbTemplates = await fetchTemplatesFromSupabase();
                 if (sbTemplates.length > 0) {
@@ -249,10 +223,7 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // ... (Notification Logic & Filter Logic remains EXACTLY the same) ...
-  // [Code Snipped for brevity - No logic changes here needed]
   const upcomingEvents = useMemo(() => {
-    // ... same as previous ...
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentMonth = today.getMonth();
@@ -438,11 +409,8 @@ const App: React.FC = () => {
       return (num / 1000).toFixed(0) + 'rb';
   };
 
-  // --- CHANGED: Sync with Supabase ---
   const handleSyncSheet = async () => {
     setIsSyncing(true);
-    setContacts([]); 
-    setDailyPlans([]);
     try {
         await loadData();
     } catch (e) {
@@ -456,15 +424,11 @@ const App: React.FC = () => {
     setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
   };
 
-  // --- CHANGED: Import Handler ---
   const handleImportContacts = async (newContacts: Contact[]) => {
       if (isSupabaseConfigured()) {
           try {
-              // Batch upsert to Supabase
               await saveContactsBatchToSupabase(newContacts);
-              // Update local state
               setContacts(prev => {
-                  // Merge: if ID exists update, else add
                   const prevMap = new Map(prev.map(c => [c.id, c]));
                   newContacts.forEach(c => prevMap.set(c.id, c));
                   return Array.from(prevMap.values());
@@ -475,7 +439,6 @@ const App: React.FC = () => {
               alert("Gagal menyimpan ke Supabase.");
           }
       } else {
-          // Fallback to local only
           setContacts(prev => [...prev, ...newContacts]);
       }
   };
@@ -528,41 +491,40 @@ const App: React.FC = () => {
     return 'Selamat Malam';
   };
 
-  // --- Render Navigation ---
   const renderBottomNav = () => (
     <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 z-40 pb-safe">
         <div className="flex justify-between items-center px-4 py-2 max-w-md mx-auto">
-            <button onClick={() => setActiveView('home')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'home' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={() => setActiveView('home')} className={`flex-1 flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'home' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Home className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Beranda</span>
             </button>
             
-            <button onClick={() => setActiveView('dashboard')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' || activeView === 'plans' || activeView === 'mapping' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={() => setActiveView('dashboard')} className={`flex-1 flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'dashboard' || activeView === 'plans' || activeView === 'mapping' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <TrendingUp className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Kinerja</span>
             </button>
 
-            <button onClick={() => setActiveView('contacts')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'contacts' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={() => setActiveView('contacts')} className={`flex-1 flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'contacts' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <ContactIcon className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Kontak</span>
             </button>
 
-            <div className="relative">
-                <button onClick={() => setActiveView('notifications')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'notifications' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <div className="relative flex-1">
+                <button onClick={() => setActiveView('notifications')} className={`w-full flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'notifications' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                     <Bell className="w-5 h-5 mb-0.5" />
                     <span className="text-[9px] font-medium">Follow Up</span>
                 </button>
                 {upcomingEvents.length > 0 && (
-                    <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                    <span className="absolute top-1 right-1/2 translate-x-3 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                 )}
             </div>
             
-            <button onClick={() => setActiveView('broadcast')} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'broadcast' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={() => setActiveView('broadcast')} className={`flex-1 flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'broadcast' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Radio className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Siaran</span>
             </button>
             
-            <button onClick={handleAdminAuth} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' || activeView === 'login' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
+            <button onClick={handleAdminAuth} className={`flex-1 flex flex-col items-center p-2 rounded-xl transition-colors ${activeView === 'settings' || activeView === 'login' ? 'text-orange-600 bg-orange-50' : 'text-slate-400 hover:text-orange-600'}`}>
                 <Settings className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-medium">Admin</span>
             </button>
@@ -570,13 +532,10 @@ const App: React.FC = () => {
     </div>
   );
 
-
-  // --- Render Views ---
-
   if (activeView === 'login') return <AdminLoginPanel onBack={() => setActiveView('home')} onLogin={() => setActiveView('settings')} />;
   if (activeView === 'settings') return <><AdminPanel onBack={() => setActiveView('home')} templates={templates} onUpdateTemplates={setTemplates} onResetData={async () => { await loadData(); setActiveView('home'); }} defaultTemplates={INITIAL_TEMPLATES_FALLBACK} onBulkUpdateMode={handleBulkUpdateMode} currentConfig={activeConfig} />{renderBottomNav()}</>;
-  if (activeView === 'notifications') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><NotificationPanel items={upcomingEvents} onBack={() => setActiveView('home')} onRemind={(contact, type) => { let keywords: string[] = []; if (type === 'prs') { keywords = ['prs', 'kumpulan', 'besok']; } else if (type === 'payment') { const flag = (contact.flag || '').toLowerCase(); const status = (contact.status || '').toLowerCase(); const dpd = parseInt(contact.dpd || '0', 10); const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive'); const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak'); const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur'); if (isTrouble) { keywords = ['tagih', 'ctx', 'tunggak', 'bayar']; } else if (isLantakur) { keywords = ['lantakur', 'tabungan']; } else if (isInactive) { keywords = ['winback', 'gabung', 'tawar', 'cair']; } else { keywords = ['tawar', 'lanjut', 'cair', 'modal', 'akhir']; } } const found = templates.find(t => keywords.some(k => t.label.toLowerCase().includes(k))); setInitialTemplateId(found?.id || templates[0]?.id); setSelectedContact(contact); }} />{selectedContact && <MessageGeneratorModal contact={selectedContact} isOpen={!!selectedContact} onClose={() => setSelectedContact(null)} templates={templates} initialTemplateId={initialTemplateId} apiKey={activeConfig?.geminiApiKey} />}{renderBottomNav()}</div>;
-  if (activeView === 'broadcast') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><BroadcastPanel contacts={contacts} templates={templates} onBack={() => setActiveView('home')} apiKey={activeConfig?.geminiApiKey} />{renderBottomNav()}</div>;
+  if (activeView === 'notifications') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><NotificationPanel items={upcomingEvents} onBack={() => setActiveView('home')} onRemind={(contact, type) => { let keywords: string[] = []; if (type === 'prs') { keywords = ['prs', 'kumpulan', 'besok']; } else if (type === 'payment') { const flag = (contact.flag || '').toLowerCase(); const status = (contact.status || '').toLowerCase(); const dpd = parseInt(contact.dpd || '0', 10); const isInactive = flag.includes('do') || flag.includes('drop') || flag.includes('lunas') || flag.includes('tutup') || flag.includes('inactive'); const isTrouble = dpd > 0 || status.includes('macet') || status.includes('menunggak'); const isLantakur = (contact.flagLantakur || '').toLowerCase().includes('lantakur'); if (isTrouble) { keywords = ['tagih', 'ctx', 'tunggak', 'bayar']; } else if (isLantakur) { keywords = ['lantakur', 'tabungan']; } else if (isInactive) { keywords = ['winback', 'gabung', 'tawar', 'cair']; } else { keywords = ['tawar', 'lanjut', 'cair', 'modal', 'akhir']; } } const found = templates.find(t => keywords.some(k => t.label.toLowerCase().includes(k))); setInitialTemplateId(found?.id || templates[0]?.id); setSelectedContact(contact); }} />{selectedContact && <MessageGeneratorModal contact={selectedContact} isOpen={!!selectedContact} onClose={() => setSelectedContact(null)} templates={templates} initialTemplateId={initialTemplateId} />}{renderBottomNav()}</div>;
+  if (activeView === 'broadcast') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><BroadcastPanel contacts={contacts} templates={templates} onBack={() => setActiveView('home')} />{renderBottomNav()}</div>;
   if (activeView === 'dashboard') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
       <div className="max-w-4xl mx-auto px-4 pt-4">
           <Button 
@@ -605,7 +564,6 @@ const App: React.FC = () => {
       );
   }
 
-  // --- NEW: MAPPING PANEL ---
   if (activeView === 'mapping') {
       return (
           <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30">
@@ -614,10 +572,8 @@ const App: React.FC = () => {
                   onBack={() => setActiveView('home')} 
                   config={activeConfig}
                   onUpdateContact={handleUpdateContact}
-                  // CONNECT WHATSAPP GENERATOR
                   onGenerateMessage={(c) => { 
                       setSelectedContact(c); 
-                      // Try find Refinancing/Lanjut template first
                       const t = templates.find(t => t.label.toLowerCase().includes('lanjut') || t.label.toLowerCase().includes('cair'));
                       setInitialTemplateId(t?.id || templates[0]?.id);
                   }}
@@ -629,7 +585,6 @@ const App: React.FC = () => {
                     onClose={() => setSelectedContact(null)} 
                     templates={templates} 
                     initialTemplateId={initialTemplateId} 
-                    apiKey={activeConfig?.geminiApiKey} 
                  />
               )}
               {renderBottomNav()}
@@ -639,7 +594,6 @@ const App: React.FC = () => {
 
   if (activeView === 'contacts') return <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30"><ContactManagementPanel contacts={contacts} onEdit={setContactToEdit} onDelete={handleDeleteContact} onBack={() => setActiveView('home')} /><EditContactModal contact={contactToEdit} isOpen={!!contactToEdit} onClose={() => setContactToEdit(null)} onSave={handleUpdateContact} onDelete={handleDeleteContact} sheetConfig={activeConfig} />{renderBottomNav()}</div>;
 
-  // --- HOME VIEW ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 pb-24 relative">
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
@@ -687,14 +641,14 @@ const App: React.FC = () => {
                     </div>
                     <h2 className="text-2xl font-black mb-1">{getGreeting()}, CO!</h2>
                     <p className="text-orange-50 text-sm leading-relaxed max-w-[90%]">Aplikasi CRM Digital untuk memonitor nasabah, sentra, dan kinerja tim BTPN Syariah secara real-time & presisi.</p>
-                    <div className="flex gap-4 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
-                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Total Nasabah</p>
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20 hover:bg-white/20 transition-colors">
+                            <p className="text-[10px] text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Total Aktif</p>
                             <p className="text-2xl font-black">{totalActiveContacts}</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
-                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><Cloud className="w-3 h-3" /> Data Source</p>
-                            <p className="text-2xl font-black">Supabase</p>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20 hover:bg-white/20 transition-colors">
+                            <p className="text-[10px] text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><LayoutGrid className="w-3 h-3" /> Total Database</p>
+                            <p className="text-2xl font-black">{contacts.length}</p>
                         </div>
                     </div>
                 </div>
@@ -715,7 +669,6 @@ const App: React.FC = () => {
                      <h3 className="font-bold text-slate-700 text-sm">Jadwal Harian</h3>
                      <p className="text-[10px] text-slate-400 mt-1">Cek Reminder</p>
                  </button>
-                 {/* NEW: MAPPING BUTTON */}
                  <button onClick={() => setActiveView('mapping')} className="col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-teal-300 transition-all text-left group flex items-center justify-between">
                      <div>
                         <h3 className="font-bold text-slate-700 text-sm">Mapping Nasabah & Wording</h3>
@@ -725,7 +678,6 @@ const App: React.FC = () => {
                          <UserCheck className="w-5 h-5 text-teal-600" />
                      </div>
                  </button>
-                 {/* MONITORING CARD */}
                  <button onClick={() => setActiveView('plans')} className="col-span-2 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left group flex items-center justify-between">
                      <div>
                         <h3 className="font-bold text-slate-700 text-sm">Monitoring Realisasi</h3>
@@ -737,7 +689,6 @@ const App: React.FC = () => {
                  </button>
             </div>
 
-            {/* TODAYS PLAN CARD - VISUAL FEEDBACK FOR EMPTY */}
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-slate-800 flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-500" /> Rencana Hari Ini (Total)</h3>
@@ -781,7 +732,7 @@ const App: React.FC = () => {
       </main>
 
       <TodoInputModal isOpen={isTodoModalOpen} onClose={() => setIsTodoModalOpen(false)} onSave={handleSavePlan} availableCos={uniqueCos} dailyPlans={dailyPlans} contacts={contacts} />
-      <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={handleImportContacts} apiKey={activeConfig?.geminiApiKey} />
+      <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={handleImportContacts} />
       {renderBottomNav()}
     </div>
   );

@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import { Contact, MessageTemplate } from '../types';
 import { ArrowLeft, Send, CheckCircle2, MapPin, ChevronDown, Wand2, Briefcase, CalendarClock, Banknote, Sparkles, History, Users, AlertTriangle } from 'lucide-react';
@@ -8,14 +10,12 @@ interface BroadcastPanelProps {
   contacts: Contact[];
   templates: MessageTemplate[];
   onBack: () => void;
-  apiKey?: string;
 }
 
 export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   contacts,
   templates,
-  onBack,
-  apiKey
+  onBack
 }) => {
   // 1. Filter State
   const [filterCo, setFilterCo] = useState<string>('All');
@@ -201,11 +201,11 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
                 ? `Anggota Sentra ${filterSentra}` 
                 : `Nasabah BTPN Syariah (Total ${targetContacts.length} orang)`;
               
+              // Fix: Removed manual apiKey as per guidelines
               const text = await generateBroadcastMessage(
                   selectedTemplate.promptContext || 'Info Penting',
                   audience,
-                  'friendly',
-                  apiKey
+                  'friendly'
               );
               setBroadcastMessage(text);
           }

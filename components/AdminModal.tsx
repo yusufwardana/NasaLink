@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageTemplate, SheetConfig } from '../types';
 import { Button } from './Button';
@@ -36,7 +38,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       sheetName: 'Data',
       planSheetName: 'Plan',
       googleScriptUrl: '',
-      geminiApiKey: '',
       prsThresholdDays: 1,
       refinancingLookaheadMonths: 1,
       showHeroSection: true,
@@ -409,28 +410,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 </div>
 
+                {/* AI Configuration Section - Fixed to comply with security guidelines */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                     <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <Key className="w-5 h-5 text-blue-600" />
-                        Koneksi AI
+                        <Zap className="w-5 h-5 text-blue-600" />
+                        Status AI
                     </h3>
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase flex items-center gap-1">
-                                Gemini API Key 
-                            </label>
-                            <input 
-                                type="password" 
-                                className="w-full border border-slate-200 rounded-xl p-3 text-slate-800 font-mono text-xs focus:ring-2 focus:ring-blue-500/50 outline-none"
-                                value={sheetConfig.geminiApiKey || ''}
-                                onChange={e => setSheetConfig({...sheetConfig, geminiApiKey: e.target.value})}
-                                placeholder="AIza..."
-                            />
-                            <p className="text-[10px] text-slate-400 mt-1">Diperlukan untuk fitur AI Wording Generator.</p>
+                        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-blue-800 text-sm">
+                             <p className="font-bold mb-1">Koneksi AI Terintegrasi</p>
+                             <p className="opacity-80">AI Wording Generator menggunakan API Key yang dikelola secara aman oleh sistem.</p>
                         </div>
                         <div className="pt-4 flex justify-end">
                             <Button onClick={handleSaveSheetConfig} isLoading={isLoadingConfig} icon={<Save className="w-4 h-4" />}>
-                                Simpan Konfigurasi
+                                Simpan Pengaturan
                             </Button>
                         </div>
                     </div>

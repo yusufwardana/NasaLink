@@ -9,10 +9,9 @@ interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (contacts: Contact[]) => void;
-  apiKey?: string; // Add API Key
 }
 
-export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, apiKey }) => {
+export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jsonText, setJsonText] = useState('');
@@ -44,7 +43,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
         parsedData = JSON.parse(jsonText);
       } catch {
         // If JSON parse fails, use Gemini to try and extract contacts from raw text
-        const extractedStr = await extractContactsFromText(jsonText, apiKey);
+        const extractedStr = await extractContactsFromText(jsonText);
         try {
              parsedData = JSON.parse(extractedStr);
         } catch (e) {

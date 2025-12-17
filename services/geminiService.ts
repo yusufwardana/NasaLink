@@ -1,20 +1,19 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 import { Contact } from '../types';
+
+// Use gemini-3-flash-preview for text tasks as per guidelines
+const TEXT_MODEL = 'gemini-3-flash-preview';
 
 export const generateWhatsAppMessage = async (
   contact: Contact, 
   context: string,
-  tone: 'formal' | 'casual' | 'friendly' = 'friendly',
-  apiKey?: string
+  tone: 'formal' | 'casual' | 'friendly' = 'friendly'
 ): Promise<string> => {
-  if (!apiKey) {
-    console.error("Gemini API Key is missing.");
-    return "Error: API Key AI belum disetting. Mohon input API Key di menu Admin (Database).";
-  }
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    // API key is obtained exclusively from process.env.API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     // --- 1. ANALISIS KONDISI NASABAH (BUSINESS LOGIC) ---
     const flag = (contact.flag || '').toLowerCase();
@@ -158,7 +157,7 @@ export const generateWhatsAppMessage = async (
 
     // --- 3. CONSTRUCT PROMPT ---
     const prompt = `
-      Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional, hangat, dan kekeluargaan.
+      Bertindaklah sebagai Community Officer (CO) / Petugas Bank BTPN Syariah yang profesional, hangat, and kekeluargaan.
       Buatkan pesan WhatsApp (Bahasa Indonesia) yang personal.
 
       DATA NASABAH:
@@ -180,28 +179,26 @@ export const generateWhatsAppMessage = async (
       - Output hanya teks pesan saja.
     `;
 
+    // Fix: Using correct property access for response.text
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: TEXT_MODEL,
       contents: prompt,
     });
 
     return response.text || "Maaf, tidak dapat membuat pesan saat ini.";
   } catch (error) {
     console.error("Error generating message:", error);
-    return "Maaf, terjadi kesalahan koneksi ke AI. Periksa API Key Anda.";
+    return "Maaf, terjadi kesalahan koneksi ke AI. Periksa koneksi internet Anda.";
   }
 };
 
 export const generateBroadcastMessage = async (
   context: string,
   targetAudience: string, // e.g. "Semua Nasabah Sentra Mawar"
-  tone: 'formal' | 'casual' | 'friendly' = 'friendly',
-  apiKey?: string
+  tone: 'formal' | 'casual' | 'friendly' = 'friendly'
 ): Promise<string> => {
-  if (!apiKey) return "Error: API Key missing.";
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
       Bertindaklah sebagai Community Officer (CO) BTPN Syariah.
@@ -221,7 +218,7 @@ export const generateBroadcastMessage = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: TEXT_MODEL,
       contents: prompt,
     });
 
@@ -232,11 +229,9 @@ export const generateBroadcastMessage = async (
   }
 };
 
-export const extractContactsFromText = async (rawText: string, apiKey?: string): Promise<string> => {
-  if (!apiKey) return "[]";
-
+export const extractContactsFromText = async (rawText: string): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
       Ekstrak data kontak dari teks mentah berikut ini dan ubah menjadi format JSON Array.
@@ -249,7 +244,7 @@ export const extractContactsFromText = async (rawText: string, apiKey?: string):
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: TEXT_MODEL,
         contents: prompt,
         config: {
             responseMimeType: "application/json"

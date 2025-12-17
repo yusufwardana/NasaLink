@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { Contact, MessageTemplate } from '../types';
 import { generateWhatsAppMessage } from '../services/geminiService';
@@ -10,7 +12,6 @@ interface MessageGeneratorModalProps {
   onClose: () => void;
   templates: MessageTemplate[];
   initialTemplateId?: string;
-  apiKey?: string; // New Prop for dynamic API key
 }
 
 export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({ 
@@ -18,8 +19,7 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({
   isOpen, 
   onClose, 
   templates, 
-  initialTemplateId,
-  apiKey
+  initialTemplateId
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [generatedText, setGeneratedText] = useState<string>('');
@@ -66,11 +66,11 @@ export const MessageGeneratorModal: React.FC<MessageGeneratorModalProps> = ({
         extendedContext += `\n[Info Tambahan]: Tanggal PRS/Kumpulan nasabah adalah ${contact.tglPrs}. Gunakan info ini jika relevan.`;
     }
 
+    // Fix: Updated call to generateWhatsAppMessage without manual apiKey
     const text = await generateWhatsAppMessage(
       contact,
       extendedContext,
-      tone,
-      apiKey // Pass the dynamic API key
+      tone
     );
     setGeneratedText(text);
     setIsGenerating(false);
