@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Contact } from '../types';
-import { Search, Edit2, Trash2, Filter, ChevronDown, User, MapPin, Briefcase, Activity } from 'lucide-react';
+import { Search, Edit2, Trash2, Filter, ChevronDown, User, MapPin, Briefcase, Activity, Cloud } from 'lucide-react';
 import { Button } from './Button';
+import { deleteContactFromSupabase } from '../services/supabaseService';
 
 interface ContactManagementPanelProps {
   contacts: Contact[];
@@ -21,6 +23,7 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
   const [filterSentra, setFilterSentra] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All'); // New status filter
   const [visibleCount, setVisibleCount] = useState(20);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Unique COs
   const uniqueCos = useMemo(() => {
@@ -67,6 +70,24 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
   }, [contacts, searchTerm, filterCo, filterSentra, filterStatus]);
 
   const displayedContacts = filteredContacts.slice(0, visibleCount);
+
+  // SUPABASE DELETE HANDLER
+  const handleDeleteClick = async (id: string, name: string) => {
+      if (window.confirm(`Yakin hapus nasabah "${name}" dari database? Data tidak bisa dikembalikan.`)) {
+          setIsDeleting(id);
+          try {
+              // 1. Delete from Cloud
+              await deleteContactFromSupabase(id);
+              // 2. Update Local
+              onDelete(id);
+          } catch (e) {
+              console.error(e);
+              alert("Gagal menghapus data dari Supabase.");
+          } finally {
+              setIsDeleting(null);
+          }
+      }
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-24 animate-fade-in-up">
@@ -178,6 +199,13 @@ export const ContactManagementPanel: React.FC<ContactManagementPanelProps> = ({
                             className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                           >
                               <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteClick(contact.id, contact.name)}
+                            disabled={isDeleting === contact.id}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                              <Trash2 className="w-4 h-4" />
                           </button>
                       </div>
                   </div>

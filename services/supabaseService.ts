@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../config';
-import { MessageTemplate, SheetConfig, DailyPlan } from '../types';
+import { MessageTemplate, SheetConfig, DailyPlan, Contact } from '../types';
 
 let supabase: any = null;
 
@@ -38,7 +38,157 @@ const fromDbDate = (dateStr: string): string => {
     return dateStr;
 };
 
-// --- DAILY PLANS (NEW) ---
+// ============================================================================
+// CONTACTS OPERATIONS (REPLACING GOOGLE SHEETS)
+// ============================================================================
+
+export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
+    if (!supabase) return [];
+
+    try {
+        const { data, error } = await supabase
+            .from('contacts')
+            .select('*')
+            // Optional: Limit or paginate if data is huge (e.g. > 5000 rows)
+            .limit(5000);
+
+        if (error) {
+            console.warn("Supabase fetch contacts error:", error.message);
+            return [];
+        }
+
+        // Map DB snake_case to App camelCase
+        return (data || []).map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            phone: row.phone || '',
+            flag: row.flag || 'Active',
+            sentra: row.sentra || '',
+            co: row.co || '',
+            plafon: row.plafon || '',
+            produk: row.produk || '',
+            tglJatuhTempo: row.tgl_jatuh_tempo || '', // Text format DD/MM/YYYY persisted
+            tglPrs: row.tgl_prs || '',
+            status: row.status || '',
+            notes: row.notes || '',
+            appId: row.app_id || '',
+            cif: row.cif || '',
+            os: row.os || '',
+            dpd: row.dpd || '',
+            saldoTabungan: row.saldo_tabungan || '',
+            tglLunas: row.tgl_lunas || '',
+            angsuran: row.angsuran || '',
+            tunggakan: row.tunggakan || '',
+            flagMenunggak: row.flag_menunggak || '',
+            flagLantakur: row.flag_lantakur || '',
+            mapping: row.mapping || '',
+            lastInteraction: row.last_interaction || ''
+        }));
+    } catch (e) {
+        console.warn("Supabase connection failed (fetchContacts):", e);
+        return [];
+    }
+};
+
+export const saveContactToSupabase = async (contact: Contact): Promise<void> => {
+    if (!supabase) throw new Error("Supabase not configured");
+
+    // Map App camelCase to DB snake_case
+    const dbRow = {
+        id: contact.id,
+        name: contact.name,
+        phone: contact.phone,
+        flag: contact.flag,
+        sentra: contact.sentra,
+        co: contact.co,
+        plafon: contact.plafon,
+        produk: contact.produk,
+        tgl_jatuh_tempo: contact.tglJatuhTempo,
+        tgl_prs: contact.tglPrs,
+        status: contact.status,
+        notes: contact.notes,
+        app_id: contact.appId,
+        cif: contact.cif,
+        os: contact.os,
+        dpd: contact.dpd,
+        saldo_tabungan: contact.saldoTabungan,
+        tgl_lunas: contact.tglLunas,
+        angsuran: contact.angsuran,
+        tunggakan: contact.tunggakan,
+        flag_menunggak: contact.flagMenunggak,
+        flag_lantakur: contact.flagLantakur,
+        mapping: contact.mapping,
+        last_interaction: contact.lastInteraction
+    };
+
+    const { error } = await supabase
+        .from('contacts')
+        .upsert(dbRow);
+
+    if (error) {
+        throw new Error(`Gagal simpan kontak: ${error.message}`);
+    }
+};
+
+// Batch Update (For Mapping & Import)
+export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<void> => {
+    if (!supabase) throw new Error("Supabase not configured");
+    if (contacts.length === 0) return;
+
+    // Convert all to snake_case
+    const dbRows = contacts.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        phone: contact.phone,
+        flag: contact.flag,
+        sentra: contact.sentra,
+        co: contact.co,
+        plafon: contact.plafon,
+        produk: contact.produk,
+        tgl_jatuh_tempo: contact.tglJatuhTempo,
+        tgl_prs: contact.tglPrs,
+        status: contact.status,
+        notes: contact.notes,
+        app_id: contact.appId,
+        cif: contact.cif,
+        os: contact.os,
+        dpd: contact.dpd,
+        saldo_tabungan: contact.saldoTabungan,
+        tgl_lunas: contact.tglLunas,
+        angsuran: contact.angsuran,
+        tunggakan: contact.tunggakan,
+        flag_menunggak: contact.flagMenunggak,
+        flag_lantakur: contact.flagLantakur,
+        mapping: contact.mapping,
+        last_interaction: contact.lastInteraction
+    }));
+
+    const { error } = await supabase
+        .from('contacts')
+        .upsert(dbRows);
+
+    if (error) {
+        throw new Error(`Gagal batch update: ${error.message}`);
+    }
+};
+
+export const deleteContactFromSupabase = async (id: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase not configured");
+
+    const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        throw new Error(`Gagal hapus kontak: ${error.message}`);
+    }
+};
+
+
+// ============================================================================
+// DAILY PLANS
+// ============================================================================
 
 export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
     if (!supabase) return [];
@@ -50,7 +200,6 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
             .order('date', { ascending: false });
 
         if (error) {
-            // Check for missing table error specifically to warn dev
             if (error.code === '42P01') {
                 console.warn("Supabase Table 'daily_plans' belum dibuat.");
             } else {
@@ -91,7 +240,6 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
             notes: row.notes || ''
         }));
     } catch (e) {
-        // Catch Network Errors (Failed to fetch)
         console.warn("Supabase connection failed (fetchPlans):", e);
         return [];
     }
@@ -100,7 +248,6 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
 export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
     if (!supabase) return;
 
-    // Helper to clean numbers
     const num = (val?: string) => parseInt((val || '0').replace(/[^0-9]/g, ''), 10);
 
     const dbRow = {
@@ -142,11 +289,9 @@ export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
 
         if (error) {
             console.warn("Supabase save plan error:", error.message);
-            // Non-fatal error
         }
     } catch (e) {
         console.warn("Supabase connection failed (savePlan):", e);
-        // Swallow error to prevent app crash
     }
 };
 
@@ -162,15 +307,9 @@ export const fetchTemplatesFromSupabase = async (): Promise<MessageTemplate[]> =
             .order('label', { ascending: true });
 
         if (error) {
-            if (error.code === '42P01') {
-                console.warn("Supabase Table 'templates' missing.");
-            } else {
-                console.warn("Supabase fetch templates error:", error.message);
-            }
             return [];
         }
 
-        // Map snake_case (DB) to camelCase (App)
         return (data || []).map((row: any) => ({
             id: row.id,
             label: row.label,
@@ -189,7 +328,6 @@ export const saveTemplatesToSupabase = async (templates: MessageTemplate[]): Pro
     if (!supabase) return;
 
     try {
-        // Map camelCase (App) to snake_case (DB)
         const dbRows = templates.map(t => ({
             id: t.id,
             label: t.label,
@@ -199,15 +337,11 @@ export const saveTemplatesToSupabase = async (templates: MessageTemplate[]): Pro
             icon: t.icon
         }));
 
-        // 1. Delete all (Truncate-like approach for sync)
         const { error: deleteError } = await supabase
             .from('templates')
             .delete()
             .neq('id', 'placeholder_never_match'); 
 
-        if (deleteError) console.warn("Error clearing templates:", deleteError.message);
-
-        // 2. Insert new state
         const { error } = await supabase
             .from('templates')
             .upsert(dbRows);
@@ -220,7 +354,7 @@ export const saveTemplatesToSupabase = async (templates: MessageTemplate[]): Pro
     }
 };
 
-// --- APP SETTINGS (Spreadsheet Config) ---
+// --- APP SETTINGS ---
 
 export const fetchSettingsFromSupabase = async (): Promise<Partial<SheetConfig> | null> => {
     if (!supabase) return null;
@@ -232,12 +366,7 @@ export const fetchSettingsFromSupabase = async (): Promise<Partial<SheetConfig> 
             .eq('key', 'sheet_config')
             .single();
 
-        if (error) {
-            if (error.code !== 'PGRST116') { // PGRST116 is "Row not found"
-                console.warn("Supabase fetch settings error:", error.message);
-            }
-            return null;
-        }
+        if (error) return null;
 
         if (data && data.value) {
             return data.value as SheetConfig;
@@ -260,12 +389,9 @@ export const saveSettingsToSupabase = async (config: SheetConfig): Promise<void>
             });
 
         if (error) {
-            console.warn("Supabase save settings error:", error.message);
             throw new Error(error.message);
         }
     } catch (e) {
-        console.warn("Supabase connection failed (saveSettings):", e);
-        // Throw here because user specifically clicked "Save Config", so they should know if it failed
-        throw new Error("Gagal koneksi ke Supabase. Periksa internet atau API Key.");
+        throw new Error("Gagal koneksi ke Supabase. Periksa internet.");
     }
 };

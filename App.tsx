@@ -4,26 +4,26 @@ import { Contact, MessageTemplate, SheetConfig, DailyPlan } from './types';
 import { ContactCard } from './components/ContactCard';
 import { MessageGeneratorModal } from './components/MessageGeneratorModal';
 import { EditContactModal } from './components/EditContactModal';
-// UPDATED IMPORT: Use AdminPanel logic (file name remains AdminModal.tsx for now to minimize file ops)
+// UPDATED IMPORT: Use AdminPanel logic
 import { AdminPanel } from './components/AdminModal';
 import { AdminLoginPanel } from './components/AdminLoginModal';
 import { NotificationPanel, NotificationItem } from './components/NotificationPanel';
 import { BroadcastPanel } from './components/BroadcastPanel';
 import { DashboardPanel } from './components/DashboardPanel';
 import { ContactManagementPanel } from './components/ContactManagementPanel';
-import { TodoInputModal } from './components/TodoInputModal'; // New Import
-import { PlanHistoryPanel } from './components/PlanHistoryPanel'; // NEW IMPORT
-import { MappingPanel } from './components/MappingPanel'; // NEW IMPORT
+import { TodoInputModal } from './components/TodoInputModal'; 
+import { PlanHistoryPanel } from './components/PlanHistoryPanel'; 
+import { MappingPanel } from './components/MappingPanel'; 
 import { ImportModal } from './components/ImportModal';
 import { Button } from './components/Button';
-import { fetchContactsFromSheet } from './services/sheetService';
-// UPDATED: Import Supabase Plan functions
-import { fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase } from './services/supabaseService';
+// REMOVED: fetchContactsFromSheet
+import { fetchContactsFromSupabase, fetchTemplatesFromSupabase, fetchSettingsFromSupabase, isSupabaseConfigured, saveTemplatesToSupabase, fetchPlansFromSupabase, savePlanToSupabase, saveContactsBatchToSupabase } from './services/supabaseService';
 import { getSheetConfig, saveSheetConfig } from './services/dbService';
-import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart, UserCheck } from 'lucide-react';
+import { Search, Users, Settings, Shield, RefreshCw, Sparkles, Bell, Globe, Briefcase, MapPin, HeartHandshake, Database, ChevronDown, Server, AlertTriangle, Home, Loader2, Download, X, Radio, Activity, TrendingUp, Contact as ContactIcon, ChevronRight, Calendar, AlertOctagon, Trophy, ClipboardList, PenTool, BarChart3, LineChart, UserCheck, Cloud } from 'lucide-react';
 
 // REKOMENDASI TEMPLATE LENGKAP (CO BTPN SYARIAH KIT)
 const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
+  // ... (Template list remains same)
   // --- KATEGORI 1: OPERASIONAL RUTIN ---
   { 
     id: '1', 
@@ -45,7 +45,6 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     content: 'Assalamualaikum Bu {name}. Sekadar mengingatkan besok jadwal angsuran di sentra {sentra}. Semoga rezekinya lancar dan dimudahkan ya Bu.', 
     icon: '⏰' 
   },
-
   // --- KATEGORI 2: BISNIS & PENCAIRAN (REFINANCING) ---
   { 
     id: '2', 
@@ -73,7 +72,6 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     promptContext: 'Buat pesan sapaan hangat untuk calon nasabah (Prospek). Tanyakan kabar usaha ibunya. Jelaskan sedikit keuntungan bergabung dengan komunitas BTPN Syariah (modal usaha & pendampingan). Ajak untuk ikut melihat kegiatan sentra terdekat.', 
     icon: '🤝' 
   },
-
   // --- KATEGORI 3: PENANGANAN MASALAH (COLLECTION) ---
   { 
     id: '6', 
@@ -81,7 +79,6 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     type: 'ai', 
     promptContext: 'Buat pesan penagihan yang tegas dan profesional untuk nasabah menunggak (CTX). Tekankan urgensi pembayaran SEGERA hari ini. Sebutkan konsekuensi jika tidak kooperatif (seperti catatan pembiayaan buruk). Minta nasabah segera konfirmasi pembayaran.', icon: '⚠️' 
   },
-
   // --- KATEGORI 4: HUBUNGAN & PERSONAL ---
   { 
     id: 'ai-doa', 
@@ -96,7 +93,6 @@ const INITIAL_TEMPLATES_FALLBACK: MessageTemplate[] = [
     type: 'manual', 
     content: 'Assalamualaikum Ibu {name}, semoga usaha Ibu di sentra {sentra} semakin lancar ya. Jika ada kendala, jangan sungkan hubungi saya.', icon: '🤝' 
   },
-
   // --- KATEGORI 5: INFORMASI ---
   { 
     id: '3', 
@@ -126,7 +122,7 @@ type AppView = 'home' | 'notifications' | 'broadcast' | 'settings' | 'dashboard'
 const App: React.FC = () => {
   // ... (State logic same as before) ...
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]); // New State for Plans
+  const [dailyPlans, setDailyPlans] = useState<DailyPlan[]>([]); 
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [configError, setConfigError] = useState<boolean>(false);
@@ -149,7 +145,7 @@ const App: React.FC = () => {
   
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
-  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false); // New Modal State
+  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false); 
   const [isSyncing, setIsSyncing] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -162,7 +158,6 @@ const App: React.FC = () => {
                       (selectedCo !== deferredCo) || 
                       (selectedStatus !== deferredStatus);
 
-  // ... (Effects same as before) ...
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -170,7 +165,6 @@ const App: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Reset pagination when filters change (using immediate values for responsiveness)
   useEffect(() => {
       setVisibleCount(50);
   }, [debouncedSearchTerm, selectedSentra, selectedCo, selectedStatus]);
@@ -182,29 +176,25 @@ const App: React.FC = () => {
         let finalConfig: SheetConfig = { ...DEFAULT_EMPTY_CONFIG };
         let configFound = false;
         
-        // STRATEGY: 
-        // 1. Try Load from Supabase (Source of Truth)
-        // 2. Fallback to Local DB if Supabase fails (Offline)
-        // 3. If both empty -> Prompt User
-
+        // Load Settings from Supabase
         if (isSupabaseConfigured()) {
             try {
                 const supabaseSettings = await fetchSettingsFromSupabase();
-                if (supabaseSettings && supabaseSettings.spreadsheetId) {
+                if (supabaseSettings) {
                     finalConfig = { ...finalConfig, ...supabaseSettings };
                     configFound = true;
-                    // Cache to Local DB for offline use
                     await saveSheetConfig(finalConfig);
                 }
             } catch (err) {
-                console.warn("Supabase fetch failed (likely offline). Trying local DB.");
+                console.warn("Supabase fetch settings failed.");
             }
         }
 
+        // Fallback to local
         if (!configFound) {
              try {
                 const localConfig = await getSheetConfig();
-                if (localConfig && localConfig.spreadsheetId) {
+                if (localConfig) {
                      finalConfig = { ...finalConfig, ...localConfig };
                      configFound = true;
                 }
@@ -215,45 +205,36 @@ const App: React.FC = () => {
         
         setActiveConfig(finalConfig);
 
-        if (configFound && finalConfig.spreadsheetId) {
-            // Fetch Contacts from Google Sheets
+        // ALWAYS LOAD FROM SUPABASE NOW
+        if (isSupabaseConfigured()) {
+            // 1. Contacts
             try {
-                const liveContacts = await fetchContactsFromSheet(finalConfig.spreadsheetId, finalConfig.sheetName);
-                setContacts(liveContacts);
+                const dbContacts = await fetchContactsFromSupabase();
+                setContacts(dbContacts);
             } catch (err) {
-                console.error("Error fetching live contacts from Sheet:", err);
+                console.error("Error fetching contacts from Supabase:", err);
             }
             
-            // Fetch Plans from SUPABASE (Changed from Sheets)
-            if (isSupabaseConfigured()) {
-                try {
-                    const dbPlans = await fetchPlansFromSupabase();
-                    setDailyPlans(dbPlans);
-                } catch (err: any) {
-                    console.error("Error fetching plans from Supabase:", err.message || err);
-                }
-            } else {
-                console.warn("Supabase not configured, plans not loaded.");
+            // 2. Plans
+            try {
+                const dbPlans = await fetchPlansFromSupabase();
+                setDailyPlans(dbPlans);
+            } catch (err: any) {
+                console.error("Error fetching plans from Supabase:", err);
             }
 
-            // Fetch Templates
+            // 3. Templates
             try {
-                if (isSupabaseConfigured()) {
-                    const sbTemplates = await fetchTemplatesFromSupabase();
-                    if (sbTemplates.length > 0) {
-                        setTemplates(sbTemplates);
-                    } else {
-                         setTemplates(INITIAL_TEMPLATES_FALLBACK);
-                    }
+                const sbTemplates = await fetchTemplatesFromSupabase();
+                if (sbTemplates.length > 0) {
+                    setTemplates(sbTemplates);
                 } else {
-                    setTemplates(INITIAL_TEMPLATES_FALLBACK);
+                     setTemplates(INITIAL_TEMPLATES_FALLBACK);
                 }
             } catch (err) {
-                console.warn("Failed to load templates from Supabase, using fallback.", err);
                 setTemplates(INITIAL_TEMPLATES_FALLBACK);
             }
         } else {
-            // No Config Found -> Go to Admin Login? Or just show empty state
             setConfigError(true);
             setTemplates(INITIAL_TEMPLATES_FALLBACK);
         }
@@ -268,8 +249,10 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // ... (Notification Logic remains same) ...
+  // ... (Notification Logic & Filter Logic remains EXACTLY the same) ...
+  // [Code Snipped for brevity - No logic changes here needed]
   const upcomingEvents = useMemo(() => {
+    // ... same as previous ...
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentMonth = today.getMonth();
@@ -384,7 +367,6 @@ const App: React.FC = () => {
       return Array.from(new Set(contacts.map(c => c.co || 'Unassigned'))).sort();
   }, [contacts]);
 
-  // ... (Filter & Stats logic same as before) ...
   const filteredContacts = useMemo(() => {
     if (!deferredSearchTerm && !deferredSentra && !deferredCo && deferredStatus === 'All') return [];
     return contacts.filter(contact => {
@@ -419,7 +401,6 @@ const App: React.FC = () => {
       }).length;
   }, [contacts]);
   
-  // --- CORRECTED "TODAY'S PLAN" LOGIC (STRICT) ---
   const todaysPlan = useMemo(() => {
       const today = new Date();
       const dd = String(today.getDate()).padStart(2, '0');
@@ -427,37 +408,29 @@ const App: React.FC = () => {
       const yyyy = today.getFullYear();
       const todayStr = `${dd}/${mm}/${yyyy}`; 
 
-      // Strictly normalize: Remove any extra zeroes to be safe: 01/01/2025 -> 1/1/2025
       const norm = (str: string) => {
           if (!str) return '';
           return str.split('/').map(s => parseInt(s, 10)).join('/');
       };
       
       const target = norm(todayStr);
-
-      // Filter plans that match TODAY's date (Strict Check)
       const plansToday = dailyPlans.filter(p => norm(p.date) === target);
 
       if (plansToday.length === 0) return null;
 
-      // AGGREGATE IF MULTIPLE (NOW AGGREGATING NOMINAL)
       const aggregated = plansToday.reduce((acc, curr) => ({
           ...acc,
-          // SW: Use Disbursement
           swCurrentDisb: String((parseInt(acc.swCurrentDisb)||0) + (parseInt(curr.swCurrentDisb)||0)),
-          // Collection: Use OS
           colCtxOs: String((parseInt(acc.colCtxOs)||0) + (parseInt(curr.colCtxOs)||0)),
-          // Lantakur: Use OS
           colLantakurOs: String((parseInt(acc.colLantakurOs)||0) + (parseInt(curr.colLantakurOs)||0)),
           id: curr.id, 
-          date: todayStr, // Ensure display date is standardized
+          date: todayStr, 
           coName: 'Total Tim' 
       }));
 
       return aggregated;
   }, [dailyPlans]);
 
-  // Helper to format Millions (1.5jt)
   const fmtMoney = (val: string) => {
       const num = parseInt(val || '0', 10);
       if (num === 0) return '0';
@@ -465,10 +438,11 @@ const App: React.FC = () => {
       return (num / 1000).toFixed(0) + 'rb';
   };
 
+  // --- CHANGED: Sync with Supabase ---
   const handleSyncSheet = async () => {
     setIsSyncing(true);
     setContacts([]); 
-    setDailyPlans([]); // Clear plans to ensure visual update on sync
+    setDailyPlans([]);
     try {
         await loadData();
     } catch (e) {
@@ -482,22 +456,43 @@ const App: React.FC = () => {
     setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
   };
 
+  // --- CHANGED: Import Handler ---
+  const handleImportContacts = async (newContacts: Contact[]) => {
+      if (isSupabaseConfigured()) {
+          try {
+              // Batch upsert to Supabase
+              await saveContactsBatchToSupabase(newContacts);
+              // Update local state
+              setContacts(prev => {
+                  // Merge: if ID exists update, else add
+                  const prevMap = new Map(prev.map(c => [c.id, c]));
+                  newContacts.forEach(c => prevMap.set(c.id, c));
+                  return Array.from(prevMap.values());
+              });
+              alert(`Berhasil mengimpor ${newContacts.length} data ke Supabase.`);
+          } catch (e) {
+              console.error(e);
+              alert("Gagal menyimpan ke Supabase.");
+          }
+      } else {
+          // Fallback to local only
+          setContacts(prev => [...prev, ...newContacts]);
+      }
+  };
+
   const handleDeleteContact = (id: string) => {
     setContacts(prev => prev.filter(c => c.id !== id));
   };
 
   const handleSavePlan = async (plan: DailyPlan) => {
      if (isSupabaseConfigured()) {
-         // UI Optimistic Update
          setDailyPlans(prev => {
-             // If update existing ID
              if (prev.find(p => p.id === plan.id)) {
                  return prev.map(p => p.id === plan.id ? plan : p);
              }
              return [...prev, plan];
          });
          
-         // Background Save to Supabase (Replaces Sheets)
          try {
              await savePlanToSupabase(plan);
          } catch (e: any) {
@@ -661,7 +656,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-             <Button onClick={handleSyncSheet} size="sm" variant="outline" className="h-8 border-orange-200 text-orange-600 hover:bg-orange-50" icon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}>{isSyncing ? 'Syncing' : 'Sync'}</Button>
+             <Button onClick={handleSyncSheet} size="sm" variant="outline" className="h-8 border-orange-200 text-orange-600 hover:bg-orange-50" icon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}>{isSyncing ? 'Syncing' : 'Sync DB'}</Button>
           </div>
         </div>
       </header>
@@ -673,7 +668,7 @@ const App: React.FC = () => {
                       <AlertTriangle className="w-5 h-5 text-red-600" />
                       <div>
                           <p className="text-xs font-bold uppercase">Setup Diperlukan</p>
-                          <p className="text-xs opacity-80">Database belum dikonfigurasi.</p>
+                          <p className="text-xs opacity-80">Supabase belum dikonfigurasi.</p>
                       </div>
                   </div>
                   <Button size="sm" variant="danger" onClick={handleAdminAuth}>Buka Admin</Button>
@@ -698,8 +693,8 @@ const App: React.FC = () => {
                             <p className="text-2xl font-black">{totalActiveContacts}</p>
                         </div>
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 flex-1 border border-white/20 hover:bg-white/20 transition-colors">
-                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> Total Sentra</p>
-                            <p className="text-2xl font-black">{uniqueSentras.length}</p>
+                            <p className="text-xs text-orange-100 uppercase font-bold mb-1 flex items-center gap-1"><Cloud className="w-3 h-3" /> Data Source</p>
+                            <p className="text-2xl font-black">Supabase</p>
                         </div>
                     </div>
                 </div>
@@ -786,7 +781,7 @@ const App: React.FC = () => {
       </main>
 
       <TodoInputModal isOpen={isTodoModalOpen} onClose={() => setIsTodoModalOpen(false)} onSave={handleSavePlan} availableCos={uniqueCos} dailyPlans={dailyPlans} contacts={contacts} />
-      <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={(newContacts) => setContacts([...contacts, ...newContacts])} apiKey={activeConfig?.geminiApiKey} />
+      <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={handleImportContacts} apiKey={activeConfig?.geminiApiKey} />
       {renderBottomNav()}
     </div>
   );

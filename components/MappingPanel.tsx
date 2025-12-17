@@ -2,8 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Filter, Search, ChevronDown, CheckCircle2, AlertTriangle, UserCheck, CalendarDays, MapPin, ListFilter, Save, Loader2, RefreshCw, Wand2 } from 'lucide-react';
-import { updateContactMappingBatch } from '../services/sheetService';
+import { ArrowLeft, Filter, Search, ChevronDown, CheckCircle2, AlertTriangle, UserCheck, CalendarDays, MapPin, ListFilter, Save, Loader2, RefreshCw, Wand2, Cloud } from 'lucide-react';
+import { saveContactsBatchToSupabase } from '../services/supabaseService';
 
 interface MappingPanelProps {
   contacts: Contact[];
@@ -27,10 +27,7 @@ const MONTH_NAMES = [
     "Juli", "Agustus", "September", "Oktober", "November", "Desember"
 ];
 
-// Helper: Normalize strings to avoid mismatch due to trailing spaces
 const normalize = (str?: string) => (str || '').trim();
-
-// Helper delay
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const MappingPanel: React.FC<MappingPanelProps> = ({ 
@@ -40,26 +37,19 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   onUpdateContact,
   onGenerateMessage
 }) => {
-  // Filters
   const [filterCo, setFilterCo] = useState<string>('All');
   const [filterMonth, setFilterMonth] = useState<string>('All'); 
-  const [filterStatus, setFilterStatus] = useState<string>('All'); // All, Pending, Done
+  const [filterStatus, setFilterStatus] = useState<string>('All'); 
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Performance: Pagination State
   const [visibleCount, setVisibleCount] = useState(20);
-
-  // Pending State (Draft changes before saving)
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 }); // Added Progress Tracking
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
   
-  // --- HELPER: DATE PARSING ---
   const parseDateParts = (dateStr?: string) => {
       if (!dateStr) return null;
       const parts = dateStr.split('/');
       if (parts.length !== 3) return null;
-      // Assume DD/MM/YYYY
       const d = parseInt(parts[0], 10);
       const m = parseInt(parts[1], 10);
       const yStr = parts[2];
@@ -67,32 +57,24 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       return { d, m, y };
   };
 
-  // --- DERIVED DATA ---
-
-  // 1. STRICT BASE DATA: Active Contacts ONLY in 2026
   const activeContacts2026 = useMemo(() => {
       return contacts.filter(c => {
           const flag = (c.flag || '').toLowerCase();
           const isActive = !flag.includes('do') && !flag.includes('drop') && !flag.includes('lunas') && !flag.includes('inactive');
-          
           if (!isActive || !c.tglJatuhTempo) return false;
-
           const p = parseDateParts(c.tglJatuhTempo);
-          // STRICT YEAR CHECK: 2026
           return p && p.y === 2026;
       });
   }, [contacts]);
 
-  // 2. Extract Available Months (Only from 2026 Data)
   const uniqueMonths = useMemo(() => {
-      const months = new Set<string>(); // Format: MM/2026
+      const months = new Set<string>();
       activeContacts2026.forEach(c => {
           const p = parseDateParts(c.tglJatuhTempo);
           if (p) {
               months.add(`${String(p.m).padStart(2,'0')}/${p.y}`);
           }
       });
-      // Sort Chronological
       return Array.from(months).sort((a, b) => {
           const [m1] = a.split('/').map(Number);
           const [m2] = b.split('/').map(Number);
@@ -100,11 +82,8 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       });
   }, [activeContacts2026]);
 
-  // 3. Extract Available COs (RESPONSIVE: Depends on Filter Month)
   const availableCos = useMemo((): string[] => {
-      // If Month is selected, only show COs that have data in that month
       let source = activeContacts2026;
-      
       if (filterMonth !== 'All') {
           source = source.filter(c => {
               const p = parseDateParts(c.tglJatuhTempo);
@@ -113,49 +92,40 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
               return mKey === filterMonth;
           });
       }
-
-      // Use Normalize to ensure cleanliness
       const cos = new Set<string>(source.map(c => normalize(c.co || 'Unassigned')));
       return Array.from(cos).sort();
   }, [activeContacts2026, filterMonth]);
 
-  // 3.5 Validate Filter CO State
   useEffect(() => {
       if (filterCo !== 'All' && !availableCos.includes(filterCo)) {
           setFilterCo('All');
       }
   }, [availableCos, filterCo]);
 
-  // 3.6 Reset Pagination when filters change (Performance Fix)
   useEffect(() => {
       setVisibleCount(20);
   }, [filterCo, filterMonth, filterStatus, searchTerm]);
 
-  // 4. Final Filter Logic
   const filteredContacts = useMemo(() => {
       return activeContacts2026.filter(c => {
           const p = parseDateParts(c.tglJatuhTempo);
           if (!p) return false;
 
-          // Search
           if (searchTerm) {
               const term = searchTerm.toLowerCase();
               if (!c.name.toLowerCase().includes(term) && !c.sentra?.toLowerCase().includes(term)) return false;
           }
           
-          // Month Filter
           if (filterMonth !== 'All') {
               const mKey = `${String(p.m).padStart(2,'0')}/${p.y}`;
               if (mKey !== filterMonth) return false;
           }
 
-          // CO Filter (Robust Comparison)
           if (filterCo !== 'All') {
               const contactCo = normalize(c.co || 'Unassigned');
               if (contactCo !== filterCo) return false;
           }
 
-          // Status Filter (Check Pending Changes first, then contact data)
           const currentMapping = pendingChanges[c.id] !== undefined ? pendingChanges[c.id] : c.mapping;
           
           if (filterStatus === 'Pending') {
@@ -166,7 +136,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
 
           return true;
       }).sort((a, b) => {
-          // Sort by Date ASC
           const dateA = parseDateParts(a.tglJatuhTempo);
           const dateB = parseDateParts(b.tglJatuhTempo);
           if (dateA && dateB) {
@@ -178,7 +147,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       });
   }, [activeContacts2026, searchTerm, filterCo, filterMonth, filterStatus, pendingChanges]);
 
-  // 5. Pagination Logic (The Fix for "Loading Lama")
   const displayedContacts = useMemo(() => {
       return filteredContacts.slice(0, visibleCount);
   }, [filteredContacts, visibleCount]);
@@ -187,14 +155,12 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       setVisibleCount(prev => prev + 20);
   };
 
-  // --- HELPERS ---
   const formatMonthLabel = (mKey: string) => {
       const [m, y] = mKey.split('/');
       const mIdx = parseInt(m, 10) - 1;
-      return `${MONTH_NAMES[mIdx]}`; // Only show month name since year is locked to 2026
+      return `${MONTH_NAMES[mIdx]}`;
   };
 
-  // --- HANDLERS ---
   const handleLocalChange = (contactId: string, newValue: string) => {
       setPendingChanges(prev => ({
           ...prev,
@@ -202,7 +168,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       }));
   };
 
-  // BATCH SAVE HANDLER (NEW LOGIC WITH CHUNKING)
+  // SUPABASE BATCH SAVE
   const handleSaveChanges = async () => {
       const changesEntries = Object.entries(pendingChanges);
       if (changesEntries.length === 0) return;
@@ -212,61 +178,41 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       
       try {
           // 1. Construct Full Payload
-          const updatesPayload: { name: string, mapping: string }[] = [];
+          const updatedContacts: Contact[] = [];
           
           changesEntries.forEach(([id, newMapping]) => {
               const contact = contacts.find(c => c.id === id);
               if (contact) {
-                  updatesPayload.push({
-                      name: contact.name,
+                  updatedContacts.push({
+                      ...contact,
                       mapping: newMapping
                   });
               }
           });
 
-          const scriptUrl = config?.googleScriptUrl;
-          if (updatesPayload.length > 0 && typeof scriptUrl === 'string' && scriptUrl.length > 0) {
-              const url = scriptUrl;
+          // 2. CHUNKING STRATEGY (Supabase is robust, but chunking is safe)
+          const CHUNK_SIZE = 100;
+          
+          for (let i = 0; i < updatedContacts.length; i += CHUNK_SIZE) {
+              const chunk = updatedContacts.slice(i, i + CHUNK_SIZE);
               
-              // 2. CHUNKING STRATEGY (Pecah per 50 data agar GS tidak timeout)
-              const CHUNK_SIZE = 50;
+              await saveContactsBatchToSupabase(chunk);
               
-              for (let i = 0; i < updatesPayload.length; i += CHUNK_SIZE) {
-                  const chunk = updatesPayload.slice(i, i + CHUNK_SIZE);
-                  
-                  await updateContactMappingBatch(
-                      url,
-                      chunk,
-                      !!config?.enableDebugMode
-                  );
-                  
-                  // Update Visual Progress
-                  setSaveProgress(prev => ({ ...prev, current: Math.min(prev.current + chunk.length, changesEntries.length) }));
-                  
-                  // Jeda sejenak agar server Google Sheets bisa "bernapas"
-                  if (i + CHUNK_SIZE < updatesPayload.length) {
-                      await delay(800); 
-                  }
-              }
-          } else if (!scriptUrl) {
-              alert("Perhatian: Script URL belum disetting. Data hanya tersimpan di aplikasi (hilang saat refresh).");
+              // Update Visual Progress
+              setSaveProgress(prev => ({ ...prev, current: Math.min(prev.current + chunk.length, changesEntries.length) }));
           }
 
-          // 3. Update Local State (Optimistic)
-          changesEntries.forEach(([id, newMapping]) => {
-              const contact = contacts.find(c => c.id === id);
-              if (contact) {
-                  const updated = { ...contact, mapping: newMapping };
-                  onUpdateContact(updated);
-              }
+          // 3. Update Local State (App)
+          updatedContacts.forEach(updated => {
+              onUpdateContact(updated);
           });
 
           setPendingChanges({});
-          alert(`Selesai! ${updatesPayload.length} data berhasil diproses.`);
+          alert(`Berhasil menyimpan ${updatedContacts.length} data ke Supabase.`);
 
       } catch (e) {
           console.error("Batch save failed", e);
-          alert("Gagal menyimpan data. Cek koneksi internet.");
+          alert("Gagal menyimpan data ke Database. Cek koneksi internet.");
       } finally {
           setIsSaving(false);
           setSaveProgress({ current: 0, total: 0 });
@@ -285,7 +231,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                 </button>
                 <div>
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        Mapping & Wording
+                        Mapping & Wording (Cloud)
                         <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full border border-emerald-200 uppercase">2026</span>
                     </h2>
                     <p className="text-xs text-slate-500">
@@ -297,6 +243,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
 
         {/* Filters */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-4 space-y-3">
+            {/* ... (Filters UI code remains same) ... */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 mb-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <Filter className="w-3.5 h-3.5" /> Filter Data (2026)
@@ -413,7 +360,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
 
                             {/* Action Buttons: Template & Dropdown */}
                             <div className="flex items-center gap-2 w-full sm:w-auto">
-                                {/* NEW: WHATSAPP BUTTON */}
                                 <button 
                                     onClick={() => onGenerateMessage(contact)}
                                     className="p-2.5 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg border border-orange-200 transition-colors"

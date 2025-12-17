@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
-import { updateContactData } from '../services/sheetService';
-import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText, Check, Calendar, UserCheck } from 'lucide-react';
+import { saveContactToSupabase } from '../services/supabaseService';
+import { X, Save, Trash2, Contact as ContactIcon, Info, Lock, Loader2, Zap, FileText, Check, Calendar, UserCheck, Cloud } from 'lucide-react';
 
 interface EditContactModalProps {
   contact: Contact | null;
@@ -51,19 +51,11 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
       
       try {
           // 1. UI Update (Immediate)
-          onSave(formData as Contact);
+          const updatedContact = formData as Contact;
+          onSave(updatedContact);
           
-          // 2. Background Sync
-          if (sheetConfig?.googleScriptUrl) {
-               await updateContactData(
-                   sheetConfig.googleScriptUrl, 
-                   formData.name, 
-                   formData.phone || '', 
-                   formData.notes || '',
-                   formData.mapping || '', // Pass mapping if exists
-                   sheetConfig.enableDebugMode
-               );
-          }
+          // 2. Background Sync (Supabase)
+          await saveContactToSupabase(updatedContact);
           
           setSaveStatus('success');
           // Close after short delay to show success tick
@@ -74,6 +66,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
 
       } catch (err) {
           console.error("Save failed:", err);
+          alert("Gagal menyimpan ke Supabase. Cek koneksi internet.");
           setSaveStatus('error');
           setIsSaving(false);
       }
@@ -127,17 +120,10 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
           
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-3">
-             <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-             <div className="text-xs text-blue-800 leading-relaxed">
-                 <span className="font-bold">Mode Sinkronisasi:</span> 
-                 {sheetConfig?.googleScriptUrl ? (
-                     <span className="text-green-700 font-bold block mt-1 flex items-center gap-1">
-                        <Zap className="w-3 h-3" /> Auto-Save ke Google Sheets aktif.
-                     </span>
-                 ) : (
-                     <span className="text-orange-700 block mt-1">⚠ Script belum dipasang. Data hanya tersimpan di HP ini.</span>
-                 )}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex gap-3">
+             <Cloud className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+             <div className="text-xs text-emerald-800 leading-relaxed">
+                 <span className="font-bold">Mode Cloud:</span> Perubahan akan langsung disimpan ke Database Supabase.
              </div>
           </div>
 
