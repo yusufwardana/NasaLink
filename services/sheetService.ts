@@ -298,4 +298,18 @@ export const updateContactData = async (
     });
 };
 
+// NEW: BATCH UPDATE (KIRIM PAKET)
+export const updateContactMappingBatch = async (
+    scriptUrl: string,
+    updates: { name: string, mapping: string }[],
+    isDebug: boolean = false
+): Promise<void> => {
+    // Send 1 large request instead of N small requests
+    await postToScript(scriptUrl, {
+        action: 'batch_update_mapping',
+        updates: updates,
+        debug: isDebug
+    });
+};
+
 export const updatePhoneInSheet = updateContactData;

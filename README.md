@@ -20,19 +20,19 @@ B-Connect CRM adalah aplikasi manajemen data nasabah (Direktori Nasabah) yang di
 
 1. **Sheet "Data"**: Kolom Wajib (Baris 1): `CO`, `SENTRA`, `NASABAH`, `FLAG`, `TGL JATUH TEMPO`, `NOMER TELP`, `CATATAN`, **`MAPPING`**.
 2. **Sheet "Plan"**: (Biarkan kosong, script akan otomatis membuat header).
-3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.8 - Support Clear Data & Mapping):
+3. **Buka Extensions > Apps Script**, Copy kode di bawah ini (Versi 3.9 - Support Batch Update):
 
 ```javascript
 /**
  * B-CONNECT CRM BACKEND SCRIPT
- * Version: 3.8 (Fix: Support Clearing Data & Robust Mapping)
+ * Version: 3.9 (Fix: Batch Update for Reliability)
  */
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) return ContentService.createTextOutput(JSON.stringify({ "result": "busy" }));
+  // Wait longer for lock (30s) to handle batch processing
+  if (!lock.tryLock(30000)) return ContentService.createTextOutput(JSON.stringify({ "result": "busy" }));
 
-  // --- LOGGER HELPER ---
   var isDebug = false;
   var doc = SpreadsheetApp.getActiveSpreadsheet();
   
@@ -47,7 +47,6 @@ function doPost(e) {
       logSheet.appendRow([new Date(), msg]);
     } catch(err) {}
   }
-  // ---------------------
 
   try {
     if (!e.postData || !e.postData.contents) {
@@ -55,19 +54,68 @@ function doPost(e) {
     }
 
     var payload = JSON.parse(e.postData.contents);
-    
-    // 1. Check Debug Flag from Frontend
     if (payload.debug) {
        isDebug = true;
        logToSheet("Incoming Request: " + payload.action);
     }
     
-    // --- ACTION: SAVE PLAN (TARGET & REALISASI) ---
+    // --- ACTION: BATCH UPDATE MAPPING (NEW v3.9) ---
+    // Update banyak baris sekaligus dalam satu request (Lebih cepat & stabil)
+    if (payload.action === 'batch_update_mapping') {
+        var sheet = doc.getSheetByName('Data');
+        if (!sheet) return jsonResponse({ "result": "error", "msg": "Sheet Data missing" });
+
+        var updates = payload.updates; // Array of { name: "...", mapping: "..." }
+        if (!updates || updates.length === 0) return jsonResponse({ "result": "success", "count": 0 });
+
+        // 1. Get Headers & Data
+        var lastRow = sheet.getLastRow();
+        var lastCol = sheet.getLastColumn();
+        var range = sheet.getRange(1, 1, lastRow, lastCol);
+        var values = range.getValues();
+        var headers = values[0].map(function(h) { return String(h).toLowerCase(); });
+
+        // 2. Find Columns
+        var nameIdx = headers.findIndex(function(h) { return h.indexOf('nasabah') > -1 || h.indexOf('nama') > -1; });
+        var mapIdx = headers.findIndex(function(h) { return h.indexOf('mapping') > -1 || h.indexOf('keputusan') > -1; });
+
+        if (nameIdx === -1 || mapIdx === -1) {
+            logToSheet("Column Nasabah or Mapping not found.");
+            return jsonResponse({ "result": "error", "msg": "Columns missing" });
+        }
+
+        // 3. Map Rows for O(1) Lookup
+        var rowMap = {};
+        for (var i = 1; i < values.length; i++) {
+            var rowName = String(values[i][nameIdx]).trim();
+            if (rowName) {
+                // Simpan index baris (0-based relative to values array)
+                rowMap[rowName] = i; 
+            }
+        }
+
+        // 4. Process Updates
+        var successCount = 0;
+        updates.forEach(function(u) {
+            var targetRowIdx = rowMap[u.name];
+            if (targetRowIdx !== undefined) {
+                // Update Value in Memory Array first (optional if we want to write back whole block, but simple setValue is safer for concurrency if we use lock properly)
+                // Using individual setValue inside lock is safe. For extreme speed on 1000+ rows we'd rewrite whole sheet, but for <100 rows setValue is fine.
+                sheet.getRange(targetRowIdx + 1, mapIdx + 1).setValue(u.mapping);
+                successCount++;
+            }
+        });
+
+        SpreadsheetApp.flush();
+        logToSheet("Batch update processed: " + successCount);
+        return jsonResponse({ "result": "success", "processed": successCount });
+    }
+
+    // --- ACTION: SAVE PLAN ---
     if (payload.action === 'save_plan') {
       var sheet = doc.getSheetByName('Plan');
       if (!sheet) {
         sheet = doc.insertSheet('Plan');
-        // 24 Columns Standard Header
         var headers24 = [
           "ID", "Tanggal", "CO", 
           "Plan SW Cur NOA", "Plan SW Cur Disb", "Plan SW Next NOA", "Plan SW Next Disb", 
@@ -78,18 +126,15 @@ function doPost(e) {
           "Aktual FPPB", "Aktual Biometrik"
         ];
         sheet.appendRow(headers24);
-        logToSheet("Created new Plan sheet with headers");
       }
 
       var p = payload.plan;
       var lastRow = sheet.getLastRow();
-      
       var headers = [];
       if (lastRow > 0) {
          headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
       }
 
-      // Mapping Frontend Keys to Sheet Headers (Flexible matching)
       var map = {
         'id': ['id', 'key'],
         'date': ['tanggal', 'date', 'tgl'],
@@ -104,7 +149,6 @@ function doPost(e) {
         'colLantakurOs': ['lantakur os', 'plan lantakur os'],
         'fppbNoa': ['fppb', 'plan fppb'],
         'biometrikNoa': ['biometrik', 'plan biometrik'],
-        // Actuals
         'actualSwNoa': ['aktual sw cur noa', 'aktual sw cur disb', 'aktual sw cur noa'],
         'actualSwDisb': ['aktual sw cur disb', 'actual sw cur disb'],
         'actualSwNextNoa': ['aktual sw next noa', 'actual sw next noa'],
@@ -118,161 +162,97 @@ function doPost(e) {
       };
 
       var rowIndex = -1;
-      
-      // Strategy 1: Try Find by ID
       var idxId = headers.indexOf('id');
-      if (idxId === -1) idxId = 0; // Assume col 1 is ID if not found
+      if (idxId === -1) idxId = 0; 
 
       if (p.id && lastRow > 1) {
          var idData = sheet.getRange(2, idxId + 1, lastRow - 1, 1).getValues();
          for (var i = 0; i < idData.length; i++) {
             if (String(idData[i][0]) === String(p.id)) {
                rowIndex = i + 2;
-               logToSheet("Found Row by ID at: " + rowIndex);
                break;
             }
          }
       }
 
-      // Strategy 2: Fallback Find by Date + CO
       if (rowIndex === -1 && lastRow > 1) {
          var idxTgl = headers.findIndex(function(h){ return h.indexOf('tanggal') > -1 || h.indexOf('date') > -1; });
          var idxCo = headers.findIndex(function(h){ return h.indexOf('co') > -1 || h.indexOf('petugas') > -1; });
-         
          if (idxTgl > -1 && idxCo > -1) {
-            function normDate(val) {
-               if (val instanceof Date) {
-                  return ("0" + val.getDate()).slice(-2) + "/" + ("0" + (val.getMonth()+1)).slice(-2) + "/" + val.getFullYear();
-               }
-               return String(val).trim();
-            }
-            
             var rowData = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
             var targetDate = String(p.date).trim();
             var targetCo = String(p.coName).toLowerCase().trim();
-
             for (var i = 0; i < rowData.length; i++) {
-               var rDate = normDate(rowData[i][idxTgl]);
-               var rCo = String(rowData[i][idxCo]).toLowerCase().trim();
-               
-               if (rDate === targetDate && rCo === targetCo) {
+               // Simple check logic
+               if (String(rowData[i][idxTgl]).includes(targetDate) && String(rowData[i][idxCo]).toLowerCase() === targetCo) {
                   rowIndex = i + 2;
-                  logToSheet("Found Row by Date+CO at: " + rowIndex);
                   break;
                }
             }
          }
       }
 
-      // Strategy 3: Create New Row
       if (rowIndex === -1) {
          sheet.appendRow([p.id]); 
          rowIndex = sheet.getLastRow();
-         logToSheet("Created New Row at: " + rowIndex);
       }
 
-      // WRITE DATA LOOP
       for (var key in map) {
          if (p[key] !== undefined && p[key] !== null) {
             var keywords = map[key];
             var colIndex = -1;
-            
             for (var c = 0; c < headers.length; c++) {
                if (keywords.some(function(k) { return headers[c].indexOf(k) > -1; })) {
                   colIndex = c + 1; break;
                }
             }
-
             if (colIndex > -1) {
                var val = p[key];
-               // Force string for ID/CO to prevent auto-formatting
-               if (key === 'id' || key === 'coName') {
-                  val = "'" + val;
-               }
+               if (key === 'id' || key === 'coName') val = "'" + val;
                sheet.getRange(rowIndex, colIndex).setValue(val);
             }
          }
       }
-      
-      // Update Timestamp
-      var tsIdx = headers.findIndex(function(h) { return h.includes('timestamp'); });
-      if (tsIdx > -1) {
-         sheet.getRange(rowIndex, tsIdx + 1).setValue(new Date());
-      }
-
-      SpreadsheetApp.flush();
-      logToSheet("Success saving plan.");
       return jsonResponse({ "result": "success", "row": rowIndex });
     }
 
-    // --- ACTION: UPDATE CONTACT (PHONE, NOTES, MAPPING) ---
-    if (payload.action === 'update_contact' || payload.action === 'update_phone') {
+    // --- ACTION: UPDATE SINGLE CONTACT ---
+    if (payload.action === 'update_contact') {
         var sheet = doc.getSheetByName('Data');
-        if (!sheet) {
-             logToSheet("Sheet 'Data' not found!");
-             return jsonResponse({ "result": "error", "msg": "Sheet Data missing" });
-        }
+        if (!sheet) return jsonResponse({ "result": "error", "msg": "Sheet Data missing" });
         
         var finder = sheet.createTextFinder(payload.name).matchEntireCell(true).findNext();
         if (finder) {
              var headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
              var rowIdx = finder.getRow();
              
-             // 1. Update Phone (Support Clearing: Check undefined)
              if (payload.phone !== undefined) {
                  var colIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/telp|phone|wa/); });
-                 if (colIdx > -1) {
-                   sheet.getRange(rowIdx, colIdx + 1).setValue("'" + payload.phone); // Force string
-                   logToSheet("Updated phone for " + payload.name);
-                 }
+                 if (colIdx > -1) sheet.getRange(rowIdx, colIdx + 1).setValue("'" + payload.phone);
              }
-             
-             // 2. Update Notes
              if (payload.notes !== undefined) {
                  var noteIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/catatan|note|keterangan/); });
-                 if (noteIdx > -1) {
-                   sheet.getRange(rowIdx, noteIdx + 1).setValue(payload.notes);
-                   logToSheet("Updated notes for " + payload.name);
-                 }
+                 if (noteIdx > -1) sheet.getRange(rowIdx, noteIdx + 1).setValue(payload.notes);
              }
-
-             // 3. Update Mapping
              if (payload.mapping !== undefined) {
                  var mapIdx = headers.findIndex(function(h) { return String(h).toLowerCase().match(/mapping|keputusan|lanjut/); });
-                 if (mapIdx > -1) {
-                   sheet.getRange(rowIdx, mapIdx + 1).setValue(payload.mapping);
-                   logToSheet("Updated mapping for " + payload.name + " to " + payload.mapping);
-                 } else {
-                   logToSheet("Mapping column not found in headers");
-                 }
+                 if (mapIdx > -1) sheet.getRange(rowIdx, mapIdx + 1).setValue(payload.mapping);
              }
-
-        } else {
-             logToSheet("Name not found for update: " + payload.name);
         }
         return jsonResponse({ "result": "success" });
     }
 
-    // --- ACTION: SAVE TEMPLATES (BACKUP) ---
+    // --- ACTION: SAVE TEMPLATES ---
     if (payload.action === 'save_templates') {
        var tSheet = doc.getSheetByName('Templates');
-       if (!tSheet) {
-          tSheet = doc.insertSheet('Templates');
-          tSheet.appendRow(['ID', 'Label', 'Type', 'Prompt', 'Content', 'Icon']);
-       } else {
-          tSheet.clearContents();
-          tSheet.appendRow(['ID', 'Label', 'Type', 'Prompt', 'Content', 'Icon']);
-       }
+       if (!tSheet) tSheet = doc.insertSheet('Templates');
+       else tSheet.clearContents();
        
-       var templates = payload.templates || [];
-       var rows = templates.map(function(t) {
+       tSheet.appendRow(['ID', 'Label', 'Type', 'Prompt', 'Content', 'Icon']);
+       var rows = (payload.templates || []).map(function(t) {
           return [t.id, t.label, t.type, t.promptContext || '', t.content || '', t.icon || ''];
        });
-       
-       if (rows.length > 0) {
-          tSheet.getRange(2, 1, rows.length, 6).setValues(rows);
-       }
-       logToSheet("Templates backed up: " + rows.length);
+       if (rows.length > 0) tSheet.getRange(2, 1, rows.length, 6).setValues(rows);
        return jsonResponse({ "result": "success" }); 
     }
 

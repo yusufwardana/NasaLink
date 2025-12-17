@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Contact, SheetConfig } from '../types';
 import { Button } from './Button';
 import { ArrowLeft, Filter, Search, ChevronDown, CheckCircle2, AlertTriangle, UserCheck, CalendarDays, MapPin, ListFilter, Save, Loader2, RefreshCw, Wand2 } from 'lucide-react';
-import { updateContactData } from '../services/sheetService';
+import { updateContactMappingBatch } from '../services/sheetService';
 
 interface MappingPanelProps {
   contacts: Contact[];
@@ -30,9 +30,6 @@ const MONTH_NAMES = [
 // Helper: Normalize strings to avoid mismatch due to trailing spaces
 const normalize = (str?: string) => (str || '').trim();
 
-// Helper: Delay function to prevent flooding Google Apps Script
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const MappingPanel: React.FC<MappingPanelProps> = ({ 
   contacts, 
   onBack,
@@ -53,9 +50,6 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   const [pendingChanges, setPendingChanges] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   
-  // Progress State for Saving
-  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
-
   // --- HELPER: DATE PARSING ---
   const parseDateParts = (dateStr?: string) => {
       if (!dateStr) return null;
@@ -204,61 +198,54 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
       }));
   };
 
+  // BATCH SAVE HANDLER (NEW LOGIC)
   const handleSaveChanges = async () => {
-      const changesToProcess = Object.entries(pendingChanges);
-      if (changesToProcess.length === 0) return;
+      const changesEntries = Object.entries(pendingChanges);
+      if (changesEntries.length === 0) return;
 
       setIsSaving(true);
-      setSaveProgress({ current: 0, total: changesToProcess.length });
       
-      let successCount = 0;
-
       try {
-          // PROCESS SEQUENTIALLY (Antrian) 
-          // Ini memastikan Google Sheet tidak menolak request karena 'Too many concurrent requests'
-          for (let i = 0; i < changesToProcess.length; i++) {
-              const [id, newMapping] = changesToProcess[i];
+          // 1. Construct Batch Payload
+          const updatesPayload: { name: string, mapping: string }[] = [];
+          
+          changesEntries.forEach(([id, newMapping]) => {
               const contact = contacts.find(c => c.id === id);
-              
               if (contact) {
-                  // 1. Update Sheet
-                  if (config?.googleScriptUrl) {
-                      try {
-                          await updateContactData(
-                              config.googleScriptUrl,
-                              contact.name,
-                              undefined, // phone
-                              undefined, // notes
-                              newMapping as string,
-                              config.enableDebugMode
-                          );
-                          // IMPORTANT: Add small delay between requests to allow GS lock to release
-                          await delay(500); 
-                      } catch (err) {
-                          console.error(`Failed to save ${contact.name}`, err);
-                          // Continue to next item even if one fails
-                      }
-                  }
-                  
-                  // 2. Update Local App State
-                  const updated = { ...contact, mapping: newMapping as string };
-                  onUpdateContact(updated);
-                  successCount++;
+                  updatesPayload.push({
+                      name: contact.name,
+                      mapping: newMapping
+                  });
               }
+          });
 
-              // Update Progress UI
-              setSaveProgress(prev => ({ ...prev, current: i + 1 }));
+          const scriptUrl = config?.googleScriptUrl;
+          if (updatesPayload.length > 0 && typeof scriptUrl === 'string' && scriptUrl.length > 0) {
+              // 2. Send SINGLE Batch Request
+              await updateContactMappingBatch(
+                  scriptUrl,
+                  updatesPayload,
+                  !!config?.enableDebugMode
+              );
           }
 
+          // 3. Update Local State (Optimistic)
+          changesEntries.forEach(([id, newMapping]) => {
+              const contact = contacts.find(c => c.id === id);
+              if (contact) {
+                  const updated = { ...contact, mapping: newMapping };
+                  onUpdateContact(updated);
+              }
+          });
+
           setPendingChanges({});
-          alert(`Selesai! ${successCount} data berhasil disimpan ke database.`);
+          alert(`Berhasil mengirim ${updatesPayload.length} data ke server.`);
 
       } catch (e) {
           console.error("Batch save failed", e);
-          alert("Terjadi kesalahan. Sebagian data mungkin tersimpan.");
+          alert("Gagal menyimpan data. Cek koneksi internet.");
       } finally {
           setIsSaving(false);
-          setSaveProgress({ current: 0, total: 0 });
       }
   };
 
@@ -472,7 +459,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                         className="bg-orange-500 hover:bg-orange-600 border-none shadow-lg shadow-orange-500/20 text-white min-w-[140px]"
                         icon={isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
                     >
-                        {isSaving ? `Menyimpan ${saveProgress.current}/${saveProgress.total}` : 'Simpan Semua'}
+                        {isSaving ? `Menyimpan...` : 'Simpan Semua'}
                     </Button>
                 </div>
             </div>
