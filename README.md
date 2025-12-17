@@ -19,6 +19,9 @@ Karena aplikasi sekarang "Full Supabase", Anda perlu membuat tabel `contacts` un
 
 ```sql
 -- 1. Tabel Contacts (Data Nasabah)
+-- Drop table lama jika ada (HATI-HATI: Data hilang)
+-- drop table if exists contacts;
+
 create table if not exists contacts (
   id text primary key,
   name text not null,
@@ -26,20 +29,28 @@ create table if not exists contacts (
   flag text,
   sentra text,
   co text,
-  plafon text,
-  produk text,
-  tgl_jatuh_tempo text, -- Disimpan sebagai text DD/MM/YYYY sesuai format aplikasi
-  tgl_prs text,
+  
+  -- Financials (Numeric)
+  plafon numeric default 0,
+  os numeric default 0,
+  angsuran numeric default 0,
+  tunggakan numeric default 0,
+  saldo_tabungan numeric default 0,
+  
+  -- Status & Dates
+  dpd integer default 0,
   status text,
+  tgl_jatuh_tempo text, -- Tetap text (DD/MM/YYYY) untuk fleksibilitas import
+  tgl_prs text,         -- Tetap text karena bisa berisi tanggal atau hari saja (misal: "15")
+  tgl_lunas text,
+  
+  -- Details
+  produk text,
   notes text,
   app_id text,
   cif text,
-  os text,
-  dpd text,
-  saldo_tabungan text,
-  tgl_lunas text,
-  angsuran text,
-  tunggakan text,
+  
+  -- Flags
   flag_menunggak text,
   flag_lantakur text,
   mapping text,
@@ -105,6 +116,6 @@ Untuk memindahkan data dari Google Sheet ke Supabase:
      - `FLAG` -> `flag`
      - `SENTRA` -> `sentra`
      - `CO` -> `co`
-     - `TGL JATUH TEMPO` -> `tgl_jatuh_tempo`
-     - ...dan seterusnya. Anda mungkin perlu rename header di CSV sebelum upload.
+     - `OS` -> `os` (Pastikan format angka bersih, tidak ada "Rp" atau titik di CSV jika memungkinkan, atau biarkan Supabase mencoba parsing)
+     - ...dan seterusnya.
 

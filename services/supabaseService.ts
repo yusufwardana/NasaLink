@@ -38,6 +38,14 @@ const fromDbDate = (dateStr: string): string => {
     return dateStr;
 };
 
+// --- HELPER: NUMERIC CLEANING ---
+const cleanNumber = (val: string | number | undefined): number => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    // Remove non-numeric chars except minus sign
+    return parseInt(val.replace(/[^0-9-]/g, '') || '0', 10);
+};
+
 // ============================================================================
 // CONTACTS OPERATIONS (REPLACING GOOGLE SHEETS)
 // ============================================================================
@@ -58,6 +66,7 @@ export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
         }
 
         // Map DB snake_case to App camelCase
+        // DB returns Numbers for numeric columns, convert back to String for App
         return (data || []).map((row: any) => ({
             id: row.id,
             name: row.name,
@@ -65,7 +74,15 @@ export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
             flag: row.flag || 'Active',
             sentra: row.sentra || '',
             co: row.co || '',
-            plafon: row.plafon || '',
+            
+            // Financials (Convert Number -> String)
+            plafon: String(row.plafon || 0),
+            os: String(row.os || 0),
+            angsuran: String(row.angsuran || 0),
+            tunggakan: String(row.tunggakan || 0),
+            saldoTabungan: String(row.saldo_tabungan || 0),
+            dpd: String(row.dpd || 0),
+
             produk: row.produk || '',
             tglJatuhTempo: row.tgl_jatuh_tempo || '', // Text format DD/MM/YYYY persisted
             tglPrs: row.tgl_prs || '',
@@ -73,12 +90,8 @@ export const fetchContactsFromSupabase = async (): Promise<Contact[]> => {
             notes: row.notes || '',
             appId: row.app_id || '',
             cif: row.cif || '',
-            os: row.os || '',
-            dpd: row.dpd || '',
-            saldoTabungan: row.saldo_tabungan || '',
             tglLunas: row.tgl_lunas || '',
-            angsuran: row.angsuran || '',
-            tunggakan: row.tunggakan || '',
+            
             flagMenunggak: row.flag_menunggak || '',
             flagLantakur: row.flag_lantakur || '',
             mapping: row.mapping || '',
@@ -94,6 +107,7 @@ export const saveContactToSupabase = async (contact: Contact): Promise<void> => 
     if (!supabase) throw new Error("Supabase not configured");
 
     // Map App camelCase to DB snake_case
+    // Clean strings to Numbers for DB
     const dbRow = {
         id: contact.id,
         name: contact.name,
@@ -101,7 +115,15 @@ export const saveContactToSupabase = async (contact: Contact): Promise<void> => 
         flag: contact.flag,
         sentra: contact.sentra,
         co: contact.co,
-        plafon: contact.plafon,
+        
+        // Financials
+        plafon: cleanNumber(contact.plafon),
+        os: cleanNumber(contact.os),
+        angsuran: cleanNumber(contact.angsuran),
+        tunggakan: cleanNumber(contact.tunggakan),
+        saldo_tabungan: cleanNumber(contact.saldoTabungan),
+        dpd: cleanNumber(contact.dpd),
+
         produk: contact.produk,
         tgl_jatuh_tempo: contact.tglJatuhTempo,
         tgl_prs: contact.tglPrs,
@@ -109,12 +131,8 @@ export const saveContactToSupabase = async (contact: Contact): Promise<void> => 
         notes: contact.notes,
         app_id: contact.appId,
         cif: contact.cif,
-        os: contact.os,
-        dpd: contact.dpd,
-        saldo_tabungan: contact.saldoTabungan,
         tgl_lunas: contact.tglLunas,
-        angsuran: contact.angsuran,
-        tunggakan: contact.tunggakan,
+        
         flag_menunggak: contact.flagMenunggak,
         flag_lantakur: contact.flagLantakur,
         mapping: contact.mapping,
@@ -135,7 +153,7 @@ export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<
     if (!supabase) throw new Error("Supabase not configured");
     if (contacts.length === 0) return;
 
-    // Convert all to snake_case
+    // Convert all to snake_case & clean numbers
     const dbRows = contacts.map(contact => ({
         id: contact.id,
         name: contact.name,
@@ -143,7 +161,15 @@ export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<
         flag: contact.flag,
         sentra: contact.sentra,
         co: contact.co,
-        plafon: contact.plafon,
+        
+        // Financials
+        plafon: cleanNumber(contact.plafon),
+        os: cleanNumber(contact.os),
+        angsuran: cleanNumber(contact.angsuran),
+        tunggakan: cleanNumber(contact.tunggakan),
+        saldo_tabungan: cleanNumber(contact.saldoTabungan),
+        dpd: cleanNumber(contact.dpd),
+
         produk: contact.produk,
         tgl_jatuh_tempo: contact.tglJatuhTempo,
         tgl_prs: contact.tglPrs,
@@ -151,12 +177,8 @@ export const saveContactsBatchToSupabase = async (contacts: Contact[]): Promise<
         notes: contact.notes,
         app_id: contact.appId,
         cif: contact.cif,
-        os: contact.os,
-        dpd: contact.dpd,
-        saldo_tabungan: contact.saldoTabungan,
         tgl_lunas: contact.tglLunas,
-        angsuran: contact.angsuran,
-        tunggakan: contact.tunggakan,
+        
         flag_menunggak: contact.flagMenunggak,
         flag_lantakur: contact.flagLantakur,
         mapping: contact.mapping,
@@ -248,7 +270,7 @@ export const fetchPlansFromSupabase = async (): Promise<DailyPlan[]> => {
 export const savePlanToSupabase = async (plan: DailyPlan): Promise<void> => {
     if (!supabase) return;
 
-    const num = (val?: string) => parseInt((val || '0').replace(/[^0-9]/g, ''), 10);
+    const num = (val?: string) => cleanNumber(val);
 
     const dbRow = {
         id: plan.id,
